@@ -1,0 +1,22 @@
+====================
+Description
+====================
+
+Firecloud API bindings and Command-Line interface.
+
+====================
+Requirements
+====================
+
+Firecloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
+authorization. To use the firecloud CLI or API, you must install the SDK and login
+locally with
+
+	gcloud auth login
+
+
+====================
+Release Notes
+====================
+
+v0.0.1. - Initial Release
