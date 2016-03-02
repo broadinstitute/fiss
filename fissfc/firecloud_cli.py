@@ -8,7 +8,7 @@ from six import print_
 from yapsy.PluginManager import PluginManager
 import os
 
-__version__="0.3.0"
+__version__="0.3.1"
 
 
 
@@ -51,8 +51,14 @@ def space_info(args):
     print_(c)
 
 def space_delete(args):
-    response, content = fapi.delete_workspace(args.namespace, args.workspace,
-                                              args.api_url)
+
+    if not _are_you_sure("Delete workspace: {0}/{1}".format(args.namespace,
+                                                        args.workspace)):
+        #Don't do it!
+        return 
+    response, content = fapi.delete_workspace(args.namespace, 
+                                                 args.workspace,
+                                                 args.api_url)
     _err_response(response, content, [202])
     print_('Deleted workspace {0}/{1}'.format(args.namespace, args.workspace))
 
@@ -228,6 +234,15 @@ def config_acl(args):
         role = d['role']
         print_('{0}\t{1}'.format(user, role))
 
+def _are_you_sure(action):
+    """
+    Prompts the user to agree (Y/y) to the proposed action.
+
+    Returns true on (Y, Yes, y, yes), any other input is false
+    """
+    agreed = ("Y", "Yes", "yes", "y")
+    answer = raw_input("WARNING: This will \n\t{0} \nAre you sure? [Y\\n]: ".format(action))
+    return answer in agreed
 
 
 def _err_response(response, content, expected):
