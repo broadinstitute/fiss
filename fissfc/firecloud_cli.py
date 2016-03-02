@@ -5,8 +5,13 @@ from argparse import ArgumentParser, _SubParsersAction
 import json
 import sys
 from six import print_
+from yapsy.PluginManager import PluginManager
+import os
 
-__version__="0.2.2"
+__version__="0.3.0"
+
+
+
 
 def space_list(args):
     response, content = fapi.list_workspaces(args.api_url)
@@ -86,6 +91,14 @@ def entity_list(args):
     _err_response(r,c, [200])
     for entity in json.loads(c):
         print_('{0}\t{1}'.format(entity['entityType'], entity['name']))
+
+def entity_list_tsv(args):
+    r, c = fapi.get_workspace_entities_tsv(args.namespace,
+                                                args.workspace, 
+                                                args.etype,
+                                                args.api_url)
+    _err_response(r,c, [200])
+    print_(c)
 
 def participant_list(args):
     r, c = fapi.get_workspace_entities(args.namespace, args.workspace,
@@ -228,14 +241,32 @@ def _err_response(response, content, expected):
 
 
 def main():
+    #Set defaults using CLI default values
+    default_api_url = fapi.PROD_API_ROOT
+    default_project = ''
+
+    # Load any plugins, in case we need to override defaults
+    manager = PluginManager()
+    manager.setPluginPlaces([os.path.expanduser('~/.fissfc/plugins'), "plugins"])
+    manager.collectPlugins()
+
+
+    # Using the plugins, load defaults
+    for pluginInfo in manager.getAllPlugins():
+        #API_URL
+        default_api_url = getattr(pluginInfo.plugin_object, 'API_URL', default_api_url)
+        # Default Google project
+        default_project = getattr(pluginInfo.plugin_object, 'DEFAULT_PROJECT', default_project)
+
+
     parser = ArgumentParser(usage='%(prog)s [flags] <command> [args]',
                        description='The Firecloud CLI for fiss users')
 
     # Core Flags
     parser.add_argument('-u', '--url', dest='api_url',
-                        default=fapi.PROD_API_ROOT,
-                        help='Firecloud api url. Default is \
-                             {0}'.format(fapi.PROD_API_ROOT))
+                        default=default_api_url,
+                        help='Firecloud api url. Your default is \
+                             {0}'.format(default_api_url))
 
     parser.add_argument('-l', '--list',
                         action='store_true',
@@ -317,6 +348,13 @@ def main():
     el_parser.add_argument('namespace', help='Workspace namespace')
     el_parser.add_argument('workspace', help='Workspace name')
     el_parser.set_defaults(func=entity_list)
+
+    etsv_parser = subparsers.add_parser('entity_tsv',
+                              description='Get a tsv of workspace entities')
+    etsv_parser.add_argument('namespace', help='Workspace namespace')
+    etsv_parser.add_argument('workspace', help='Workspace name')
+    etsv_parser.add_argument('etype', help='Workspace name')
+    etsv_parser.set_defaults(func=entity_list_tsv)
 
     #List of participants
     pl_parser = subparsers.add_parser('participant_list',
@@ -459,6 +497,11 @@ def main():
     # cacl_parser.add_argument('users', metavar='user', help='Firecloud username',
     #                          nargs='+')
     # cacl_parser.set_defaults(func=flow_set_acl)
+
+    # Add any commands from the plugin
+    for pluginInfo in manager.getAllPlugins():
+        pluginInfo.plugin_object.register_commands(subparsers)
+
 
     ##Special case, print help with no arguments
     if len(sys.argv) == 1:

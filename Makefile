@@ -18,6 +18,9 @@ test:
 install:
 	pip install --upgrade .
 
+reinstall:
+	pip install --upgrade --force-reinstall .
+
 uninstall:
 	pip uninstall -y  fissfc
 

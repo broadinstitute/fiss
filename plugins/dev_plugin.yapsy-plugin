@@ -1,0 +1,9 @@
+[Core]
+Name = FISS GDAC Development plugin
+Module = dev_plugin
+
+[Documentation]
+Description = Yapsy plugin for gdac-firecloud developers
+Author = Tim DeFreitas
+Version = 0.1
+Website = github.com/broadinstitute/gdac-firecloud

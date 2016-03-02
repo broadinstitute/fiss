@@ -1,0 +1,9 @@
+[Core]
+Name = Template FISSFC plugin
+Module = template
+
+[Documentation]
+Description = Template plugin
+Author = Tim DeFreitas
+Version = 0.1
+Website = github.com/broadinstitute/gdac-firecloud

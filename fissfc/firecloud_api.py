@@ -171,6 +171,12 @@ def get_workspace_entities(namespace, workspace, etype, api_root=PROD_API_ROOT):
                                                        workspace, etype)
     return http.request(uri)
 
+def get_workspace_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/entities/{3}/tsv".format(api_root, namespace,
+                                                       workspace, etype)
+    return http.request(uri)
+
 def delete_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(api_root,
