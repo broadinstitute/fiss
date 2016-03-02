@@ -18,7 +18,8 @@ setup(
     test_suite = 'nose.collector',
     install_requires = [
         'httplib2',
-        'oauth2client'
+        'oauth2client',
+        'yapsy'
     ],
 
     )
