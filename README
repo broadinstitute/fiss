@@ -19,6 +19,8 @@ locally with
 Release Notes
 ====================
 
+v0.3.2 - Add check in firecloud_api for  the existence of gcloud credentials
+
 v0.3.1 - Add confirmation prompt for delete commands, and a 
          Flag to override them.
 

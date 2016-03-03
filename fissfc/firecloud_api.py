@@ -9,21 +9,35 @@ import json
 import httplib2
 import urllib
 from oauth2client.client import GoogleCredentials
-
+import os
+import sys
+from six import print_
 
 PROD_API_ROOT = "https://portal.firecloud.org/service/api"
 
 #################################################
 # Utilities
 #################################################
+def _credentials_exist():
+    """
+    Checks to see whether application default credentials exist
+    """
+    pth = os.path.expanduser('~/.config/gcloud/application_default_credentials.json')
+    return os.path.isfile(pth)
 
 
 def _gcloud_authorized_http():
     """
     Create and returna an gcloud authorized Http object
     """
-    http = httplib2.Http(".cache")
+    if not _credentials_exist():
+        print_("ERROR: Could not find default google SDK credentials")
+        print_("Ensure that the cloud SDK is installed, and then run")
+        print_("    gcloud auth login")
+        sys.exit(1)
+
     credentials = GoogleCredentials.get_application_default()
+    http = httplib2.Http(".cache")
     return credentials.authorize(http)
 
 #################################################
