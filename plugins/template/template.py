@@ -4,7 +4,7 @@
 
 from yapsy.IPlugin import IPlugin
 
-class GDACFissfcPlugin(IPlugin):
+class FissfcPlugin(IPlugin):
 
     ### Change these to set default values for Fissfc
     # API_URL = "https://portal.firecloud.org/service/api"

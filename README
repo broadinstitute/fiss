@@ -19,6 +19,9 @@ locally with
 Release Notes
 ====================
 
+v0.3.1 - Add confirmation prompt for delete commands, and a 
+         Flag to override them.
+
 v0.3.0 - Added support for Yapsy plugins. 
 
 v0.0.1 - Initial Release

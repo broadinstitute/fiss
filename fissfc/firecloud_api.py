@@ -13,6 +13,11 @@ from oauth2client.client import GoogleCredentials
 
 PROD_API_ROOT = "https://portal.firecloud.org/service/api"
 
+#################################################
+# Utilities
+#################################################
+
+
 def _gcloud_authorized_http():
     """
     Create and returna an gcloud authorized Http object
@@ -22,7 +27,7 @@ def _gcloud_authorized_http():
     return credentials.authorize(http)
 
 #################################################
-# Workspaces
+# API calls, see https://portal.firecloud.org/service/
 #################################################
 
 def list_workspaces(api_root=PROD_API_ROOT):

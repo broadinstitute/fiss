@@ -9,9 +9,11 @@ from yapsy.PluginManager import PluginManager
 import os
 
 __version__="0.3.1"
+PLUGIN_PLACES = [os.path.expanduser('~/.fissfc/plugins'), "plugins"]
 
-
-
+#################################################
+# SubCommands
+#################################################
 
 def space_list(args):
     response, content = fapi.list_workspaces(args.api_url)
@@ -51,11 +53,11 @@ def space_info(args):
     print_(c)
 
 def space_delete(args):
-
-    if not _are_you_sure("Delete workspace: {0}/{1}".format(args.namespace,
+    if not args.yes and not _are_you_sure("Delete workspace: {0}/{1}".format(args.namespace,
                                                         args.workspace)):
         #Don't do it!
         return 
+
     response, content = fapi.delete_workspace(args.namespace, 
                                                  args.workspace,
                                                  args.api_url)
@@ -128,6 +130,11 @@ def sample_set_list(args):
         print_(entity['name'])
 
 def entity_delete(args):
+    if not args.yes and not _are_you_sure("Delete " + args.type + " " + args.name + 
+                         "in " + args.namespace + "/" + args.workspace):
+        #Don't do it!
+        return 
+
     r, c = fapi.delete_entity(args.namespace, args.workspace,
                               args.type, args.name, args.api_url)
     _err_response(r,c, [204])
@@ -165,6 +172,10 @@ def flow_new(args):
     print_("Successfully pushed workflow")
 
 def flow_delete(args):
+    if not args.yes and not _are_you_sure("Delete workflow " + args.namespace +
+                                      "/" + args.name + ":" + args.snapshot_id):
+        #Don't do it!
+        return 
     r, c = fapi.redact_workflow(args.namespace, args.name, 
                                 args.snapshot_id, args.api_url)
     _err_response(r,c, [200])
@@ -234,6 +245,10 @@ def config_acl(args):
         role = d['role']
         print_('{0}\t{1}'.format(user, role))
 
+#################################################
+# Utilities
+#################################################
+
 def _are_you_sure(action):
     """
     Prompts the user to agree (Y/y) to the proposed action.
@@ -244,7 +259,6 @@ def _are_you_sure(action):
     answer = raw_input("WARNING: This will \n\t{0} \nAre you sure? [Y\\n]: ".format(action))
     return answer in agreed
 
-
 def _err_response(response, content, expected):
     """
     Throws an exception if the response status is unexpected
@@ -254,6 +268,10 @@ def _err_response(response, content, expected):
                                                              content)
         raise RuntimeError(emsg)
 
+#################################################
+# Main, entrypoint for fissfc
+################################################
+
 
 def main():
     #Set defaults using CLI default values
@@ -262,7 +280,7 @@ def main():
 
     # Load any plugins, in case we need to override defaults
     manager = PluginManager()
-    manager.setPluginPlaces([os.path.expanduser('~/.fissfc/plugins'), "plugins"])
+    manager.setPluginPlaces(PLUGIN_PLACES)
     manager.collectPlugins()
 
 
@@ -273,7 +291,7 @@ def main():
         # Default Google project
         default_project = getattr(pluginInfo.plugin_object, 'DEFAULT_PROJECT', default_project)
 
-
+    #Initialize core parser
     parser = ArgumentParser(usage='%(prog)s [flags] <command> [args]',
                        description='The Firecloud CLI for fiss users')
 
@@ -289,8 +307,13 @@ def main():
 
     parser.add_argument("-v", "--version", action='version', version=__version__)
 
+    parser.add_argument("-y", "--yes", action='store_true', 
+                            help="Assume yes for any prompts. \
+                            Necessary for scripting delete commands")
+
     # One subparser for each fiss equivalent
     subparsers = parser.add_subparsers(help='Supported commands')
+
 
     #Delete workspace
     space_delete_parser = subparsers.add_parser('space_delete',
@@ -535,9 +558,6 @@ def main():
         ##Otherwise parse args and call correct subcommand
         args = parser.parse_args()
         args.func(args)
-
-
-
 
 
 if __name__ == '__main__':
