@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 from fissfc import firecloud_api as fapi
-from argparse import ArgumentParser, _SubParsersAction
+from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
 import json
 import sys
 from six import print_
@@ -268,6 +268,16 @@ def _err_response(response, content, expected):
                                                              content)
         raise RuntimeError(emsg)
 
+def _nonempty_workspace(string):
+    """
+    Argparse validator for ensuring a workspace is provided
+    """
+    value = str(string)
+    if len(value) == 0:
+        msg = "No workspace provided and no DEFAULT_PROJECT found"
+        raise ArgumentTypeError(msg)
+    return value
+
 #################################################
 # Main, entrypoint for fissfc
 ################################################
@@ -291,9 +301,10 @@ def main():
         # Default Google project
         default_project = getattr(pluginInfo.plugin_object, 'DEFAULT_PROJECT', default_project)
 
+    default_project_list = [default_project] if default_project != '' else []
+
     #Initialize core parser
-    parser = ArgumentParser(usage='%(prog)s [flags] <command> [args]',
-                       description='The Firecloud CLI for fiss users')
+    parser = ArgumentParser(description='The Firecloud CLI for fiss users')
 
     # Core Flags
     parser.add_argument('-u', '--url', dest='api_url',
@@ -326,33 +337,49 @@ def main():
     space_list_parser = subparsers.add_parser('space_list',
                                     description='List available workspaces')
     space_list_parser.add_argument('namespaces', metavar='namespace',nargs='*',
-                         help='Only return workspaces from these namespaces')
+                         help='Only return workspaces from these namespaces.' + 
+                              'If none are specified, list only workspaces in ' +
+                              'your DEFAULT_PROJECT, otherwise all workspaces',
+                         default=default_project_list)
     space_list_parser.set_defaults(func=space_list)
 
     #Lock workspace
     space_lock_parser = subparsers.add_parser('space_lock',
                                               description='Lock a workspace')
-    space_lock_parser.add_argument('namespace', help='Workspace namespace')
+    space_lock_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT',)
     space_lock_parser.add_argument('workspace', help='Workspace name')
     space_lock_parser.set_defaults(func=space_lock)
 
     # Create Workspace
     space_new_parser = subparsers.add_parser('space_new',
                                             description='Create new workspace')
-    space_new_parser.add_argument('namespace', help='Workspace namespace')
+    space_new_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     space_new_parser.add_argument('workspace', help='Workspace name')
     space_new_parser.set_defaults(func=space_new)
 
     # Get workspace information
     si_parser = subparsers.add_parser('space_info',
                                     description='Show workspace information')
-    si_parser.add_argument('namespace', help='Workspace namespace')
+    si_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     si_parser.add_argument('workspace', help='Workspace name')
     si_parser.set_defaults(func=space_info)
+
     # Unlock Workspace
     space_unlock_parser = subparsers.add_parser('space_unlock',
                                               description='Unlock a workspace')
-    space_unlock_parser.add_argument('namespace', help='Workspace namespace')
+    space_unlock_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     space_unlock_parser.add_argument('workspace', help='Workspace name')
     space_unlock_parser.set_defaults(func=space_unlock)
 
@@ -368,7 +395,10 @@ def main():
     #Import data into a workspace
     import_parser = subparsers.add_parser('entity_import', 
                                 description='Import data into a workspace')
-    import_parser.add_argument('namespace', help='Workspace namespace')
+    import_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     import_parser.add_argument('workspace', help='Workspace name')
     import_parser.add_argument('file', help='Tab-delimited loadfile')
     import_parser.set_defaults(func=entity_import)
@@ -376,20 +406,29 @@ def main():
     #List of entity types in a workspace
     et_parser = subparsers.add_parser('entity_types',
                               description='List entity types in a workspace')
-    et_parser.add_argument('namespace', help='Workspace namespace')
+    et_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     et_parser.add_argument('workspace', help='Workspace name')
     et_parser.set_defaults(func=entity_types)
 
     #List of entities in a workspace
     el_parser = subparsers.add_parser('entity_list',
                               description='List entitities in a workspace')
-    el_parser.add_argument('namespace', help='Workspace namespace')
+    el_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     el_parser.add_argument('workspace', help='Workspace name')
     el_parser.set_defaults(func=entity_list)
 
     etsv_parser = subparsers.add_parser('entity_tsv',
                               description='Get a tsv of workspace entities')
-    etsv_parser.add_argument('namespace', help='Workspace namespace')
+    etsv_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     etsv_parser.add_argument('workspace', help='Workspace name')
     etsv_parser.add_argument('etype', help='Workspace name')
     etsv_parser.set_defaults(func=entity_list_tsv)
@@ -397,28 +436,40 @@ def main():
     #List of participants
     pl_parser = subparsers.add_parser('participant_list',
                               description='List participants in a workspace')
-    pl_parser.add_argument('namespace', help='Workspace namespace')
+    pl_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     pl_parser.add_argument('workspace', help='Workspace name')
     pl_parser.set_defaults(func=participant_list)
 
     #List of samples
     sl_parser = subparsers.add_parser('sample_list',
                               description='List samples in a workspace')
-    sl_parser.add_argument('namespace', help='Workspace namespace')
+    sl_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     sl_parser.add_argument('workspace', help='Workspace name')
     sl_parser.set_defaults(func=sample_list)
 
     #List of sample sets
     ssetl_parser = subparsers.add_parser('sset_list',
                               description='List samples in a workspace')
-    ssetl_parser.add_argument('namespace', help='Workspace namespace')
+    ssetl_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     ssetl_parser.add_argument('workspace', help='Workspace name')
     ssetl_parser.set_defaults(func=sample_set_list)
 
     #Delete entity in a workspace
     edel_parser = subparsers.add_parser('entity_delete',
                               description='Delete entity in a workspace')
-    edel_parser.add_argument('namespace', help='Workspace namespace')
+    edel_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     edel_parser.add_argument('workspace', help='Workspace name')
     edel_parser.add_argument('type', help='Entity type')
     edel_parser.add_argument('name', help='Entity name')
@@ -426,21 +477,30 @@ def main():
 
     partdel_parser = subparsers.add_parser('participant_delete',
                               description='Delete participant in a workspace')
-    partdel_parser.add_argument('namespace', help='Workspace namespace')
+    partdel_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     partdel_parser.add_argument('workspace', help='Workspace name')
     partdel_parser.add_argument('name', help='Participant name')
     partdel_parser.set_defaults(func=participant_delete)
 
     sdel_parser = subparsers.add_parser('sample_delete',
                               description='Delete sample in a workspace')
-    sdel_parser.add_argument('namespace', help='Workspace namespace')
+    sdel_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     sdel_parser.add_argument('workspace', help='Workspace name')
     sdel_parser.add_argument('name', help='Sample name')
     sdel_parser.set_defaults(func=sample_delete)
 
     ssdel_parser = subparsers.add_parser('sset_delete',
                               description='Delete sample in a workspace')
-    ssdel_parser.add_argument('namespace', help='Workspace namespace')
+    ssdel_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     ssdel_parser.add_argument('workspace', help='Workspace name')
     ssdel_parser.add_argument('name', help='Sample set name')
     ssdel_parser.set_defaults(func=sample_set_delete)
@@ -448,14 +508,20 @@ def main():
     #Show workspace roles
     wacl_parser = subparsers.add_parser('space_acl',
                               description='Show users and roles in workspace')
-    wacl_parser.add_argument('namespace', help='Workspace namespace')
+    wacl_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     wacl_parser.add_argument('workspace', help='Workspace name')
     wacl_parser.set_defaults(func=space_acl)
 
     #Set workspace roles
     sacl_parser = subparsers.add_parser('space_set_acl',
                               description='Show users and roles in workspace')
-    sacl_parser.add_argument('namespace', help='Workspace namespace')
+    sacl_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
     sacl_parser.add_argument('workspace', help='Workspace name')
     sacl_parser.add_argument('role', help='ACL role',
                          choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
