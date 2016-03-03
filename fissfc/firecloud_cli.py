@@ -8,7 +8,7 @@ from six import print_
 from yapsy.PluginManager import PluginManager
 import os
 
-__version__="0.4.0"
+__version__="0.4.1"
 PLUGIN_PLACES = [os.path.expanduser('~/.fissfc/plugins'), "plugins"]
 
 #################################################
@@ -245,6 +245,60 @@ def config_acl(args):
         role = d['role']
         print_('{0}\t{1}'.format(user, role))
 
+
+def attr_get(args):
+    ##if entities was specified
+    if args.etype is not None:
+        r, c = fapi.get_workspace_entities_with_type(args.namespace,
+                                                      args.workspace,
+                                                      args.api_url)
+        _err_response(r,c, [200])
+
+        dict_response = json.loads(c)
+
+        #Filter entities to only the one asked for
+        matching_entities = [d for d in dict_response if d['entityType'] == args.etype]
+
+        all_attr = [d['attributes'] for d in matching_entities]
+
+        #Union of all keys in the dictionary, i.e. all possible attributes
+        attr_list = set().union(*all_attr) if args.attributes == 'all' else args.attributes.split(',')
+        attr_list = sorted(attr_list)
+
+        header = args.etype + "_id\t" + "\t".join(attr_list)
+        print_(header)
+
+        for entity_dict in matching_entities:
+            name = entity_dict['name']
+            etype = entity_dict['entityType']
+            attrs = entity_dict['attributes']
+            line = name
+            for attr in attr_list:
+                ##Handle values that aren't just strings
+                if attr == 'participant':
+                    p = attrs.get(attr, None)
+                    pname = p['entityName'] if p is not None else ""
+                    line += "\t" + pname
+                elif attr == 'samples':
+                    slist = attrs.get(attr, None)
+                    snames = ",".join([s['entityName'] for s in slist]) if slist is not None else ""
+                    line += "\t" + snames
+                else:
+                    line += "\t" + str(attrs.get(attr, ""))
+            print_(line)
+
+    #Otherwise get workspace attributes
+    else:
+        r, c = fapi.get_workspace(args.namespace, args.workspace, args.api_url)
+        _err_response(r, c, [200])
+
+        workspace_attrs = json.loads(c)['workspace']['attributes']
+
+        for k in sorted(workspace_attrs.keys()):
+            if k in args.attributes.split(',') or args.attributes=='all':
+                print_(k + "\t" + workspace_attrs[k])
+
+
 #################################################
 # Utilities
 #################################################
@@ -274,7 +328,7 @@ def _nonempty_workspace(string):
     """
     value = str(string)
     if len(value) == 0:
-        msg = "No workspace provided and no DEFAULT_PROJECT found"
+        msg = "No namespace provided and no DEFAULT_PROJECT found"
         raise ArgumentTypeError(msg)
     return value
 
@@ -430,7 +484,7 @@ def main():
                                     help='Workspace namespace. If not specified, ' +
                                     'this will be your DEFAULT_PROJECT')
     etsv_parser.add_argument('workspace', help='Workspace name')
-    etsv_parser.add_argument('etype', help='Workspace name')
+    etsv_parser.add_argument('etype', help='Entity type')
     etsv_parser.set_defaults(func=entity_list_tsv)
 
     #List of participants
@@ -601,6 +655,31 @@ def main():
     # cacl_parser.add_argument('users', metavar='user', help='Firecloud username',
     #                          nargs='+')
     # cacl_parser.set_defaults(func=flow_set_acl)
+
+    #Get attributes
+
+    ##TODO: This is really messy. Perhaps this function should get it's own 
+    # custom validator and take all arguments as one positional list,
+    # and have a custom usage statement
+
+    attr_parser = subparsers.add_parser('attr_get', 
+                                usage='fissfc attr_get [-t ETYPE] [-a Attribute[,Attribute,...]]' +
+                                       ' [namespace] workspace',
+                                    description='Get attributes from entities in a workspace')
+    attr_parser.add_argument('namespace', nargs="?", default=default_project,
+                                    type=_nonempty_workspace,
+                                    help='Workspace namespace. If not specified, ' +
+                                    'this will be your DEFAULT_PROJECT')
+    attr_parser.add_argument('workspace', help='Workspace name')
+
+    attr_parser.add_argument('-t', '--entity-type', dest='etype',
+                            help='Entity type to retrieve annotations from.' +
+                            'If omitted, workspace annotations will be retrieved')
+    attr_parser.add_argument('-a', '--attributes', default='all', 
+                             help='Comma-separated list of Attributes to' +
+                             'retrieve. If not specified' +
+                             ' all attributes will be returned')
+    attr_parser.set_defaults(func=attr_get)
 
     # Add any commands from the plugin
     for pluginInfo in manager.getAllPlugins():

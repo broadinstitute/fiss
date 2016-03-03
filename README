@@ -18,6 +18,8 @@ locally with
 ====================
 Release Notes
 ====================
+v0.4.1 - Add attr_get subcommand, as a replacement for fiss annot_get.
+         Clarify error message. 
 
 v0.4.0 - Implement default value for google project into most subcommands
 
