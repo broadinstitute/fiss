@@ -18,6 +18,8 @@ locally with
 ====================
 Release Notes
 ====================
+v0.5.0 - Add python 3 support, so that fissfc should be installable to either version. A TLS issue may still prevent fissfc from working on some versions of python.
+
 v0.4.1 - Add attr_get subcommand, as a replacement for fiss annot_get.
          Clarify error message. 
 
