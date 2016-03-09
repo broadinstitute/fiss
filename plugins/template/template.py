@@ -3,6 +3,7 @@
 #######################
 
 from yapsy.IPlugin import IPlugin
+from six import print_
 
 class FissfcPlugin(IPlugin):
 
@@ -33,4 +34,4 @@ class FissfcPlugin(IPlugin):
         pass
         
 def test_print(args):
-    print "It worked!"
+    print_("It worked!")

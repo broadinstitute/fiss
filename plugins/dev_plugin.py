@@ -3,6 +3,7 @@
 #######################
 
 from yapsy.IPlugin import IPlugin
+from six import print_
 from fissfc import firecloud_api as fapi
 from fissfc.firecloud_cli import _are_you_sure, _err_response
 
@@ -30,10 +31,10 @@ class GDACFissfcPlugin(IPlugin):
             pass
 
         """
-        print "DEV PLUGIN: Loaded commands"
+        print_("DEV PLUGIN: Loaded commands")
         prsr = subparsers.add_parser('test_cmd', description='Test dynamically loaded cmd')
         prsr.set_defaults(func=test_print)
         
         
 def test_print(args):
-    print "It worked!"
+    print_("It worked!")

@@ -1,14 +1,14 @@
 import os
 from setuptools import setup, find_packages
-from fissfc import firecloud_cli
 
+VERSION="0.5.0"
 _README           = os.path.join(os.path.dirname(__file__), 'README')
 _LONG_DESCRIPTION = open(_README).read()
 
 # Setup information
 setup(
     name = 'fissfc',
-    version = firecloud_cli.__version__,
+    version = VERSION,
     packages = find_packages(),
     description = 'Firecloud python API and CLI',
     author = 'Tim DeFreitas',
