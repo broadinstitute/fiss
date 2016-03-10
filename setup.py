@@ -21,5 +21,9 @@ setup(
         'oauth2client',
         'yapsy'
     ],
+    classifiers = [
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3"
+    ],
 
     )
