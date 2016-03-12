@@ -19,7 +19,8 @@ install:
 	pip install --upgrade .
 
 reinstall:
-	pip install --upgrade --force-reinstall .
+	$(MAKE) uninstall
+	$(MAKE) install
 
 uninstall:
 	pip uninstall -y  fissfc

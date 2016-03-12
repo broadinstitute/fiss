@@ -9,7 +9,7 @@ import json
 import httplib2
 import urllib
 from oauth2client.client import GoogleCredentials
-import os
+from os.path import expanduser, isfile
 import sys
 from six import print_
 
@@ -22,8 +22,8 @@ def _credentials_exist():
     """
     Checks to see whether application default credentials exist
     """
-    pth = os.path.expanduser('~/.config/gcloud/application_default_credentials.json')
-    return os.path.isfile(pth)
+    pth = expanduser('~/.config/gcloud/application_default_credentials.json')
+    return isfile(pth)
 
 
 def _gcloud_authorized_http():
@@ -48,7 +48,8 @@ def list_workspaces(api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     return http.request("{0}/workspaces".format(api_root))
 
-def create_workspace(namespace, workspace, attributes=dict(), api_root=PROD_API_ROOT):
+def create_workspace(namespace, workspace, 
+                     attributes=dict(), api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     headers = {"Content-type":  "application/json"}
     body_dict = {"namespace": namespace, 
@@ -76,12 +77,13 @@ def get_workspace_acl(namespace, workspace,api_root=PROD_API_ROOT):
     uri = "{0}/workspaces/{1}/{2}/acl".format(api_root, namespace, workspace)
     return http.request(uri)
 
-def update_workspace_acl(namespace, workspace, acl_updates, api_root=PROD_API_ROOT):
+def update_workspace_acl(namespace, workspace, 
+                         acl_updates, api_root=PROD_API_ROOT):
     """
-    Update the workspace ACL. acl_updates should be a list of dictionaries,
-    with two keys:
-        "email" - whose value is a user email, e.g. "timdef@broadinstitute.org
-        "accessLevel" - whose value is one of "OWNER", "READER", "WRITER", "NO ACCESS"
+    Update the workspace ACL. acl_updates should be a list of
+    dictionaries with two keys:
+        "email" 
+        "accessLevel" - whose value is one of "OWNER", "READER", etc.
     """
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/acl".format(api_root, namespace, workspace)
@@ -110,19 +112,22 @@ def lock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
 
 def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/unlock".format(api_root, namespace, workspace)
+    uri = "{0}/workspaces/{1}/{2}/unlock".format(api_root, 
+                                                 namespace, workspace)
     return http.request(uri, "PUT")
 
 
-def get_workspace_method_configs(namespace, workspace,api_root=PROD_API_ROOT):
+def get_workspace_method_configs(namespace, workspace, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root, namespace, workspace)
+    uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root, 
+                                                        namespace, workspace)
     return http.request(uri)
 
-def create_method_config(namespace, workspace,api_root=PROD_API_ROOT):
+def create_method_config(namespace, workspace, api_root=PROD_API_ROOT):
     raise NotImplementedError
 
-def update_attributes(namespace, workspace, attr_updates, api_root=PROD_API_ROOT):
+def update_attributes(namespace, workspace, 
+                      attr_updates, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/updateAttributes".format(api_root,
                                                            namespace, 
@@ -131,7 +136,8 @@ def update_attributes(namespace, workspace, attr_updates, api_root=PROD_API_ROOT
     json_body = json.dumps(attr_updates)
     return http.request(uri, "PATCH", headers=headers, body=json_body)
 
-def upload_entities(namespace, workspace, entities_tsv, api_root=PROD_API_ROOT):
+def upload_entities(namespace, workspace, 
+                    entities_tsv, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     with open(entities_tsv, "r") as tsv:
         entity_data = tsv.read()
@@ -144,63 +150,66 @@ def upload_entities(namespace, workspace, entities_tsv, api_root=PROD_API_ROOT):
 
 def get_submissions(namespace, workspace, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/submissions".format(api_root, 
-                                                      namespace,
-                                                      workspace)
+    uri = "{0}/workspaces/{1}/{2}/submissions".format(
+        api_root, namespace, workspace)
     return http.request(uri)
 
 def post_submission(namespace, workspace, api_root=PROD_API_ROOT):
     raise NotImplementedError
 
-def abort_sumbission(namespace, workspace, submission_id, api_root=PROD_API_ROOT):
+def abort_sumbission(namespace, workspace, 
+                     submission_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(api_root, 
-                                                        namespace, 
-                                                        workspace,
-                                                        submission_id)
+    uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(
+        api_root, namespace, workspace, submission_id)
     return http.request(uri, "DELETE")
 
-def monitor_submission(namespace, workspace, submission_id, api_root=PROD_API_ROOT):
+def monitor_submission(namespace, workspace, 
+                       submission_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(api_root, 
-                                                        namespace, 
-                                                        workspace,
-                                                        submission_id)
+    uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(
+        api_root, namespace, workspace, submission_id)
     return http.request(uri)
 
-def get_workflow_outputs(namespace, workspace, submission_id, workflow_id, api_root=PROD_API_ROOT):
+def get_workflow_outputs(namespace, workspace, 
+                         submission_id, workflow_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/".format(api_root, namespace, workspace)
-    uri += "submissions/{0}/workflows/{1}/outputs".format(submission_id, workflow_id)
+    uri += "submissions/{0}/workflows/{1}/outputs".format(
+        submission_id, workflow_id)
     return http.request(uri) 
 
 def workspace_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/entities".format(api_root, namespace, workspace)
+    uri = "{0}/workspaces/{1}/{2}/entities".format(
+        api_root, namespace, workspace)
     return http.request(uri)
 
-def get_workspace_entities_with_type(namespace, workspace, api_root=PROD_API_ROOT):
+def get_workspace_entities_with_type(namespace, workspace,
+                                     api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/entities_with_type".format(api_root, namespace, workspace)
+    uri = "{0}/workspaces/{1}/{2}/entities_with_type".format(
+        api_root, namespace, workspace)
     return http.request(uri)
 
-def get_workspace_entities(namespace, workspace, etype, api_root=PROD_API_ROOT):
+def get_workspace_entities(namespace, workspace,
+                           etype, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}".format(api_root, namespace,
-                                                       workspace, etype)
+    uri = "{0}/workspaces/{1}/{2}/entities/{3}".format(
+        api_root, namespace, workspace, etype)
     return http.request(uri)
 
-def get_workspace_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
+def get_workspace_entities_tsv(namespace, workspace, 
+                               etype, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}/tsv".format(api_root, namespace,
-                                                       workspace, etype)
+    uri = "{0}/workspaces/{1}/{2}/entities/{3}/tsv".format(
+        api_root, namespace, workspace, etype)
     return http.request(uri)
 
 def delete_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(api_root,
-                                                         namespace, workspace,
-                                                         etype, ename)
+    uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
+        api_root, namespace, workspace, etype, ename)
     return http.request(uri, "DELETE")
 
 def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
@@ -257,38 +266,34 @@ def get_inputs_outputs(namespace, method, version, api_root=PROD_API_ROOT):
     json_body = json.dumps(body_dict)
     return http.request(uri, "POST", headers=headers, body=json_body)
 
-def get_repository_configuration(namespace, name, snapshot_id, api_root=PROD_API_ROOT):
+def get_repository_configuration(namespace, name,
+                                 snapshot_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/configurations/{1}/{2}/{3}".format(api_root,
-                                                  namespace,
-                                                  name,
-                                                  snapshot_id)
+    uri = "{0}/configurations/{1}/{2}/{3}".format(
+        api_root, namespace, name, snapshot_id)
     return http.request(uri)
 
-def get_repository_method_acl(namespace, name, snapshot_id, api_root=PROD_API_ROOT):
+def get_repository_method_acl(namespace, name, 
+                              snapshot_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/methods/{1}/{2}/{3}/permissions".format(api_root,
-                                                  namespace,
-                                                  name,
-                                                  snapshot_id)
+    uri = "{0}/methods/{1}/{2}/{3}/permissions".format(
+        api_root, namespace, name, snapshot_id)
     return http.request(uri)
 
-def update_repository_method_acl(namespace, name, snapshot_id, acl_updates, api_root=PROD_API_ROOT):
+def update_repository_method_acl(namespace, name, snapshot_id,
+                                 acl_updates, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     headers = {"Content-type":  "application/json"}
     json_body = json.dumps(acl_updates)
-    uri = "{0}/methods/{1}/{2}/{3}/permissions".format(api_root,
-                                                  namespace,
-                                                  name,
-                                                  snapshot_id)
+    uri = "{0}/methods/{1}/{2}/{3}/permissions".format(
+        api_root, namespace, name, snapshot_id)
     return http.request(uri, "POST", headers=headers, body=json_body)
 
-def get_repository_configuration_acl(namespace, name, snapshot_id, api_root=PROD_API_ROOT):
+def get_repository_configuration_acl(namespace, name, 
+                                     snapshot_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
-    uri = "{0}/configurations/{1}/{2}/{3}/permissions".format(api_root,
-                                                  namespace,
-                                                  name,
-                                                  snapshot_id)
+    uri = "{0}/configurations/{1}/{2}/{3}/permissions".format(
+        api_root, namespace, name, snapshot_id)
     return http.request(uri)
 
 def update_repository_configuration_acl(namespace, name, snapshot_id,
@@ -296,10 +301,8 @@ def update_repository_configuration_acl(namespace, name, snapshot_id,
     http = _gcloud_authorized_http()
     headers = {"Content-type":  "application/json"}
     json_body = json.dumps(acl_updates)
-    uri = "{0}/configurations/{1}/{2}/{3}/permissions".format(api_root,
-                                                  namespace,
-                                                  name,
-                                                  snapshot_id)
+    uri = "{0}/configurations/{1}/{2}/{3}/permissions".format(
+        api_root, namespace, name, snapshot_id)
     return http.request(uri, "POST", headers=headers, body=json_body)
 
 def push_workflow(namespace, name, synopsis,

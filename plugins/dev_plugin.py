@@ -6,6 +6,9 @@ from yapsy.IPlugin import IPlugin
 from six import print_
 from fissfc import firecloud_api as fapi
 from fissfc.firecloud_cli import _are_you_sure, _err_response
+import json
+import subprocess
+import os
 
 class GDACFissfcPlugin(IPlugin):
 
@@ -25,16 +28,44 @@ class GDACFissfcPlugin(IPlugin):
         ...
         parser.set_defaults(func=do_my_cmd)
 
-        where do_my_cmd is a function that takes one argument "args":, i.e:
+        where do_my_cmd is a function that takes one argument "args":
 
         def do_my_cmd(args):
             pass
 
         """
         print_("DEV PLUGIN: Loaded commands")
-        prsr = subparsers.add_parser('test_cmd', description='Test dynamically loaded cmd')
-        prsr.set_defaults(func=test_print)
+        prsr = subparsers.add_parser(
+            'upload',  description='Copy the file or directory into the given')
+        prsr.add_argument('workspace', help='Workspace name')
+        prsr.add_argument('source', help='File or directory to upload')
+        prsr.add_argument('-s', '--show', action='store_true',
+                            help="Show the gsutil command, but don't run it")
+        
+        dest_help = 'Destination relative to the bucket root. '
+        dest_help += 'If omitted the file will be placed in the root directory'
+        prsr.add_argument('-d', '--destination', help=dest_help)
+
+
+        prsr.set_defaults(func=upload)
         
         
-def test_print(args):
-    print_("It worked!")
+def upload(args):
+    r, c = fapi.get_workspace(args.namespace, args.workspace, args.api_url)
+    _err_response(r, c, [200])
+
+    bucket = json.loads(c)['workspace']['bucketName']
+
+    dest = 'gs://' + bucket + '/'
+    if args.destination is not None:
+        dest =  dest + args.destination.lstrip('/')
+
+    gsutil_args = ["gsutil", "-o", "GSUtil:parallel_composite_upload_threshold=50M", "cp"]
+
+    if os.path.isdir(args.source):
+        gsutil_args.append("-r")
+    gsutil_args.extend([args.source, dest])
+
+    print_(' '.join(gsutil_args))
+    if not args.show:
+        return subprocess.check_call(gsutil_args)
