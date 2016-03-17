@@ -18,6 +18,8 @@ locally with
 ====================
 Release Notes
 ====================
+v0.6.1 - Firecloud production API is now https://api.firecloud.org/api
+
 v0.6.0 - Refactored the argument structure for inferring a default project. 
          Instead of passing the namespace as an optional input to a 
          subcommand, the project can be overriden explicitly with the -p 

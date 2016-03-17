@@ -8,7 +8,7 @@ from six import print_
 class FissfcPlugin(IPlugin):
 
     ### Change these to set default values for Fissfc
-    # API_URL = "https://portal.firecloud.org/service/api"
+    # API_URL = "https://api.firecloud.org/api"
     # DEFAULT_PROJECT = "broad-firecloud-testing"
 
     def register_commands(self, subparsers):

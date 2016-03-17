@@ -13,7 +13,7 @@ from os.path import expanduser, isfile
 import sys
 from six import print_
 
-PROD_API_ROOT = "https://portal.firecloud.org/service/api"
+PROD_API_ROOT = "https://api.firecloud.org/api"
 
 #################################################
 # Utilities

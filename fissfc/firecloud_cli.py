@@ -9,7 +9,7 @@ from yapsy.PluginManager import PluginManager
 import os
 
 
-__version__="0.6.0"
+__version__="0.6.1"
 PLUGIN_PLACES = [os.path.expanduser('~/.fissfc/plugins'), "plugins"]
 
 #################################################
