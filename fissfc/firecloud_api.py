@@ -48,13 +48,14 @@ def list_workspaces(api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     return http.request("{0}/workspaces".format(api_root))
 
-def create_workspace(namespace, workspace, 
+def create_workspace(namespace, workspace, protected=False,
                      attributes=dict(), api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     headers = {"Content-type":  "application/json"}
     body_dict = {"namespace": namespace, 
                  "name": workspace,
-                 "attributes": attributes}
+                 "attributes": attributes,
+                 "isProtected": protected}
     json_body = json.dumps(body_dict)
 
     return http.request("{0}/workspaces".format(api_root),
@@ -154,8 +155,23 @@ def get_submissions(namespace, workspace, api_root=PROD_API_ROOT):
         api_root, namespace, workspace)
     return http.request(uri)
 
-def post_submission(namespace, workspace, api_root=PROD_API_ROOT):
-    raise NotImplementedError
+def post_submission(wnamespace, workspace, cnamespace, config,
+                    entity, etype, expression, api_root=PROD_API_ROOT):
+
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/submissions".format(
+        api_root, wnamespace, workspace)
+    body = { "methodConfigurationNamespace" : cnamespace,
+             "methodConfigurationName" : config,
+             "entityType" : etype,
+             "entityName" : entity,
+             "expression" : expression
+            }
+
+    body = json.dumps(body)
+    headers = {"Content-type":  "application/json"}
+
+    return http.request(uri, "POST", headers=headers, body=body)
 
 def abort_sumbission(namespace, workspace, 
                      submission_id, api_root=PROD_API_ROOT):

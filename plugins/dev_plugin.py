@@ -34,7 +34,7 @@ class GDACFissfcPlugin(IPlugin):
             pass
 
         """
-        print_("DEV PLUGIN: Loaded commands")
+        #print_("DEV PLUGIN: Loaded commands")
         prsr = subparsers.add_parser(
             'upload',  description='Copy the file or directory into the given')
         prsr.add_argument('workspace', help='Workspace name')
@@ -48,6 +48,7 @@ class GDACFissfcPlugin(IPlugin):
 
 
         prsr.set_defaults(func=upload)
+
         
         
 def upload(args):

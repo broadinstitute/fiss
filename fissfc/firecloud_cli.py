@@ -9,7 +9,7 @@ from yapsy.PluginManager import PluginManager
 import os
 
 
-__version__="0.6.1"
+__version__="0.6.2"
 PLUGIN_PLACES = [os.path.expanduser('~/.fissfc/plugins'), "plugins"]
 
 #################################################
@@ -43,7 +43,7 @@ def space_lock(args):
     print_('Locked workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_new(args):
-    response, content = fapi.create_workspace(args.project, args.workspace,
+    response, content = fapi.create_workspace(args.project, args.workspace, args.protected,
                                               dict(), args.api_url)
     _err_response(response, content, [201])
     print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
@@ -425,6 +425,10 @@ def main():
     # Create Workspace
     snew_parser = subparsers.add_parser('space_new',
                                         description='Create new workspace')
+    phelp = 'Create a protected (dbGaP-controlled) workspace.' 
+    phelp += 'You must have linked NIH credentials for this option.'
+    snew_parser.add_argument('-p', '--protected',
+                             action='store_true', help=phelp)
     snew_parser.add_argument('workspace', help='Workspace name')
     snew_parser.set_defaults(func=space_new)
 

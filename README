@@ -18,6 +18,8 @@ locally with
 ====================
 Release Notes
 ====================
+v0.6.2 - Add '--protected' option for workspace creation.
+
 v0.6.1 - Firecloud production API is now https://api.firecloud.org/api
 
 v0.6.0 - Refactored the argument structure for inferring a default project. 
