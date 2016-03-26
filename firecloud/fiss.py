@@ -14,7 +14,7 @@ from yapsy.PluginManager import PluginManager
 import os
 
 
-__version__="0.7.0"
+__version__="0.7.1"
 PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################
@@ -22,7 +22,7 @@ PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 #################################################
 
 def space_list(args):
-    response, content = fapi.list_workspaces(args.api_url)
+    response, content = fapi.get_workspaces(args.api_url)
     _err_response(response, content, [200])
 
     #Parse the JSON for the workspace + namespace
@@ -94,8 +94,8 @@ def entity_import(args):
     print_('Successfully uploaded entities')
 
 def entity_types(args):
-    r, c = fapi.workspace_entity_types(args.project, args.workspace, 
-                                       args.api_url)
+    r, c = fapi.get_entity_types(args.project, args.workspace, 
+                                 args.api_url)
     _err_response(r,c, [200])
     for etype in json.loads(c):
         print_(etype)
@@ -108,7 +108,7 @@ def entity_list(args):
         print_('{0}\t{1}'.format(entity['entityType'], entity['name']))
 
 def entity_list_tsv(args):
-    r, c = fapi.get_workspace_entities_tsv(
+    r, c = fapi.get_entities_tsv(
         args.project, args.workspace, args.etype, args.api_url)
     _err_response(r,c, [200])
     print_(c)
@@ -128,8 +128,8 @@ def sample_list(args):
         print_(entity['name'])
 
 def sample_set_list(args):
-    r, c = fapi.get_workspace_entities(args.project, args.workspace,
-                                       "sample_set", args.api_url)
+    r, c = fapi.get_entities(args.project, args.workspace,
+                             "sample_set", args.api_url)
     _err_response(r,c, [200])
     for entity in json.loads(c):
         print_(entity['name'])
@@ -172,8 +172,8 @@ def space_set_acl(args):
     print_("Successfully updated roles")
 
 def flow_new(args):
-    r, c = fapi.push_workflow(args.namespace, args.name, args.synopsis,
-                              args.wdl, args.doc, args.api_url)
+    r, c = fapi.update_workflow(args.namespace, args.name, args.synopsis,
+                                args.wdl, args.doc, args.api_url)
     _err_response(r, c, [201])
     print_("Successfully pushed workflow")
 
@@ -183,7 +183,7 @@ def flow_delete(args):
     if not args.yes and not _are_you_sure(prompt):
         #Don't do it!
         return 
-    r, c = fapi.redact_workflow(args.namespace, args.name, 
+    r, c = fapi.delete_workflow(args.namespace, args.name, 
                                 args.snapshot_id, args.api_url)
     _err_response(r,c, [200])
     print_("Successfully redacted workflow")
@@ -256,8 +256,8 @@ def config_acl(args):
 def attr_get(args):
     ##if entities was specified
     if args.etype is not None:
-        r, c = fapi.get_workspace_entities_with_type(
-            args.project, args.workspace, args.api_url)
+        r, c = fapi.get_entities_with_type(args.project, args.workspace, 
+                                           args.api_url)
         _err_response(r,c, [200])
 
         dict_response = json.loads(c)

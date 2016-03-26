@@ -44,7 +44,7 @@ def _gcloud_authorized_http():
 # API calls, see https://portal.firecloud.org/service/
 #################################################
 
-def list_workspaces(api_root=PROD_API_ROOT):
+def get_workspaces(api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     return http.request("{0}/workspaces".format(api_root))
 
@@ -145,8 +145,8 @@ def get_submissions(namespace, workspace, api_root=PROD_API_ROOT):
         api_root, namespace, workspace)
     return http.request(uri)
 
-def post_submission(wnamespace, workspace, cnamespace, config,
-                    entity, etype, expression, api_root=PROD_API_ROOT):
+def create_submission(wnamespace, workspace, cnamespace, config,
+                      entity, etype, expression, api_root=PROD_API_ROOT):
 
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/submissions".format(
@@ -170,8 +170,8 @@ def abort_sumbission(namespace, workspace,
         api_root, namespace, workspace, submission_id)
     return http.request(uri, "DELETE")
 
-def monitor_submission(namespace, workspace, 
-                       submission_id, api_root=PROD_API_ROOT):
+def get_submission(namespace, workspace, 
+                   submission_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(
         api_root, namespace, workspace, submission_id)
@@ -185,31 +185,35 @@ def get_workflow_outputs(namespace, workspace,
         submission_id, workflow_id)
     return http.request(uri) 
 
-def workspace_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
+def get_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/entities".format(
         api_root, namespace, workspace)
     return http.request(uri)
 
-def get_workspace_entities_with_type(namespace, workspace,
+def get_entities_with_type(namespace, workspace,
                                      api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/entities_with_type".format(
         api_root, namespace, workspace)
     return http.request(uri)
 
-def get_workspace_entities(namespace, workspace,
-                           etype, api_root=PROD_API_ROOT):
+def get_entities(namespace, workspace, etype, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/entities/{3}".format(
         api_root, namespace, workspace, etype)
     return http.request(uri)
 
-def get_workspace_entities_tsv(namespace, workspace, 
-                               etype, api_root=PROD_API_ROOT):
+def get_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/entities/{3}/tsv".format(
         api_root, namespace, workspace, etype)
+    return http.request(uri)
+
+def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
+        api_root, namespace, workspace, etype, ename)
     return http.request(uri)
 
 def delete_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
@@ -311,7 +315,7 @@ def update_repository_configuration_acl(namespace, name, snapshot_id,
         api_root, namespace, name, snapshot_id)
     return http.request(uri, "POST", headers=headers, body=json_body)
 
-def push_workflow(namespace, name, synopsis,
+def update_workflow(namespace, name, synopsis,
                   wdl, doc=None, api_root=PROD_API_ROOT):
     with open(wdl, 'r') as wf:
         wdl_payload = wf.read()
@@ -335,7 +339,7 @@ def push_workflow(namespace, name, synopsis,
 
     return http.request(uri, "POST", headers=headers, body=body)
 
-def redact_workflow(namespace, name, snapshot_id, api_root=PROD_API_ROOT):
+def delete_workflow(namespace, name, snapshot_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/methods/{1}/{2}/{3}".format(api_root, namespace, 
                                            name, snapshot_id)
