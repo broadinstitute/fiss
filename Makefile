@@ -23,7 +23,7 @@ reinstall:
 	$(MAKE) install
 
 uninstall:
-	pip uninstall -y  fissfc
+	pip uninstall -y firecloud
 
 publish:
 	python setup.py sdist upload && \

@@ -127,16 +127,6 @@ def get_workspace_method_configs(namespace, workspace, api_root=PROD_API_ROOT):
 def create_method_config(namespace, workspace, api_root=PROD_API_ROOT):
     raise NotImplementedError
 
-def update_attributes(namespace, workspace, 
-                      attr_updates, api_root=PROD_API_ROOT):
-    http = _gcloud_authorized_http()
-    uri = "{0}/workspaces/{1}/{2}/updateAttributes".format(api_root,
-                                                           namespace, 
-                                                           workspace)
-    headers = {"Content-type":  "application/json"}
-    json_body = json.dumps(attr_updates)
-    return http.request(uri, "PATCH", headers=headers, body=json_body)
-
 def upload_entities(namespace, workspace, 
                     entities_tsv, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
@@ -350,3 +340,42 @@ def redact_workflow(namespace, name, snapshot_id, api_root=PROD_API_ROOT):
     uri = "{0}/methods/{1}/{2}/{3}".format(api_root, namespace, 
                                            name, snapshot_id)
     return http.request(uri, "DELETE")
+
+def update_workspace_attributes(namespace, workspace,
+                                attrs, api_root=PROD_API_ROOT):
+    """
+    attrs is a list of dictionaries created with one of the update helpers:
+        _attr_up, _attr_rem, _attr_ladd, _attr_lrem
+    """
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/updateAttributes".format(
+        api_root, namespace, workspace)
+
+    headers = {"Content-type": "application/json"}
+    body = json.dumps(attrs)
+
+    return http.request(uri, "PATCH", headers=headers, body=body)
+
+# Helper functions to create attribute update dictionaries
+def _attr_up(attr, value):
+    return { "op"                 : "AddUpdateAttribute",
+             "attributeName"      : attr,
+             "addUpdateAttribute" : value
+           }
+
+def _attr_rem(attr):
+    return { "op"             : "RemoveAttribute",
+             "attributeName"  : attr
+           }
+
+def _attr_ladd(attr, value):
+    return { "op"                 : "AddListMember",
+             "attributeName"      : attr,
+             "addUpdateAttribute" : value
+           }
+
+def _attr_lrem(attr, value):
+    return { "op"                 : "RemoveListMember",
+             "attributeName"      : attr,
+             "addUpdateAttribute" : value
+           }

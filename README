@@ -2,22 +2,36 @@
 Description
 ====================
 
-Firecloud API bindings and Command-Line interface.
+Firecloud API bindings and FISS Command-Line interface. 
+
+This package was formerly known as "fissfc", but has evolved
+to provide more sophisticated abstractions for interacting
+with firecloud in addition to the command line tool.
 
 ====================
 Requirements
 ====================
 
 Firecloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
-authorization. To use the firecloud CLI or API, you must install the SDK and login
-locally with
+authorization. To use the firecloud CLI or API, you must install the SDK and 
+login locally with
 
-	gcloud auth login
+    gcloud auth login
 
 
 ====================
 Release Notes
 ====================
+v0.7.0 - Renamed package "firecloud", replacing "fissfc" 
+            - firecloud_cli.py renamed fiss.py
+            - firecloud_api.py renamed api.py
+         Added workspace class for more flexible python interactivity. Example:
+           >>> w = Workspace.new("broad-firecloud-testing", "my_workspace")
+           >>> w.bucket()
+           "fc-92e4ic0a-60fb-454a-8ue0-d0efea803421"
+           >>> w.lock()
+         Added better error messaging for unexpected FireCloud Errors
+
 v0.6.2 - Add '--protected' option for workspace creation.
 
 v0.6.1 - Firecloud production API is now https://api.firecloud.org/api

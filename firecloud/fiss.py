@@ -1,6 +1,11 @@
 #! /usr/bin/env python
+"""
+FISS -- (Fi)reCloud (S)ervice (Selector)
 
-from fissfc import firecloud_api as fapi
+This module provides a command line interface to Firecloud
+For more details see https://software.broadinstitute.org/firecloud/
+"""
+from firecloud import api as fapi
 from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
 import json
 import sys
@@ -9,8 +14,8 @@ from yapsy.PluginManager import PluginManager
 import os
 
 
-__version__="0.6.2"
-PLUGIN_PLACES = [os.path.expanduser('~/.fissfc/plugins'), "plugins"]
+__version__="0.7.0"
+PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################
 # SubCommands

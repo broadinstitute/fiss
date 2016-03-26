@@ -4,8 +4,8 @@
 
 from yapsy.IPlugin import IPlugin
 from six import print_
-from fissfc import firecloud_api as fapi
-from fissfc.firecloud_cli import _are_you_sure, _err_response
+from firecloud import api as fapi
+from firecloud.fiss import _are_you_sure, _err_response
 import json
 import subprocess
 import os
