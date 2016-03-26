@@ -23,7 +23,11 @@ setup(
     ],
     classifiers = [
         "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 3"
+        "Programming Language :: Python :: 3",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
+
     ],
 
 )
