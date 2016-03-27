@@ -7,7 +7,7 @@ For more details see https://software.broadinstitute.org/firecloud/
 """
 from firecloud import api as fapi
 from firecloud.errors import *
-from argparse import ArgumentParser, _SubParsersActionu, ArgumentTypeError
+from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
 import json
 import sys
 from six import print_
