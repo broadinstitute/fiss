@@ -10,6 +10,7 @@ import httplib2
 import urllib
 from oauth2client.client import GoogleCredentials
 from os.path import expanduser, isfile
+from firecloud.errors import FireCloudServerError
 import sys
 from six import print_
 
@@ -45,7 +46,7 @@ def _check_response(response, content, expected):
     Throws an exception if the response status is unexpected
     """
     if response.status not in expected:
-        raise FirecloudServerError(response.status, content)
+        raise FireCloudServerError(response.status, content)
 
 #################################################
 # API calls, see https://portal.firecloud.org/service/
@@ -55,14 +56,14 @@ def get_workspaces(api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     return http.request("{0}/workspaces".format(api_root))
 
-def create_workspace(namespace, workspace, protected=False,
+def create_workspace(namespace, name, protected=False,
                      attributes=dict(), api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     headers = {"Content-type":  "application/json"}
-    body_dict = {"namespace": namespace, 
-                 "name": workspace,
-                 "attributes": attributes,
-                 "isProtected": protected}
+    body_dict = { "namespace": namespace, 
+                  "name": name,
+                  "attributes": attributes,
+                  "isProtected": protected }
     json_body = json.dumps(body_dict)
 
     return http.request("{0}/workspaces".format(api_root),

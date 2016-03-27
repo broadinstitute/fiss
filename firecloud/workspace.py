@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 from firecloud import api as fapi
-from firecloud.errors import *
+from firecloud.errors import FireCloudServerError
 from firecloud.entity import Entity
 import json
 import os
@@ -34,7 +34,7 @@ class Workspace(object):
         elif r.status == 500:
             raise FireCloudServerError(r.status, "Internal Server Error")
 
-    @classmethod
+    @staticmethod
     def new(namespace, name, protected=False, 
             attributes=dict(), api_url=fapi.PROD_API_ROOT):
         """
@@ -125,7 +125,8 @@ class Workspace(object):
         r, c = fapi.get_entity(self.namespace, self.name, etype,
                                entity_id, self.api_url)
         fapi._check_response(r, c, [200])
-        return c
+        dresp = json.loads(c)
+        return Entity(etype, entity_id, dresp['attributes'])
 
 
     def import_entities(self, entities):
@@ -147,7 +148,12 @@ class Workspace(object):
         payload = "membership:" + etype + "_set_id\t" + etype + "_id\n"
         
         for e in entities:
+            if e.etype != etype: 
+                msg =  "Entity type '" + e.etype + "' does not match "
+                msg += "set type '" + etype + "'"
+                raise ValueError(msg)
             payload += set_id + '\t' + e.entity_id + '\n'
+
 
         r, c = fapi.upload_entities(self.namespace, self.name,
                                     payload, self.api_url)

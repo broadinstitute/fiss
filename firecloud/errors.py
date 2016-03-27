@@ -1,4 +1,4 @@
-class FirecloudServerError(RuntimeError):
+class FireCloudServerError(RuntimeError):
     """
     Indicates a server error, i.e a 4XX or 5XX HTTP response
 

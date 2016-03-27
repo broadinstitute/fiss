@@ -12,7 +12,7 @@ class Entity(object):
                      "pair",        "pair_set"
                    }
 
-    def __init__(self, entity_id, etype, attrs=dict()):
+    def __init__(self, etype, entity_id, attrs=dict()):
         if etype not in Entity.ENTITY_TYPES:
             raise ValueError("Invalid entity type: " + etype)
         self.entity_id = entity_id
@@ -26,7 +26,7 @@ class Entity(object):
         self.attrs[attr] = value
         return value
 
-    @classmethod
+    @staticmethod
     def create_payload(entities):
         """
         Create a tsv payload that can be encoded in an importEntities API call
@@ -42,7 +42,7 @@ class Entity(object):
             all_attrs.update(set(e.attrs.keys()))
 
         #Write a header line
-        all_attrs = tuple(all_attrs)
+        all_attrs = list(all_attrs)
         header = "entity:" + entities[0].etype + "_id"
         payload = '\t'.join([header] + all_attrs) + '\n'
 
@@ -54,7 +54,7 @@ class Entity(object):
 
         return payload
 
-    @classmethod
+    @staticmethod
     def create_loadfile(entities, f):
         with open(f, 'w') as out:
             out.write(create_payload(entities))
