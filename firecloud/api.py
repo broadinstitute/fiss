@@ -40,6 +40,13 @@ def _gcloud_authorized_http():
     http = httplib2.Http(".cache")
     return credentials.authorize(http)
 
+def _check_response(response, content, expected):
+    """
+    Throws an exception if the response status is unexpected
+    """
+    if response.status not in expected:
+        raise FirecloudServerError(response.status, content)
+
 #################################################
 # API calls, see https://portal.firecloud.org/service/
 #################################################
@@ -127,8 +134,8 @@ def get_workspace_method_configs(namespace, workspace, api_root=PROD_API_ROOT):
 def create_method_config(namespace, workspace, api_root=PROD_API_ROOT):
     raise NotImplementedError
 
-def upload_entities(namespace, workspace, 
-                    entities_tsv, api_root=PROD_API_ROOT):
+def upload_entities_tsv(namespace, workspace, 
+                        entities_tsv, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     with open(entities_tsv, "r") as tsv:
         entity_data = tsv.read()
@@ -138,6 +145,17 @@ def upload_entities(namespace, workspace,
                                                          namespace, 
                                                          workspace)
     return http.request(uri, "POST", headers=headers, body=request_body)
+
+def upload_entities(namespace, workspace, 
+                    entity_data, api_root=PROD_API_ROOT):
+    http = _gcloud_authorized_http()
+    request_body = urllib.urlencode({"entities" : entity_data})
+    headers = {'Content-type':  "application/x-www-form-urlencoded"}
+    uri = "{0}/workspaces/{1}/{2}/importEntities".format(api_root, 
+                                                         namespace, 
+                                                         workspace)
+    return http.request(uri, "POST", headers=headers, body=request_body)
+
 
 def get_submissions(namespace, workspace, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()

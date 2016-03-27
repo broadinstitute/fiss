@@ -6,7 +6,8 @@ This module provides a command line interface to Firecloud
 For more details see https://software.broadinstitute.org/firecloud/
 """
 from firecloud import api as fapi
-from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
+from firecloud.errors import *
+from argparse import ArgumentParser, _SubParsersActionu, ArgumentTypeError
 import json
 import sys
 from six import print_
@@ -48,9 +49,9 @@ def space_lock(args):
     print_('Locked workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_new(args):
-    response, content = fapi.create_workspace(args.project, args.workspace, args.protected,
-                                              dict(), args.api_url)
-    _err_response(response, content, [201])
+    r, c = fapi.create_workspace(args.project, args.workspace, 
+                                 args.protected, dict(), args.api_url)
+    _err_response(r, c, [201])
     print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_info(args):
@@ -88,7 +89,7 @@ def space_clone(args):
     print_('Successfully cloned workspace')
 
 def entity_import(args):
-    response, content = fapi.upload_entities(
+    response, content = fapi.upload_entities_tsv(
         args.project, args.workspace, args.tsvfile, args.api_url)
     _err_response(response, content, [200, 201])
     print_('Successfully uploaded entities')
@@ -327,9 +328,7 @@ def _err_response(response, content, expected):
     Throws an exception if the response status is unexpected
     """
     if response.status not in expected:
-        emsg = "Unexpected server response: {0}\n{1}".format(response.status,
-                                                             content)
-        raise RuntimeError(emsg)
+        raise FirecloudServerError(response.status, content)
 
 def _nonempty_project(string):
     """

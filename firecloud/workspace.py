@@ -2,7 +2,9 @@
 
 from firecloud import api as fapi
 from firecloud.errors import *
+from firecloud.entity import Entity
 import json
+import os
 
 class Workspace(object):
     """
@@ -39,8 +41,7 @@ class Workspace(object):
         Create a new workspace on firecloud and return a Workspace Object
         """
         r, c = fapi.create_workspace(namespace, name, protected, attributes, api_url)
-        if r.status != 201:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [201])
         return Workspace(namespace, name, api_url)
 
     def refresh(self):
@@ -49,8 +50,7 @@ class Workspace(object):
         self.data, and may become stale
         """
         r, c = fapi.get_workspace(self.namespace, self.name, self.api_url)
-        if r.status != 200:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [200])
         self.data = json.loads(c)
         return self
 
@@ -59,8 +59,7 @@ class Workspace(object):
         Delete the workspace from FireCloud. Be careful!
         """
         r, c = fapi.delete_workspace(self.namespace, self.name)
-        if r.status != 202:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [202])
 
     # Getting useful information out of the bucket
     def json(self):
@@ -77,15 +76,13 @@ class Workspace(object):
 
     def lock(self):
         r, c = fapi.lock_workspace(self.namespace, self.name, self.api_url)
-        if r.status != 204:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [204])
         self.data['workspace']['isLocked'] = True
         return self
 
     def unlock(self):
         r, c = fapi.unlock_workspace(self.namespace, self.name, self.api_url)
-        if r.status != 204:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [204])
         self.data['workspace']['isLocked'] = False
         return self
 
@@ -105,12 +102,64 @@ class Workspace(object):
         update = [fapi._attr_up(attr, value)]
         r, c = fapi.update_workspace_attributes(self.namespace, self.name,
                                                 update, self.api_url)
-        if r.status != 200:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [200])
 
     def remove_attribute(self, attr):
         update = [fapi._attr_rem(attr)]
         r, c = fapi.update_workspace_attributes(self.namespace, self.name,
                                                 update, self.api_url)
-        if r.status != 200:
-            raise FireCloudServerError(r.status, c)
+        fapi._check_response(r, c, [200])
+
+    def import_tsv(self, tsv_file):
+        """
+        Upload entities by providing a tsv import file.
+        """
+        r, c = fapi.upload_entities_tsv(self.namespace, self.name,
+                                        self.tsv_file, self.api_url)
+        fapi._check_response(r, c, [200, 201])
+
+    def get_entity(self, etype, entity_id):
+        """
+        Get an entity by type & id
+        """
+        r, c = fapi.get_entity(self.namespace, self.name, etype,
+                               entity_id, self.api_url)
+        fapi._check_response(r, c, [200])
+        return c
+
+
+    def import_entities(self, entities):
+        """
+        Import participant entities
+        """
+        edata = Entity.create_payload(entities)
+        r, c = fapi.upload_entities(self.namespace, self.name, 
+                                    edata, self.api_url)
+        fapi._check_response(r, c, [200, 201])
+
+    def create_set(self, set_id, etype, entities):
+        """
+        Create a set of entities and upload to FireCloud
+        """
+        if etype not in {"sample", "pair", "participant"}:
+            raise ValueError("Unsupported entity type:" + str(etype))
+    
+        payload = "membership:" + etype + "_set_id\t" + etype + "_id\n"
+        
+        for e in entities:
+            payload += set_id + '\t' + e.entity_id + '\n'
+
+        r, c = fapi.upload_entities(self.namespace, self.name,
+                                    payload, self.api_url)
+        fapi._check_response(r, c, [200, 201])
+
+    def create_sample_set(self, sset_id, samples):
+        return self.create_set(sset_id, "sample", samples)
+
+    def create_pair_set(self, pset_id, pairs):
+        return self.create_set(pset_id, "pair", pairs)
+
+    def create_participant_set(self, pset_id, participants):
+        return self.create_set(pset_id, "participant", participants)
+
+
