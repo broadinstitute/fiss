@@ -22,6 +22,10 @@ login locally with
 ====================
 Release Notes
 ====================
+v0.7.2 - Fix some commands that broke with the API changes
+
+v0.7.1 - Add workspace functions for importing entities and creating entity sets.
+
 v0.7.0 - Renamed package "firecloud", replacing "fissfc" 
             - firecloud_cli.py renamed fiss.py
             - firecloud_api.py renamed api.py

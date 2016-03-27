@@ -211,7 +211,7 @@ def get_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
     return http.request(uri)
 
 def get_entities_with_type(namespace, workspace,
-                                     api_root=PROD_API_ROOT):
+                           api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/entities_with_type".format(
         api_root, namespace, workspace)

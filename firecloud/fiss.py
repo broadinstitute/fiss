@@ -102,7 +102,7 @@ def entity_types(args):
         print_(etype)
 
 def entity_list(args):
-    r, c = fapi.get_workspace_entities_with_type(
+    r, c = fapi.get_entities_with_type(
         args.project, args.workspace, args.api_url)
     _err_response(r,c, [200])
     for entity in json.loads(c):
@@ -115,15 +115,15 @@ def entity_list_tsv(args):
     print_(c)
 
 def participant_list(args):
-    r, c = fapi.get_workspace_entities(args.project, args.workspace,
-                                       "participant", args.api_url)
+    r, c = fapi.get_entities(args.project, args.workspace,
+                             "participant", args.api_url)
     _err_response(r,c, [200])
     for entity in json.loads(c):
         print_(entity['name'])
 
 def sample_list(args):
-    r, c = fapi.get_workspace_entities(args.project, args.workspace,
-                                       "sample", args.api_url)
+    r, c = fapi.get_entities(args.project, args.workspace,
+                             "sample", args.api_url)
     _err_response(r,c, [200])
     for entity in json.loads(c):
         print_(entity['name'])
