@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION="0.7.3"
+VERSION="0.7.4"
 _README           = os.path.join(os.path.dirname(__file__), 'README')
 _LONG_DESCRIPTION = open(_README).read()
 

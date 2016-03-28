@@ -12,10 +12,11 @@ import json
 import sys
 from six import print_
 from yapsy.PluginManager import PluginManager
+from inspect import getsourcelines
 import os
 
 
-__version__="0.7.3"
+__version__="0.7.4"
 PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################
@@ -386,6 +387,10 @@ def main():
                         action='store_true',
                         help='List available actions')
 
+    parser.add_argument('-F', dest='show_source',
+                        action='store_true',
+                        help='Show implementation of named function')
+
     parser.add_argument("-v", "--version",
                         action='version', version=__version__)
 
@@ -659,7 +664,7 @@ def main():
         pluginInfo.plugin_object.register_commands(subparsers)
 
 
-    ##Special case, print help with no arguments
+    ##Special cases, print help with no arguments
     if len(sys.argv) == 1:
             parser.print_help()
             sys.exit(0)
@@ -672,9 +677,21 @@ def main():
                     choices.append(choice)
         for c in sorted(choices):
             print_('\t' + c)
+    elif sys.argv[1] == '-F':
+        ## Show source for remaining args
+        for fname in sys.argv[2:]:
+            # Get module name
+            fiss_module = sys.modules[__name__]
+            try:
+                func = getattr(fiss_module, fname)
+                source_lines = ''.join(getsourcelines(func)[0])
+                print_(source_lines)
+            except AttributeError:
+                pass
     else:
         ##Otherwise parse args and call correct subcommand
         args = parser.parse_args()
+
         args.func(args)
 
 
