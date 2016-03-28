@@ -29,6 +29,9 @@ publish:
 	python setup.py sdist upload && \
 	rm -rf build dist *.egg-info
 
+image:
+	docker build -t broadgdac/firecloud .
+
 clean:
 	rm -rf build dist *.egg-info
 
