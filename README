@@ -22,6 +22,13 @@ login locally with
 ====================
 Release Notes
 ====================
+v0.7.3 - Improved documentation, with docstrings for every public function. 
+         This enables python's builtin help system to be used from the REPL.
+         To see all the available firecloud api calls:
+         % python
+         >>> import firecloud
+         >>> help(firecloud.api)
+
 v0.7.2 - Fix some commands that broke with the API changes
 
 v0.7.1 - Add workspace functions for importing entities and creating entity sets.

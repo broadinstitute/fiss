@@ -15,7 +15,7 @@ from yapsy.PluginManager import PluginManager
 import os
 
 
-__version__="0.7.1"
+__version__="0.7.3"
 PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################
@@ -307,6 +307,10 @@ def attr_get(args):
             if k in args.attributes or len(args.attributes) == 0:
                 print_(k + "\t" + workspace_attrs[k])
 
+def ping(args):
+    r, c = fapi.ping(args.api_url)
+    _err_response(r, c, [200])
+    print_(c)
 
 #################################################
 # Utilities
@@ -612,6 +616,7 @@ def main():
     cfgacl_parser.add_argument('snapshot_id', help='Snapshot ID')
     cfgacl_parser.set_defaults(func=config_acl)
 
+
     #Set ACL
     # cacl_parser = subparsers.add_parser('config_set_acl',
     #                           description='Set roles for config')
@@ -624,6 +629,10 @@ def main():
     #                          nargs='+')
     # cacl_parser.set_defaults(func=flow_set_acl)
 
+    # Status
+    status_prsr = subparsers.add_parser(
+        'ping', description='Show status of FireCloud services')
+    status_prsr.set_defaults(func=ping)
     #Get attributes
 
 

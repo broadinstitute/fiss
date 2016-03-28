@@ -4,8 +4,14 @@ import firecloud.api as fapi
 import json
 
 class Entity(object):
-    """
-    Class reperesentation of a FireCloud Entity
+    """A FireCloud Entity
+
+    Attributes:
+        etype (str): Enity type, e.g. "sample". Must be one of 
+            Entity.ENTITY_TYPES
+        entity_id (str): Unique id of this entity. Becomes the entity's
+            name in FireCloud.
+        attrs (dict): Dictionary of attributes and their values
     """
     ENTITY_TYPES = { "participant", "participant_set",
                      "sample",      "sample_set",
@@ -13,6 +19,8 @@ class Entity(object):
                    }
 
     def __init__(self, etype, entity_id, attrs=dict()):
+        """Create Entity."""
+
         if etype not in Entity.ENTITY_TYPES:
             raise ValueError("Invalid entity type: " + etype)
         self.entity_id = entity_id
@@ -20,16 +28,23 @@ class Entity(object):
         self.attrs = attrs
     
     def get_attribute(self, attr):
+        """Return attribute value."""
         return self.attrs.get(attr, None)
 
     def set_attribute(self, attr, value):
+        """Set and return attribute value."""
         self.attrs[attr] = value
         return value
 
     @staticmethod
     def create_payload(entities):
-        """
-        Create a tsv payload that can be encoded in an importEntities API call
+        """Create a tsv payload describing entities.
+
+        A TSV payload consists of 1 header row describing entity type
+        and attribute names. Each subsequent line is an entity_id followed
+        by attribute values separated by the tab "\\t" character. This 
+        payload can be uploaded to the workspace via  
+        firecloud.api.upload_entities()
         """
         #First check that all entities are of the same type
         types = {e.etype for e in entities}
@@ -56,5 +71,6 @@ class Entity(object):
 
     @staticmethod
     def create_loadfile(entities, f):
+        """Create payload and save to file."""
         with open(f, 'w') as out:
             out.write(create_payload(entities))

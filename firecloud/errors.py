@@ -1,12 +1,17 @@
 class FireCloudServerError(RuntimeError):
-    """
-    Indicates a server error, i.e a 4XX or 5XX HTTP response
+    """Exception indicating a server error
 
-    400 - Bad request
-    403 - Forbidden
+    Attributes:
+        code (int): HTTP response code indicating error type, e.g.:
+            400 - Bad request
+            403 - Forbidden
+            500 - Internal Server Error
 
+        message (str): Response content, if present
     """
     def __init__(self, code, message):
-        msg = "FireCloud Server Error: " + str(code) + " " + message
-        RuntimeError.__init__(self, msg)
+        self.code = code
+        self.message = message
+        emsg = "FireCloud Server Error: " + str(code) + " " + message
+        RuntimeError.__init__(self, emsg)
 

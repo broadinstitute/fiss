@@ -7,16 +7,26 @@ import json
 import os
 
 class Workspace(object):
-    """
-    Class reperesentation of a FireCloud Workspace
+    """A FireCloud Workspace.
+
+    Attributes:
+        api_url (str): API root used to interact with FireCloud,
+            normally https://api.firecloud.org/api
+        namespace (str): Google project for this workspace
+        name (str): Workspace name
     """
 
     def __init__(self, namespace, name, api_url=fapi.PROD_API_ROOT):
-        """
-        Get an existing workspace from Firecloud by name. 
+        """Get an existing workspace from Firecloud by name. 
 
-        Raises ValueError if the workspace does not exist.
-        Raises FireCloudServerError if request receives a 500.
+        This method assumes that a workspace with the given name and 
+        namespace is present at the api_url given, and raises an error
+        if it does not exist. To create a new workspace, use 
+        Workspace.new()
+
+        Raises:
+            FireCloudServerError:  Workspace does not exist, or
+                API call fails
         """
         self.api_url = api_url
         self.namespace = namespace
@@ -37,17 +47,23 @@ class Workspace(object):
     @staticmethod
     def new(namespace, name, protected=False, 
             attributes=dict(), api_url=fapi.PROD_API_ROOT):
-        """
-        Create a new workspace on firecloud and return a Workspace Object
+        """Create a new FireCloud workspace.
+
+        Returns:
+            Workspace: A new FireCloud workspace
+
+        Raises:
+            FireCloudServerError: API call failed.
         """
         r, c = fapi.create_workspace(namespace, name, protected, attributes, api_url)
         fapi._check_response(r, c, [201])
         return Workspace(namespace, name, api_url)
 
     def refresh(self):
-        """
-        Reload workspace data from firecloud. Workspace data is cached into 
-        self.data, and may become stale
+        """Reload workspace metadata from firecloud.
+
+        Workspace metadata is cached in the data attribute of a Workspace,
+        and may become stale, requiring a refresh().
         """
         r, c = fapi.get_workspace(self.namespace, self.name, self.api_url)
         fapi._check_response(r, c, [200])
@@ -55,73 +71,75 @@ class Workspace(object):
         return self
 
     def delete(self):
-        """
-        Delete the workspace from FireCloud. Be careful!
+        """Delete the workspace from FireCloud.
+
+        Note:
+            This action cannot be undone. Be careful!
         """
         r, c = fapi.delete_workspace(self.namespace, self.name)
         fapi._check_response(r, c, [202])
 
     # Getting useful information out of the bucket
     def json(self):
-        """
-        Get a JSON representation of the bucket
-        """
+        """Return a JSON representation of the bucket."""
         return str(json.dumps(self.data))
 
     def bucket(self):
-        """
-        Google bucket id for this workspace
-        """
+        """Return google bucket id for this workspace."""
         return str(self.data["workspace"]["bucketName"])
 
     def lock(self):
+        """Lock this Workspace.
+
+        This causes the workspace to behave in a read-only way,
+        regardless of access permissions.
+        """
         r, c = fapi.lock_workspace(self.namespace, self.name, self.api_url)
         fapi._check_response(r, c, [204])
         self.data['workspace']['isLocked'] = True
         return self
 
     def unlock(self):
+        """Unlock this Workspace."""
         r, c = fapi.unlock_workspace(self.namespace, self.name, self.api_url)
         fapi._check_response(r, c, [204])
         self.data['workspace']['isLocked'] = False
         return self
 
     def attributes(self):
-        """
-        Get a dictionary of workspace attributes
-        """
+        """Return a dictionary of workspace attributes"""
         return self.data["workspace"]["attributes"]
 
     def get_attribute(self, attr):
-        """
-        Get value of workspace attribute
+        """Return value of workspace attribute.
+
+        If the attribute does not exist, return None
         """
         return self.data["workspace"]["attributes"].get(attr, None)
 
     def update_attribute(self, attr, value):
+        """Set the value of a workspace attribute."""
         update = [fapi._attr_up(attr, value)]
         r, c = fapi.update_workspace_attributes(self.namespace, self.name,
                                                 update, self.api_url)
         fapi._check_response(r, c, [200])
 
     def remove_attribute(self, attr):
+        """Remove attribute from a workspace."""
         update = [fapi._attr_rem(attr)]
         r, c = fapi.update_workspace_attributes(self.namespace, self.name,
                                                 update, self.api_url)
+        self.data["workspace"]["attributes"].pop(attr,None)
         fapi._check_response(r, c, [200])
 
     def import_tsv(self, tsv_file):
-        """
-        Upload entities by providing a tsv import file.
-        """
+        """Upload entity data to workspace from tsv loadfile."""
         r, c = fapi.upload_entities_tsv(self.namespace, self.name,
                                         self.tsv_file, self.api_url)
         fapi._check_response(r, c, [200, 201])
 
     def get_entity(self, etype, entity_id):
-        """
-        Get an entity by type & id
-        """
+        """Return Entity from within workspace."""
         r, c = fapi.get_entity(self.namespace, self.name, etype,
                                entity_id, self.api_url)
         fapi._check_response(r, c, [200])
@@ -130,8 +148,9 @@ class Workspace(object):
 
 
     def import_entities(self, entities):
-        """
-        Import participant entities
+        """Upload entity objects.
+
+        entities must be an iterable of firecloud.Entity objects.
         """
         edata = Entity.create_payload(entities)
         r, c = fapi.upload_entities(self.namespace, self.name, 
@@ -139,8 +158,10 @@ class Workspace(object):
         fapi._check_response(r, c, [200, 201])
 
     def create_set(self, set_id, etype, entities):
-        """
-        Create a set of entities and upload to FireCloud
+        """Create a set of entities and upload to FireCloud.
+
+        etype must be one of {"sample, "pair", "participant"}
+        entities is an iterable of firecloud.Entiyt objects.
         """
         if etype not in {"sample", "pair", "participant"}:
             raise ValueError("Unsupported entity type:" + str(etype))
@@ -160,12 +181,15 @@ class Workspace(object):
         fapi._check_response(r, c, [200, 201])
 
     def create_sample_set(self, sset_id, samples):
+        """Create FireCloud sample_set"""
         return self.create_set(sset_id, "sample", samples)
 
     def create_pair_set(self, pset_id, pairs):
+        """Create FireCloud pair_set"""
         return self.create_set(pset_id, "pair", pairs)
 
     def create_participant_set(self, pset_id, participants):
+        """Create FireCloud participant_set"""
         return self.create_set(pset_id, "participant", participants)
 
 
