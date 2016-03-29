@@ -16,7 +16,7 @@ from inspect import getsourcelines
 import os
 
 
-__version__="0.7.4"
+__version__="0.8.0"
 PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################

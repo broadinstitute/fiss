@@ -192,4 +192,55 @@ class Workspace(object):
         """Create FireCloud participant_set"""
         return self.create_set(pset_id, "participant", participants)
 
+    def submissions(self):
+        """List job submissions in workspace."""
+        r, c = fapi.get_submissions(self.namespace, self.name, self.api_url)
+        fapi._check_response(r, c, [200])
+        return json.loads(c)
 
+    def entity_types(self):
+        """List entity types in workspace."""
+        r, c = fapi.get_entity_types(self.namespace, self.name, self.api_url)
+        fapi._check_response(r, c, [200])
+        return json.loads(c).keys()
+
+    def entities(self):
+        """List all entities in workspace."""
+        r, c = fapi.get_entities_with_type(self.namespace, 
+                                           self.name, self.api_url)
+        fapi._check_response(r, c, [200])
+        edicts = json.loads(c)
+        return [Entity(e['entityType'], e['name'], e['attributes']) 
+                for e in edicts]
+
+    def __get_entities(self, etype):
+        """Helper to get entities for a given type."""
+        r, c = fapi.get_entities(self.namespace, self.name, 
+                                 etype, self.api_url)
+        fapi._check_response(r, c, [200])
+        return [Entity(e['entityType'], e['name'], e['attributes']) 
+                for e in json.loads(c)]
+
+    def samples(self):
+        """List samples in a workspace."""
+        return self.__get_entities("sample")
+
+    def participants(self):
+        """List participants in a workspace."""
+        return self.__get_entities("participant")
+
+    def pairs(self):
+        """List pairs in a workspace."""
+        return self.__get_entities("pair")
+
+    def sample_sets(self):
+        """List sample sets in a workspace."""
+        return self.__get_entities("sample_set")
+
+    def participant_sets(self):
+        """List participant sets in a workspace."""
+        return self.__get_entities("participant_set")
+
+    def pair_sets(self):
+        """List pair sets in a workspace."""
+        return self.__get_entities("pair_set")

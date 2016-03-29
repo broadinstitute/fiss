@@ -612,6 +612,20 @@ def get_repository_configuration(namespace, config,
         api_root, namespace, config, snapshot_id)
     return http.request(uri)
 
+def get_method(namespace, method, snapshot_id, api_root=PROD_API_ROOT):
+    """Get a method definition from the method repository.
+
+    Args:
+        namespace (str): Methods namespace
+        method (str): method name
+        version (int): snapshot_id of the method
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    uri = "{0}/methods/{1}/{2}/{3}".format(
+        api_root, namespace, method, snapshot_id)
+    return http.request(uri)
+
 def get_repository_method_acl(namespace, method, 
                               snapshot_id, api_root=PROD_API_ROOT):
     """Get permissions for a method.

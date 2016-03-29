@@ -30,7 +30,7 @@ publish:
 	rm -rf build dist *.egg-info
 
 image:
-	docker build -t broadgdac/firecloud .
+	docker build -t broadgdac/fiss .
 
 clean:
 	rm -rf build dist *.egg-info
