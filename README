@@ -1,28 +1,64 @@
 ====================
-Description
+1. Description
 ====================
 
-Firecloud API bindings and FISS Command-Line interface. 
-
-This package was formerly known as "fissfc", but has evolved
-to provide more sophisticated abstractions for interacting
-with firecloud in addition to the command line tool.
+Firecloud API bindings and Firehose Service Selector (FISS)
+Command-Line interface. 
 
 ====================
-Requirements
+2. Contents
+====================
+1. Description
+2. Contents
+3. Requirements
+4. Release Notes
+5. FISS
+6. Low-Level API (firecloud.api) RESTful endpoints
+7. High-Level Classes
+8. Yapsy Plugin System
+
+This package contains low-level api bindings to FireCloud services,
+High-Level class abstractions for Workspaces and Entities, and the FISS
+command-line tool for scripting FireCloud Tasks. 
+
+====================
+3. Requirements
 ====================
 
-Firecloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
+Install this package via pip:
+% pip install firecloud
+
+Or download the source and install with setup.py:
+% python setup.py install
+
+This package depends on yapsy, oauth2client, and httplib2.
+
+FireCloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
 authorization. To use the firecloud CLI or API, you must install the SDK and 
 login locally with
 
     gcloud auth login
 
+**Note: FireCloud encryts all web traffic with TLSv1.2. Some versions of 
+python will not function correctly, and must be recompiled with openssl
+v1.02 or later. If recompiling is not an option, there is also a 
+dockerized version of the tool available on docker hub.
+
+% docker pull broadgdac/fiss 
 
 ====================
-Release Notes
+4. Release Notes
 ====================
-v0.8.0 - New Method and Configuration objects, and greatly increased API coverage.
+v0.8.0 - firecloud.api now boasts 100% coverage of existing (useful) API endpoints.
+
+         Several api endpoints for manipulating NIH credentials and profile info
+         will deliberately remain unimplemented unless a good reason arises. Any 
+         discrepancies are noted in the api module's docstring; see 
+         help(firecloud.api) for a lengthy overview. 
+
+         New Method and Configuration objects.
+         >>> m = Method("broad-firecloud-gdac", "gistic2", 1)
+
 
 v0.7.4 - FISS functions can now display their source code with the -F option.
 
@@ -82,3 +118,134 @@ v0.3.1 - Add confirmation prompt for delete commands, and a
 v0.3.0 - Added support for Yapsy plugins. 
 
 v0.0.1 - Initial Release
+
+====================
+5. FISS
+====================
+
+Documentation coming soon, but don't despair!
+
+FISS is self-documented via argparse. Type
+
+% fiss --help
+
+to get started.
+
+===========================
+6. FireCloud Low-Level API
+===========================
+
+The following is a list of all RESTful API calls for public FireCloud
+orchestration-layer api. In general, there is a 1 to 1 relationship 
+between firecloud.api functions and these endpoints, except where 
+a more useful function exitsts, such as delete_participant().
+
+'**' indicates an endpoint is not currently documented at https://api.firecloud.org
+Functions that are implemented are listed before the endpoint
+
+firecloud.api Last updated: 2016/03/29 (v0.8.0)
+
+Entities:
+    get_entities_with_type()    GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities_with_type List of entities in a workspace with type and attribute information
+    get_entity_types()          GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities List of entity types in a workspace
+    upload_entities_tsv()*      POST /api/workspaces/{workspaceNamespace}/{workspaceName}/importEntities Import entities from a tsv file
+    upload_entities()               As above, for non-file based version
+    copy_entities()             POST /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/copy Copy entities from one workspace to another
+    get_entities()              GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType} List of entities in a workspace
+    get_entities_tsv()          GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type
+    get_entity()                GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/{entityName} Get entity in a workspace
+    delete_entity()             **DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/{entityName} Delete entity in a workspace
+    delete_participant()*       The following are entity_specific delete functions, all use the same endpoint as delete_entity()                    
+    delete_participant_set()*
+    delete_sample()*
+    delete_sample_set()*
+    delete_pair()*
+    delete_pair_set()*
+    (Won't Implement)           GET /cookie-authed/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type (allows cookie-based authentication
+
+Method Configurations:
+    get_configs()           GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs List of Method Configurations in a workspace
+    create_config()         POST /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs Create a Method Configuration in a workspace
+    delete_config()         DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Delete a method configuration in a workspace
+    get_config()            GET /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Get a method configuration in a workspace
+    update_config()         PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Update a method configuration in a workspace
+    validate_config()       GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs/{configNamespace}/{configName}/validate get syntax validation information for a method configuration
+    rename_config()         POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName}/rename Rename a method configuration in a workspace
+    copy_config_from_repo() POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
+    copy_config_to_repo()   POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
+
+Method Repository:
+    get_repository_methods()    GET /api/methods Lists Method Repository methods.
+    update_workflow()           **POST /api/methods Create new workflow method
+    delete_workflow()           **DELETE /api/methods/{namespace}/{name}/{snapshotId} Redact a version of a method
+    get_repositiory_configs()   GET /api/configurations List Method Repository configurations.
+    get_config_template()       POST /api/template Create a Method Configuration template from a Method
+    get_inputs_outputs()        POST /api/inputsOutputs Get information about a method's inputs and outputs
+    get_repository_config()     GET /api/configurations/{namespace}/{name}/{snapshotId} Get a Method Repository configuration
+    get_repository_method_acl()         GET /api/methods/{namespace}/{name}/{snapshotId}/permissions get ACL permissions on a Method Repository method
+    update_repository_method_acl()      POST /api/methods/{namespace}/{name}/{snapshotId}/permissions set ACL permissions on a Method Repository method
+    get_repository_config_acl()         GET /api/configurations/{namespace}/{name}/{snapshotId}/permissions get ACL permissions on a Method Repository configuration
+    update_repository_config_acl()      POST /api/configurations/{namespace}/{name}/{snapshotId}/permissions set ACL permissions on a Method Repository configuration
+    copy_config_from_repo()             POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
+    copy_config_to_repo()               POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
+
+Submissions:
+    get_submissions()       GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions List submissions.
+    create_submission()     POST /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions Create a submission.
+    abort_submission()      DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions/{submissionId} abort a submission
+    get_submission()        GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions/{submissionId} Monitor submission status
+    get_workflow_outputs()  GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions/{submissionId}/workflows/{workflowId}/outputs Get workflow outputs.
+
+Workspaces:
+    get_workspaces()        GET /api/workspaces Lists workspaces.
+    create_workspace()      POST /api/workspaces Create workspace
+    delete_workspace()      DELETE /api/workspaces/{workspaceNamespace}/{workspaceName} Delete workspace
+    get_workspace()         GET /api/workspaces/{workspaceNamespace}/{workspaceName} Get workspace
+    get_workspace_acl()     GET /api/workspaces/{workspaceNamespace}/{workspaceName}/acl Get workspace ACL
+    update_workspace_acl()  PATCH /api/workspaces/{workspaceNamespace}/{workspaceName}/acl Update workspace ACL
+    clone_workspace()       POST /api/workspaces/{workspaceNamespace}/{workspaceName}/clone Clone Workspace
+    lock_workspace()        PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/lock Lock Workspace
+    unlock_workspace()      PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/unlock Unlock Workspace
+    get_configs()           GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs List of Method Configurations in a workspace
+    create_config()                  POST /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs Create a Method Configuration in a workspace
+    update_workspace_attributes()    PATCH /api/workspaces/{workspaceNamespace}/{workspaceName}/updateAttributes Modify attributes on a workspace.
+
+Status:
+    get_status()            GET /api/status Returns the workspace service url, methods repository url, and the current timestamp.
+    ping()                  GET /api/status/ping Returns the current timestamp.
+
+Profile:
+
+    get_billing_projects()  GET /api/profile/billing List billing projects for a user
+
+Other FireCloud Orchestration calls which are not implemented are listed below for completeness.
+
+NIH:
+    (Won't Implement)       POST /api/nih/callback Updates a user's NIH link from a JWT
+    (Won't Implement)       GET /api/nih/status Retrieves info about a user's NIH link
+    (Won't Implement)       POST /sync_whitelist Downloads the NIH Whitelist and Updates Rawls groups approrpriately
+
+OAuth:
+    (Won't Implement)       GET /login Starts the authentication flow for a user
+
+Storage:
+    (Won't Implement)       GET /api/storage/{bucket}/{object} Get metadata about an object stored in GCS.
+
+Profile:
+    (Won't Implement)       GET /me Returns registration and activation status for the current user
+    (Won't Implement)       GET /register/profile Returns a list of all keys and values stored in the user profile service for the currently logged-in user.
+    (Won't Implement)       GET /register Passes through to the Rawls userinfo API and returns its response
+    (Won't Implement)       POST /register/profile Sets a profile object in the user profile service for the currently logged-in user.
+    (Won't Implement)       GET /register/userinfo Passes through to Google's userinfo API and returns its response
+
+=======================
+7. High-Level Classes
+=======================
+
+Documentation coming soon.
+
+==========================
+8. Yapsy plugins for FISS
+==========================
+
+Documentation coming soon.

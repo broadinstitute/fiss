@@ -4,109 +4,9 @@
 This module provides python bindings for the Firecloud API.
 For more details see https://software.broadinstitute.org/firecloud/
 
-The following isa list of all RESTful API calls for FireCloud Orchestration.
-There should be a 1 to 1 relationship between firecloud.api functions and these 
-endpoints, except where a more useful function exitsts. 
-
-'**' indicates an endpoint is not currently documented at https://api.firecloud.org
-Functions that are implemented are listed before the endpoint
-
-Last updated: 2016/03/29
-
-Entities:
-    get_entities_with_type()    GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities_with_type List of entities in a workspace with type and attribute information
-    get_entity_types()          GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities List of entity types in a workspace
-    upload_entities_tsv()*      POST /api/workspaces/{workspaceNamespace}/{workspaceName}/importEntities Import entities from a tsv file
-    upload_entities()               As above, for non-file based version
-    copy_entities()             POST /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/copy Copy entities from one workspace to another
-    get_entities()              GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType} List of entities in a workspace
-    get_entities_tsv()          GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type
-    get_entity()                GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/{entityName} Get entity in a workspace
-    delete_entity()             **DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/{entityName} Delete entity in a workspace
-    delete_participant()*       The following are entity_specific delete functions, all use the same endpoint as delete_entity()                    
-    delete_participant_set()*
-    delete_sample()*
-    delete_sample_set()*
-    delete_pair()*
-    delete_pair_set()*
-    (Won't Implement)           GET /cookie-authed/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type (allows cookie-based authentication
-
-Method Configurations:
-    get_configs()           GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs List of Method Configurations in a workspace
-    create_config()         POST /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs Create a Method Configuration in a workspace
-    delete_config()         DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Delete a method configuration in a workspace
-    get_config()            GET /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Get a method configuration in a workspace
-    update_config()         PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Update a method configuration in a workspace
-    validate_config()       GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs/{configNamespace}/{configName}/validate get syntax validation information for a method configuration
-    rename_config()         POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName}/rename Rename a method configuration in a workspace
-    copy_config_from_repo() POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
-    copy_config_to_repo()   POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
-
-Method Repository:
-    get_repository_methods()    GET /api/methods Lists Method Repository methods.
-    update_workflow()           **POST /api/methods Create new workflow method
-    delete_workflow()           **DELETE /api/methods/{namespace}/{name}/{snapshotId} Redact a version of a method
-    get_repositiory_configs()   GET /api/configurations List Method Repository configurations.
-    get_config_template()       POST /api/template Create a Method Configuration template from a Method
-    get_inputs_outputs()        POST /api/inputsOutputs Get information about a method's inputs and outputs
-    get_repository_config()     GET /api/configurations/{namespace}/{name}/{snapshotId} Get a Method Repository configuration
-    get_repository_method_acl()         GET /api/methods/{namespace}/{name}/{snapshotId}/permissions get ACL permissions on a Method Repository method
-    update_repository_method_acl()      POST /api/methods/{namespace}/{name}/{snapshotId}/permissions set ACL permissions on a Method Repository method
-    get_repository_config_acl()         GET /api/configurations/{namespace}/{name}/{snapshotId}/permissions get ACL permissions on a Method Repository configuration
-    update_repository_config_acl()      POST /api/configurations/{namespace}/{name}/{snapshotId}/permissions set ACL permissions on a Method Repository configuration
-    copy_config_from_repo()             POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
-    copy_config_to_repo()               POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
-
-Submissions:
-    get_submissions()       GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions List submissions.
-    create_submission()     POST /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions Create a submission.
-    abort_submission()      DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions/{submissionId} abort a submission
-    get_submission()        GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions/{submissionId} Monitor submission status
-    get_workflow_outputs()  GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions/{submissionId}/workflows/{workflowId}/outputs Get workflow outputs.
-
-Workspaces:
-    get_workspaces()        GET /api/workspaces Lists workspaces.
-    create_workspace()      POST /api/workspaces Create workspace
-    delete_workspace()      DELETE /api/workspaces/{workspaceNamespace}/{workspaceName} Delete workspace
-    get_workspace()         GET /api/workspaces/{workspaceNamespace}/{workspaceName} Get workspace
-    get_workspace_acl()     GET /api/workspaces/{workspaceNamespace}/{workspaceName}/acl Get workspace ACL
-    update_workspace_acl()  PATCH /api/workspaces/{workspaceNamespace}/{workspaceName}/acl Update workspace ACL
-    clone_workspace()       POST /api/workspaces/{workspaceNamespace}/{workspaceName}/clone Clone Workspace
-    lock_workspace()        PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/lock Lock Workspace
-    unlock_workspace()      PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/unlock Unlock Workspace
-    get_configs()           GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs List of Method Configurations in a workspace
-    create_config()                  POST /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs Create a Method Configuration in a workspace
-    update_workspace_attributes()    PATCH /api/workspaces/{workspaceNamespace}/{workspaceName}/updateAttributes Modify attributes on a workspace.
-
-Status:
-    get_status()            GET /api/status Returns the workspace service url, methods repository url, and the current timestamp.
-    ping()                  GET /api/status/ping Returns the current timestamp.
-
-Profile:
-
-    get_billing_projects()  GET /api/profile/billing List billing projects for a user
-
-Other FireCloud Orchestration calls which are not implemented are listed below for completeness.
-
-NIH:
-    (Won't Implement)       POST /api/nih/callback Updates a user's NIH link from a JWT
-    (Won't Implement)       GET /api/nih/status Retrieves info about a user's NIH link
-    (Won't Implement)       POST /sync_whitelist Downloads the NIH Whitelist and Updates Rawls groups approrpriately
-
-OAuth:
-    (Won't Implement)       GET /login Starts the authentication flow for a user
-
-Storage:
-    (Won't Implement)       GET /api/storage/{bucket}/{object} Get metadata about an object stored in GCS.
-
-Profile:
-    (Won't Implement)       GET /me Returns registration and activation status for the current user
-    (Won't Implement)       GET /register/profile Returns a list of all keys and values stored in the user profile service for the currently logged-in user.
-    (Won't Implement)       GET /register Passes through to the Rawls userinfo API and returns its response
-    (Won't Implement)       POST /register/profile Sets a profile object in the user profile service for the currently logged-in user.
-    (Won't Implement)       GET /register/userinfo Passes through to Google's userinfo API and returns its response
+To see how the python bindings map to the RESTful endpoints view 
+the README at https://pypi.python.org/pypi/firecloud.
 """
-
 import json
 import httplib2
 import urllib
@@ -147,7 +47,6 @@ def _check_response(response, content, expected):
 #################################################
 # API calls, see https://api.firecloud.org/
 #################################################
-
 def get_workspaces(api_root=PROD_API_ROOT):
     """Request list of FireCloud workspaces."""
     http = _gcloud_authorized_http()
@@ -329,8 +228,8 @@ def create_config(namespace, workspace, mnamespace, method,
                                                         namespace, workspace)
     return http.request(uri, "POST", headers=headers, body=body)
 
-def delete_config(namespace, workspace, mnamespace, 
-                  method, api_root=PROD_API_ROOT):
+def delete_config(namespace, workspace, cnamespace, 
+                  config, api_root=PROD_API_ROOT):
     """Delete method configuration in workspace.
     
     Args:
@@ -342,37 +241,37 @@ def delete_config(namespace, workspace, mnamespace,
     """
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
-        api_root, namespace, workspace, mnamespace, method)
+        api_root, namespace, workspace, cnamespace, config)
     return http.request(uri, "DELETE")
 
-def get_config(namespace, workspace, mnamespace, 
-                  method, api_root=PROD_API_ROOT):
+def get_config(namespace, workspace, cnamespace, 
+               config, api_root=PROD_API_ROOT):
     """Get method configuration in workspace.
     
     Args:
         namespace (str): Google project for the workspace
         workspace (str): Workspace name
-        mnamespace (str): Method namespace
-        method (str): Method name
+        cnamespace (str): Config namespace
+        config (str): Config name
         api_root (str): FireCloud API url, if not production
     """
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
-        api_root, namespace, workspace, mnamespace, method)
+        api_root, namespace, workspace, cnamespace, config)
     return http.request(uri)
 
-def update_config(namespace, workspace, mnamespace, 
-                  method, new_namespace, new_name,
+def update_config(namespace, workspace, cnamespace, 
+                  config, new_namespace, new_name,
                   root_etype, api_root=PROD_API_ROOT):
     """Update method configuration in workspace.
     
     Args:
         namespace (str): Google project for the workspace
         workspace (str): Workspace name
-        mnamespace (str): Method namespace
-        method (str): Method name
-        new_namespace (str): Updated method namespace
-        new_name (str): Updated method name
+        cnamespace (str): Configuration namespace
+        config (str): Configuration name
+        new_namespace (str): Updated config namespace
+        new_name (str): Updated config name
         root_etype (str): New root entity type
         api_root (str): FireCloud API url, if not production
     """
@@ -386,18 +285,18 @@ def update_config(namespace, workspace, mnamespace,
     body = json.dumps(body)
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
-        api_root, namespace, workspace, mnamespace, method)
+        api_root, namespace, workspace, cnamespace, config)
     return http.request(uri, "PUT", headers=headers, body=body)
 
-def rename_config(namespace, workspace, mnamespace, 
-                  method, new_namespace, new_name, api_root=PROD_API_ROOT):
+def rename_config(namespace, workspace, cnamespace, 
+                  config, new_namespace, new_name, api_root=PROD_API_ROOT):
     """Rename a method configuration in a workspace.
 
     Args:
         namespace (str): Google project for the workspace
         workspace (str): Workspace name
-        mnamespace (str): Method namespace
-        method (str): Method name
+        mnamespace (str): Config namespace
+        config (str): Method name
         new_namespace (str): Updated method namespace
         new_name (str): Updated method name
         api_root (str): FireCloud API url, if not production
@@ -410,23 +309,78 @@ def rename_config(namespace, workspace, mnamespace,
            }
     body = json.dumps(body)
     uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}/rename".format(
-        api_root, namespace, workspace, mnamespace, method)
-
-    headers = {"Content-type": "application/json"}
+        api_root, namespace, workspace, cnamespace, config)
     return http.request(uri, "POST", headers=headers, body=body)
 
-def validate_config(namespace, workspace, mnamespace, 
-                  method, api_root=PROD_API_ROOT):
-    """Get syntax validation for a configuration."""
-    raise NotImplementedError
+def validate_config(namespace, workspace, cnamespace, 
+                    config, api_root=PROD_API_ROOT):
+    """Get syntax validation for a configuration.
+
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        cnamespace (str): Configuration namespace
+        config (str): Configuration name
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}/validate".format(
+        api_root, namespace, workspace, cnamespace, config)
+    return http.request(uri)
+
+def copy_config_from_repo(namespace, workspace, from_cnamespace, 
+                          from_config, from_snapshot_id, to_cnamespace, 
+                          to_config, api_root=PROD_API_ROOT):
+    """Copy a method config from the methods repository to a workspace.
+
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        from_cnamespace (str): Source configuration namespace
+        from_config (str): Source configuration name
+        from_snapshot_id (int): Source configuration snapshot_id
+        to_cnamespace (str): Target configuration namespace
+        to_config (str): Target configuration name
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    headers = {"Content-type":  "application/json"}
+    body = {
+            "configurationNamespace": from_cnamespace,
+            "configurationName": from_config,
+            "configurationSnapshotId": from_snapshot_id,
+            "destinationNamespace": to_cnamespace,
+            "destinationName": to_config
+           }
+    body = json.dumps(body)
+    uri = "{0}/workspaces/{1}/{2}/method_configs/copyFromMethodRepo".format(
+        api_root, namespace, workspace, cnamespace, config)
+    return http.request(uri, "POST", headers=headers, body=body)
 
 def copy_config_to_repo():
-    """Copy a method config from a workspace to the methods repository."""
-    raise NotImplementedError
+    """Copy a method config from a workspace to the methods repository.
 
-def copy_config_from_repo():
-    """Copy a method config from the methods repository to a workspace."""
-    raise NotImplementedError
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        from_cnamespace (str): Source configuration namespace
+        from_config (str): Source configuration name
+        to_cnamespace (str): Target configuration namespace
+        to_config (str): Target configuration name
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    headers = {"Content-type":  "application/json"}
+    body = {
+            "configurationNamespace": to_cnamespace,
+            "configurationName": to_config,
+            "sourceNamespace": from_cnamespace,
+            "sourceName": from_config
+           }
+    body = json.dumps(body)
+    uri = "{0}/workspaces/{1}/{2}/method_configs/copyToMethodRepo".format(
+        api_root, namespace, workspace, cnamespace, config)
+    return http.request(uri, "POST", headers=headers, body=body)
 
 def upload_entities_tsv(namespace, workspace, 
                         entities_tsv, api_root=PROD_API_ROOT):
