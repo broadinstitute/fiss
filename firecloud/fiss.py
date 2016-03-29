@@ -227,7 +227,7 @@ def flow_list(args):
         print_(r)
 
 def config_list(args):
-    response, content = fapi.get_repository_configurations(args.api_url)
+    response, content = fapi.get_repository_configs(args.api_url)
     _err_response(response, content, [200])
 
     #Parse the JSON for the workspace + namespace
@@ -246,8 +246,8 @@ def config_list(args):
         print_(r)
 
 def config_acl(args):
-    r, c = fapi.get_repository_configuration_acl(args.namespace, 
-                                args.name, args.snapshot_id, args.api_url)
+    r, c = fapi.get_repository_config_acl(
+        args.namespace, args.name, args.snapshot_id, args.api_url)
     _err_response(r,c, [200])
     for d in json.loads(c):
         user = d['user']
