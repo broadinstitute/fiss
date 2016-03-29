@@ -806,3 +806,30 @@ def _attr_lrem(attr, value):
              "attributeName"      : attr,
              "addUpdateAttribute" : value
            }
+
+def copy_entities(from_namespace, from_workspace, to_namespace, 
+                  to_workspace, etype, enames, api_root=PROD_API_ROOT):
+    """Copy entities between workspaces
+
+    Args:
+        from_namespace (str): Source workspace's google project (namespace)
+        from_workspace (str): Source workspace's name
+        to_namespace (str): Target workspace's google project
+        to_workspace (str): Target workspace's name
+        etype (str): Entity type
+        enames (list(str)): List of entity names to copy
+        api_root(str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/entities/copy".format(
+        api_root, to_namespace, to_workspace)
+    headers = {"Content-type":  "application/json"}
+    body = { "sourceWorkspace": {
+                "namespace": from_namespace,
+                "name": from_workspace
+             },
+             "entityType": etype,
+             "entityNames": enames
+           } 
+    body = json.dumps(body)
+    return http.request(uri, "POST", headers=headers, body=body)  

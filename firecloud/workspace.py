@@ -244,3 +244,18 @@ class Workspace(object):
     def pair_sets(self):
         """List pair sets in a workspace."""
         return self.__get_entities("pair_set")
+
+    def copy_entities(self, from_namespace, from_workspace, etype, enames):
+        """Copy entities from another workspace.
+
+        Args:
+            from_namespace (str): Source workspace namespace
+            from_workspace (str): Source workspace name
+            etype (str): Entity type
+            enames (list(str)): List of entity names to copy
+        """
+        r, c = fapi.copy_entities(from_namespace, from_workspace, 
+                                  self.namespace, self.name, etype, enames,
+                                  self.api_url)
+        fapi._check_response(r, c, [201])
+
