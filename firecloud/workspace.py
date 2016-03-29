@@ -150,7 +150,8 @@ class Workspace(object):
     def import_entities(self, entities):
         """Upload entity objects.
 
-        entities must be an iterable of firecloud.Entity objects.
+        Args:
+            entities: iterable of firecloud.Entity objects.
         """
         edata = Entity.create_payload(entities)
         r, c = fapi.upload_entities(self.namespace, self.name, 
@@ -160,8 +161,9 @@ class Workspace(object):
     def create_set(self, set_id, etype, entities):
         """Create a set of entities and upload to FireCloud.
 
-        etype must be one of {"sample, "pair", "participant"}
-        entities is an iterable of firecloud.Entiyt objects.
+        Args
+            etype (str): one of {"sample, "pair", "participant"}
+            entities: iterable of firecloud.Entity objects.
         """
         if etype not in {"sample", "pair", "participant"}:
             raise ValueError("Unsupported entity type:" + str(etype))

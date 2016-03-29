@@ -191,7 +191,7 @@ def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     return http.request(uri, "PUT")
 
 
-def get_workspace_method_configs(namespace, workspace, api_root=PROD_API_ROOT):
+def get_configs(namespace, workspace, api_root=PROD_API_ROOT):
     """List method configurations in workspace.
     
     Args:
@@ -204,17 +204,60 @@ def get_workspace_method_configs(namespace, workspace, api_root=PROD_API_ROOT):
                                                         namespace, workspace)
     return http.request(uri)
 
-def create_method_config(namespace, workspace, api_root=PROD_API_ROOT):
+def create_config(namespace, workspace, mnamespace, method,
+                  root_etype, api_root=PROD_API_ROOT):
     """Create method configuration in workspace.
-
-    NOTE: NOT YET IMPLEMENTED
     
     Args:
         namespace (str): Google project for the workspace
         workspace (str): Workspace name
+        mnamespace (str): Method namespace
+        method (str): Method name
+        root_etype (str): Root entity type
         api_root (str): FireCloud API url, if not production
     """
-    raise NotImplementedError
+    http = _gcloud_authorized_http()
+    headers = {"Content-type":  "application/json"}
+    body = { "namespace": mnamespace,
+             "name": method,
+             "rootEntityType": 
+           }
+    body = json.dumps(body)
+    uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root, 
+                                                        namespace, workspace)
+    return http.request(uri, "POST", headers=headers, body=body)
+
+def delete_config(namespace, workspace, mnamespace, 
+                  method, api_root=PROD_API_ROOT):
+    """Delete method configuration in workspace.
+    
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        mnamespace (str): Method namespace
+        method (str): Method name
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
+        api_root, namespace, workspace, mnamespace, method)
+    return http.request(uri, "DELETE")
+
+def get_config(namespace, workspace, mnamespace, 
+                  method, api_root=PROD_API_ROOT):
+    """Get method configuration in workspace.
+    
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        mnamespace (str): Method namespace
+        method (str): Method name
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
+        api_root, namespace, workspace, mnamespace, method)
+    return http.request(uri)
 
 def upload_entities_tsv(namespace, workspace, 
                         entities_tsv, api_root=PROD_API_ROOT):
@@ -653,7 +696,7 @@ def update_repository_method_acl(namespace, method, snapshot_id,
         namespace (str): Methods namespace
         method (str): method name
         snapshot_id (int): snapshot_id of the method
-        acl_updates (list(dict)): List of 
+        acl_updates (list(dict)): List of access control updates
         api_root (str): FireCloud API url, if not production
     """
     http = _gcloud_authorized_http()
@@ -673,7 +716,6 @@ def get_repository_configuration_acl(namespace, config,
         namespace (str): Configuration namespace
         config (str): Configuration name
         snapshot_id (int): snapshot_id of the method
-        acl_updates (list(dict)): List of 
         api_root (str): FireCloud API url, if not production
     """
     http = _gcloud_authorized_http()
@@ -691,7 +733,7 @@ def update_repository_configuration_acl(namespace, config, snapshot_id,
         namespace (str): Configuration namespace
         config (str): Configuration name
         snapshot_id (int): snapshot_id of the method
-        acl_updates (list(dict)): List of 
+        acl_updates (list(dict)): List of access control updates
         api_root (str): FireCloud API url, if not production
     """
     http = _gcloud_authorized_http()

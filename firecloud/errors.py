@@ -1,3 +1,5 @@
+import json
+
 class FireCloudServerError(RuntimeError):
     """Exception indicating a server error
 
@@ -11,7 +13,7 @@ class FireCloudServerError(RuntimeError):
     """
     def __init__(self, code, message):
         self.code = code
-        self.message = message
-        emsg = "FireCloud Server Error: " + str(code) + " " + message
+        self.message = json.loads(message)["message"]
+        emsg = str(code) + ": " + self.message
         RuntimeError.__init__(self, emsg)
 

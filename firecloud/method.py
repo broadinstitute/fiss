@@ -13,6 +13,7 @@ class Method(object):
         wdl (str): WDL description 
         synopsis (str): Short description of task
         documentation (str): Extra documentation for method
+        api_url (str): FireCloud API root
     """
 
     def __init__(self, namespace, name, 
@@ -58,16 +59,31 @@ class Method(object):
         return json.loads(c)
 
     def inputs_outputs(self):
-        """Get information on method inputs & outputs"""
+        """Get information on method inputs & outputs."""
         r, c = fapi.get_inputs_outputs(self.namespace, self.name,
                                        self.snapshot_id, self.api_url)
         fapi._check_response(r, c, [200])
         return json.loads(c)
 
     def permissions(self):
-        """Get the access control list for this method"""
+        """Get the access control list for this method."""
         r, c = fapi.get_repository_method_acl(
             self.namespace, self.name, self.snapshot_id, self.api_url)
         fapi._check_response(r, c, [200])
         return json.loads(c)
+
+    def set_acl(self, role, users):
+        """Set permissions for this method.
+
+        Args:
+            role (str): Access level 
+                one of {one of "OWNER", "READER", "WRITER", "NO ACCESS"}
+            users (list(str)): List of users to give role to
+        """
+        acl_updates = [{"user": user, "role": role} for user in users]
+        r, c = fapi.update_repository_method_acl(
+            self.namespace, self.name, self.snapshot_id,
+            acl_updates, self.api_url
+        )
+        fapi._check_response(r, c, [200])
 
