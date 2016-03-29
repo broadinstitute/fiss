@@ -8,14 +8,14 @@ The following isa list of all RESTful API calls for FireCloud Orchestration.
 There should be a 1 to 1 relationship between firecloud.api functions and these 
 endpoints, except where a more useful function exitsts. 
 
-'**' indicates an endpoint is not currently documented at https://api.filecloud.org
+'**' indicates an endpoint is not currently documented at https://api.firecloud.org
 Functions that are implemented are listed before the endpoint
 
 Last updated: 2016/03/29
 
 Entities:
     get_entities_with_type()    GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities_with_type List of entities in a workspace with type and attribute information
-                                GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities List of entity types in a workspace
+    get_entity_types()          GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities List of entity types in a workspace
     upload_entities_tsv()*      POST /api/workspaces/{workspaceNamespace}/{workspaceName}/importEntities Import entities from a tsv file
     upload_entities()               As above, for non-file based version
     copy_entities()             POST /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/copy Copy entities from one workspace to another
@@ -29,18 +29,18 @@ Entities:
     delete_sample_set()*
     delete_pair()*
     delete_pair_set()*
-                                GET /cookie-authed/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type (allows cookie-based authentication
+    (Won't Implement)           GET /cookie-authed/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type (allows cookie-based authentication
 
 Method Configurations:
     get_configs()           GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs List of Method Configurations in a workspace
     create_config()         POST /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs Create a Method Configuration in a workspace
-                            DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Delete a method configuration in a workspace
-                            GET /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Get a method configuration in a workspace
+    delete_config()         DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Delete a method configuration in a workspace
+    get_config()            GET /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Get a method configuration in a workspace
     update_config()         PUT /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName} Update a method configuration in a workspace
-                            GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs/{configNamespace}/{configName}/validate get syntax validation information for a method configuration
-                            POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName}/rename Rename a method configuration in a workspace
-                            POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
-                            POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
+    validate_config()       GET /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs/{configNamespace}/{configName}/validate get syntax validation information for a method configuration
+    rename_config()         POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/{configNamespace}/{configName}/rename Rename a method configuration in a workspace
+    copy_config_from_repo() POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
+    copy_config_to_repo()   POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
 
 Method Repository:
     get_repository_methods()    GET /api/methods Lists Method Repository methods.
@@ -54,31 +54,8 @@ Method Repository:
     update_repository_method_acl()      POST /api/methods/{namespace}/{name}/{snapshotId}/permissions set ACL permissions on a Method Repository method
     get_repository_config_acl()         GET /api/configurations/{namespace}/{name}/{snapshotId}/permissions get ACL permissions on a Method Repository configuration
     update_repository_config_acl()      POST /api/configurations/{namespace}/{name}/{snapshotId}/permissions set ACL permissions on a Method Repository configuration
-                                        POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
-                                        POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
-
-NIH:
-                            POST /api/nih/callback Updates a user's NIH link from a JWT
-                            GET /api/nih/status Retrieves info about a user's NIH link
-                            POST /sync_whitelist Downloads the NIH Whitelist and Updates Rawls groups approrpriately
-
-OAuth:
-                            GET /login Starts the authentication flow for a user
-
-Profile:
-                            GET /me Returns registration and activation status for the current user
-                            GET /register Passes through to the Rawls userinfo API and returns its response
-                            GET /register/profile Returns a list of all keys and values stored in the user profile service for the currently logged-in user.
-                            POST /register/profile Sets a profile object in the user profile service for the currently logged-in user.
-                            GET /register/userinfo Passes through to Google's userinfo API and returns its response
-                            GET /api/profile/billing List billing projects for a user
-
-Status:
-    get_status()            GET /api/status Returns the workspace service url, methods repository url, and the current timestamp.
-    ping()                  GET /api/status/ping Returns the current timestamp.
-
-Storage:
-                            GET /api/storage/{bucket}/{object} Get metadata about an object stored in GCS.
+    copy_config_from_repo()             POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyFromMethodRepo Copy a Method Repository Configuration into a workspace
+    copy_config_to_repo()               POST /api/workspaces/{workspaceNamespace}/{workspaceName}/method_configs/copyToMethodRepo Copy a Method Config in a workspace to the Method Repository
 
 Submissions:
     get_submissions()       GET /api/workspaces/{workspaceNamespace}/{workspaceName}/submissions List submissions.
@@ -101,6 +78,33 @@ Workspaces:
     create_config()                  POST /api/workspaces/{workspaceNamespace}/{workspaceName}/methodconfigs Create a Method Configuration in a workspace
     update_workspace_attributes()    PATCH /api/workspaces/{workspaceNamespace}/{workspaceName}/updateAttributes Modify attributes on a workspace.
 
+Status:
+    get_status()            GET /api/status Returns the workspace service url, methods repository url, and the current timestamp.
+    ping()                  GET /api/status/ping Returns the current timestamp.
+
+Profile:
+
+    get_billing_projects()  GET /api/profile/billing List billing projects for a user
+
+Other FireCloud Orchestration calls which are not implemented are listed below for completeness.
+
+NIH:
+    (Won't Implement)       POST /api/nih/callback Updates a user's NIH link from a JWT
+    (Won't Implement)       GET /api/nih/status Retrieves info about a user's NIH link
+    (Won't Implement)       POST /sync_whitelist Downloads the NIH Whitelist and Updates Rawls groups approrpriately
+
+OAuth:
+    (Won't Implement)       GET /login Starts the authentication flow for a user
+
+Storage:
+    (Won't Implement)       GET /api/storage/{bucket}/{object} Get metadata about an object stored in GCS.
+
+Profile:
+    (Won't Implement)       GET /me Returns registration and activation status for the current user
+    (Won't Implement)       GET /register/profile Returns a list of all keys and values stored in the user profile service for the currently logged-in user.
+    (Won't Implement)       GET /register Passes through to the Rawls userinfo API and returns its response
+    (Won't Implement)       POST /register/profile Sets a profile object in the user profile service for the currently logged-in user.
+    (Won't Implement)       GET /register/userinfo Passes through to Google's userinfo API and returns its response
 """
 
 import json
@@ -358,7 +362,8 @@ def get_config(namespace, workspace, mnamespace,
     return http.request(uri)
 
 def update_config(namespace, workspace, mnamespace, 
-                  method, api_root=PROD_API_ROOT):
+                  method, new_namespace, new_name,
+                  root_etype, api_root=PROD_API_ROOT):
     """Update method configuration in workspace.
     
     Args:
@@ -366,12 +371,62 @@ def update_config(namespace, workspace, mnamespace,
         workspace (str): Workspace name
         mnamespace (str): Method namespace
         method (str): Method name
+        new_namespace (str): Updated method namespace
+        new_name (str): Updated method name
+        root_etype (str): New root entity type
         api_root (str): FireCloud API url, if not production
     """
+
+    headers = {"Content-type":  "application/json"}
+    body = {
+            "namespace": new_namespace,
+            "name": new_name,
+            "rootEntityType": root_etype 
+            }
+    body = json.dumps(body)
     http = _gcloud_authorized_http()
     uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
         api_root, namespace, workspace, mnamespace, method)
-    return http.request(uri)
+    return http.request(uri, "PUT", headers=headers, body=body)
+
+def rename_config(namespace, workspace, mnamespace, 
+                  method, new_namespace, new_name, api_root=PROD_API_ROOT):
+    """Rename a method configuration in a workspace.
+
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        mnamespace (str): Method namespace
+        method (str): Method name
+        new_namespace (str): Updated method namespace
+        new_name (str): Updated method name
+        api_root (str): FireCloud API url, if not production
+    """
+    http = _gcloud_authorized_http()
+    headers = {"Content-type":  "application/json"}
+    body = {
+            "namespace": new_name,
+            "name": new_namespace
+           }
+    body = json.dumps(body)
+    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}/rename".format(
+        api_root, namespace, workspace, mnamespace, method)
+
+    headers = {"Content-type": "application/json"}
+    return http.request(uri, "POST", headers=headers, body=body)
+
+def validate_config(namespace, workspace, mnamespace, 
+                  method, api_root=PROD_API_ROOT):
+    """Get syntax validation for a configuration."""
+    raise NotImplementedError
+
+def copy_config_to_repo():
+    """Copy a method config from a workspace to the methods repository."""
+    raise NotImplementedError
+
+def copy_config_from_repo():
+    """Copy a method config from the methods repository to a workspace."""
+    raise NotImplementedError
 
 def upload_entities_tsv(namespace, workspace, 
                         entities_tsv, api_root=PROD_API_ROOT):
@@ -781,7 +836,7 @@ def get_method(namespace, method, snapshot_id, api_root=PROD_API_ROOT):
     http = _gcloud_authorized_http()
     uri = "{0}/methods/{1}/{2}/{3}".format(
         api_root, namespace, method, snapshot_id)
-    return http.request(uri)
+    return http.request(uri) 
 
 def get_repository_method_acl(namespace, method, 
                               snapshot_id, api_root=PROD_API_ROOT):
@@ -989,3 +1044,8 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
            } 
     body = json.dumps(body)
     return http.request(uri, "POST", headers=headers, body=body)  
+
+def get_billing_projects(api_root=PROD_API_ROOT):
+    """Get activation information for the logged-in user."""
+    http = _gcloud_authorized_http()
+    return http.request("{0}/profile/billing".format(api_root))
