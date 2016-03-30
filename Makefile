@@ -12,7 +12,7 @@ help:
 	@echo
 
 test:
-	python setup.py nosetests && \
+	python setup.py nosetests --verbosity=3 && \
 	rm -rf build dist *.egg-info
 
 install:
