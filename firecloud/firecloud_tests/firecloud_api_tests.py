@@ -201,32 +201,46 @@ class TestFirecloudAPI(unittest.TestCase):
     @unittest.skip("Not Implemented")
     def test_get_configs(self):
         """Test get_configs()."""
-        pass
+        r, c = fapi.get_configs(self.test_namespace, 
+                                self.static_workspace)
+        print_(r, c)
+        self.assertEqual(r.status, 200)
     
-    @unittest.skip("Not Implemented")
     def test_get_entities(self):
         """Test get_entities()."""
-        pass
-    
-    @unittest.skip("Not Implemented")
+        r, c = fapi.get_entities(self.test_namespace, 
+                                 self.static_workspace,
+                                 "participant")
+        print_(r, c)
+        self.assertEqual(r.status, 200)
+
     def test_get_entities_tsv(self):
         """Test get_entities_tsv()."""
-        pass
-    
-    @unittest.skip("Not Implemented")
+        r, c = fapi.get_entities_tsv(self.test_namespace, 
+                                     self.static_workspace,
+                                     "participant")
+        print_(r, c)
+        self.assertEqual(r.status, 200)
+
     def test_get_entities_with_type(self):
         """Test get_entities_with_type()."""
-        pass
+        r, c = fapi.get_entities_with_type(self.test_namespace, 
+                                           self.static_workspace)
+        print_(r, c)
+        self.assertEqual(r.status, 200)
     
     @unittest.skip("Not Implemented")
     def test_get_entity(self):
         """Test get_entity()."""
         pass
     
-    @unittest.skip("Not Implemented")
     def test_get_entity_types(self):
         """Test get_entity_types()."""
-        pass
+        r, c = fapi.get_entity_types(self.test_namespace, 
+                                     self.static_workspace)
+        print_(r, c)
+        self.assertEqual(r.status, 200)
+
     
     @unittest.skip("Not Implemented")
     def test_get_inputs_outputs(self):
@@ -248,30 +262,34 @@ class TestFirecloudAPI(unittest.TestCase):
         """Test get_repository_config_acl()."""
         pass
     
-    @unittest.skip("Not Implemented")
     def test_get_repository_configs(self):
         """Test get_repository_configs()."""
-        pass
+        r, c = fapi.get_repository_configs()
+        print_(r, c)
+        self.assertEqual(r.status, 200)
     
     @unittest.skip("Not Implemented")
     def test_get_repository_method_acl(self):
         """Test get_repository_method_acl()."""
         pass
     
-    @unittest.skip("Not Implemented")
     def test_get_repository_methods(self):
         """Test get_repository_methods()."""
-        pass
+        r, c = fapi.get_repository_methods()
+        print_(r, c)
+        self.assertEqual(r.status, 200)
     
     @unittest.skip("Not Implemented")
     def test_get_submission(self):
         """Test get_submission()."""
         pass
     
-    @unittest.skip("Not Implemented")
     def test_get_submissions(self):
         """Test get_submissions()."""
-        pass
+        r, c = fapi.get_submissions(self.test_namespace, 
+                                    self.static_workspace)
+        print_(r, c)
+        self.assertEqual(r.status, 200)
     
     @unittest.skip("Not Implemented")
     def test_get_workflow_outputs(self):
