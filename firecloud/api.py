@@ -459,6 +459,7 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         entity (str): Entity to submit job on. Should be the same type as
             the root entity type of the method config, unless an 
             expression is used
+        etype (str): Entity type of root_entity
         expression (str): Instead of using entity as the root entity,
             evaluate the root entity from this expression.
         api_root (str): FireCloud API url, if not production 

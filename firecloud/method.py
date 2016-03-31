@@ -65,7 +65,7 @@ class Method(object):
         fapi._check_response(r, c, [200])
         return json.loads(c)
 
-    def permissions(self):
+    def acl(self):
         """Get the access control list for this method."""
         r, c = fapi.get_repository_method_acl(
             self.namespace, self.name, self.snapshot_id, self.api_url)
