@@ -2,7 +2,7 @@
 """
 FISS -- (Fi)reCloud (S)ervice (Selector)
 
-This module provides a command line interface to Firecloud
+This module provides a command line interface to FireCloud
 For more details see https://software.broadinstitute.org/firecloud/
 """
 from firecloud import api as fapi
@@ -16,7 +16,7 @@ from inspect import getsourcelines
 import os
 
 
-__version__="0.8.0"
+__version__="0.8.1"
 PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################
@@ -333,7 +333,7 @@ def _err_response(response, content, expected):
     Throws an exception if the response status is unexpected
     """
     if response.status not in expected:
-        raise FirecloudServerError(response.status, content)
+        raise FireCloudServerError(response.status, content)
 
 def _nonempty_project(string):
     """
@@ -375,7 +375,7 @@ def main():
     default_project_list = [default_project] if default_project != '' else []
 
     #Initialize core parser
-    parser = ArgumentParser(description='The Firecloud CLI for fiss users')
+    parser = ArgumentParser(description='The FireCloud CLI for fiss users')
 
     # Core Flags
     url_help = 'Fireclould api url. Your default is ' + default_api_url
@@ -547,7 +547,7 @@ def main():
     sacl_prsr.add_argument('workspace', help='Workspace name')
     sacl_prsr.add_argument('role', help='ACL role',
                            choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
-    sacl_prsr.add_argument('users', metavar='user', help='Firecloud username',
+    sacl_prsr.add_argument('users', metavar='user', help='FireCloud username',
                            nargs='+')
     sacl_prsr.set_defaults(func=space_set_acl)
 
@@ -592,7 +592,7 @@ def main():
         choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS']
     )
     macl_parser.add_argument('users', metavar='user', 
-                             help='Firecloud username', nargs='+')
+                             help='FireCloud username', nargs='+')
     macl_parser.set_defaults(func=flow_set_acl)
 
     # List available methods

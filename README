@@ -49,6 +49,9 @@ dockerized version of the tool available on docker hub.
 ====================
 4. Release Notes
 ====================
+v0.8.1 - Improved test coverage. Enhanced interactive classes. Fixed error logic 
+         to match new server response.
+
 v0.8.0 - firecloud.api now boasts 100% coverage of existing (useful) API endpoints.
 
          Several api endpoints for manipulating NIH credentials and profile info

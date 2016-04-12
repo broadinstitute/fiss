@@ -13,7 +13,7 @@ class FireCloudServerError(RuntimeError):
     """
     def __init__(self, code, message):
         self.code = code
-        self.message = json.loads(message)["message"]
-        emsg = str(code) + ": " + self.message
+        self.message = message
+        emsg = str(code) + ": " + str(self.message)
         RuntimeError.__init__(self, emsg)
 
