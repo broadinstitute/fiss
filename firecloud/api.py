@@ -354,7 +354,7 @@ def copy_config_from_repo(namespace, workspace, from_cnamespace,
            }
     body = json.dumps(body)
     uri = "{0}/workspaces/{1}/{2}/method_configs/copyFromMethodRepo".format(
-        api_root, namespace, workspace, cnamespace, config)
+        api_root, namespace, workspace)
     return http.request(uri, "POST", headers=headers, body=body)
 
 def copy_config_to_repo():
