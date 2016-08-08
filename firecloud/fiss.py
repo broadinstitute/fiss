@@ -5,18 +5,19 @@ FISS -- (Fi)reCloud (S)ervice (Selector)
 This module provides a command line interface to FireCloud
 For more details see https://software.broadinstitute.org/firecloud/
 """
-from firecloud import api as fapi
-from firecloud.errors import *
-from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
 import json
 import sys
+import os
+from inspect import getsourcelines
+from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
+
 from six import print_
 from yapsy.PluginManager import PluginManager
-from inspect import getsourcelines
-import os
 
+from firecloud import api as fapi
+from firecloud.errors import *
+from firecloud.__about__ import __version__
 
-__version__="0.8.1"
 PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 
 #################################################
@@ -50,7 +51,7 @@ def space_lock(args):
     print_('Locked workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_new(args):
-    r, c = fapi.create_workspace(args.project, args.workspace, 
+    r, c = fapi.create_workspace(args.project, args.workspace,
                                  args.protected, dict(), args.api_url)
     _err_response(r, c, [201])
     print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
@@ -67,7 +68,7 @@ def space_delete(args):
                                                 args.workspace)
     if not args.yes and not _are_you_sure(prompt):
         #Don't do it!
-        return 
+        return
 
     response, content = fapi.delete_workspace(
         args.project, args.workspace, args.api_url)
@@ -96,7 +97,7 @@ def entity_import(args):
     print_('Successfully uploaded entities')
 
 def entity_types(args):
-    r, c = fapi.get_entity_types(args.project, args.workspace, 
+    r, c = fapi.get_entity_types(args.project, args.workspace,
                                  args.api_url)
     _err_response(r,c, [200])
     for etype in json.loads(c):
@@ -141,7 +142,7 @@ def entity_delete(args):
         args.etype, args.ename, args.project, args.workspace)
     if not args.yes and not _are_you_sure(prompt):
         #Don't do it!
-        return 
+        return
     r, c = fapi.delete_entity(args.project, args.workspace,
                               args.etype, args.ename, args.api_url)
     _err_response(r,c, [204])
@@ -166,9 +167,9 @@ def space_acl(args):
         print_('{0}\t{1}'.format(user, role))
 
 def space_set_acl(args):
-    acl_updates = [{"email": user, 
+    acl_updates = [{"email": user,
                    "accessLevel": args.role} for user in args.users]
-    r, c = fapi.update_workspace_acl(args.project, args.workspace, 
+    r, c = fapi.update_workspace_acl(args.project, args.workspace,
                                      acl_updates, args.api_url)
     _err_response(r, c, [200])
     print_("Successfully updated roles")
@@ -184,14 +185,14 @@ def flow_delete(args):
         args.namespace, args.name, args.snapshot_id)
     if not args.yes and not _are_you_sure(prompt):
         #Don't do it!
-        return 
-    r, c = fapi.delete_workflow(args.namespace, args.name, 
+        return
+    r, c = fapi.delete_workflow(args.namespace, args.name,
                                 args.snapshot_id, args.api_url)
     _err_response(r,c, [200])
     print_("Successfully redacted workflow")
 
 def flow_acl(args):
-    r, c = fapi.get_repository_method_acl(args.namespace, 
+    r, c = fapi.get_repository_method_acl(args.namespace,
                                 args.name, args.snapshot_id, args.api_url)
     _err_response(r,c, [200])
     for d in json.loads(c):
@@ -201,7 +202,7 @@ def flow_acl(args):
 
 def flow_set_acl(args):
     acl_updates = [{"user": user, "role": args.role} for user in args.users]
-    r, c = fapi.update_repository_method_acl(args.namespace, args.name, 
+    r, c = fapi.update_repository_method_acl(args.namespace, args.name,
                                             args.snapshot_id, acl_updates,
                                             args.api_url)
     _err_response(r,c, [200])
@@ -258,14 +259,14 @@ def config_acl(args):
 def attr_get(args):
     ##if entities was specified
     if args.etype is not None:
-        r, c = fapi.get_entities_with_type(args.project, args.workspace, 
+        r, c = fapi.get_entities_with_type(args.project, args.workspace,
                                            args.api_url)
         _err_response(r,c, [200])
 
         dict_response = json.loads(c)
 
         #Filter entities to only the one asked for
-        matching_entities = [d for d in dict_response 
+        matching_entities = [d for d in dict_response
                             if d['entityType'] == args.etype]
 
         all_attr = [d['attributes'] for d in matching_entities]
@@ -365,11 +366,11 @@ def main():
     for pluginInfo in manager.getAllPlugins():
         #API_URL
         default_api_url = getattr(pluginInfo.plugin_object,
-                                  'API_URL', 
+                                  'API_URL',
                                    default_api_url)
         # Default Google project
         default_project = getattr(pluginInfo.plugin_object,
-                                  'DEFAULT_PROJECT', 
+                                  'DEFAULT_PROJECT',
                                   default_project)
 
     default_project_list = [default_project] if default_project != '' else []
@@ -394,12 +395,12 @@ def main():
     parser.add_argument("-v", "--version",
                         action='version', version=__version__)
 
-    parser.add_argument("-y", "--yes", action='store_true', 
+    parser.add_argument("-y", "--yes", action='store_true',
                             help="Assume yes for any prompts")
 
     proj_help =  'Google Project (workspace namespace). Required for certain'
     proj_help += 'command if no DEFAULT_PROJECT is stored in a plugin'
-    parser.add_argument("-p", "--project", 
+    parser.add_argument("-p", "--project",
                         default=default_project, help=proj_help)
 
     # One subparser for each fiss equivalent
@@ -416,7 +417,7 @@ def main():
     space_list_parser = subparsers.add_parser(
         'space_list', description='List available workspaces')
     all_help = 'Get all available namespaces'
-    space_list_parser.add_argument('-a', '--all', 
+    space_list_parser.add_argument('-a', '--all',
                                    action='store_true', help=all_help)
     slist_help =  'Only return workspaces from these namespaces.'
     slist_help += 'If none are specified, list only workspaces in '
@@ -438,7 +439,7 @@ def main():
     # Create Workspace
     snew_parser = subparsers.add_parser('space_new',
                                         description='Create new workspace')
-    phelp = 'Create a protected (dbGaP-controlled) workspace.' 
+    phelp = 'Create a protected (dbGaP-controlled) workspace.'
     phelp += 'You must have linked NIH credentials for this option.'
     snew_parser.add_argument('-p', '--protected',
                              action='store_true', help=phelp)
@@ -588,10 +589,10 @@ def main():
     macl_parser.add_argument('name', help='Method name')
     macl_parser.add_argument('snapshot_id', help='Snapshot ID')
     macl_parser.add_argument(
-        'role', help='ACL role', 
+        'role', help='ACL role',
         choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS']
     )
-    macl_parser.add_argument('users', metavar='user', 
+    macl_parser.add_argument('users', metavar='user',
                              help='FireCloud username', nargs='+')
     macl_parser.set_defaults(func=flow_set_acl)
 
@@ -649,7 +650,7 @@ def main():
     etype_help += 'If omitted, workspace annotations will be retrieved'
     attr_parser.add_argument(
         '-t', '--entity-type', dest='etype', help=etype_help,
-        choices=['individual', 'individual_set', 
+        choices=['individual', 'individual_set',
                  'sample', 'sample_set',
                  'pair', 'pair_set'
                  ]

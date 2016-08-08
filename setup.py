@@ -1,14 +1,13 @@
 import os
 from setuptools import setup, find_packages
-
-VERSION="0.8.1"
+from firecloud.__about__ import __version__
 _README           = os.path.join(os.path.dirname(__file__), 'README')
 _LONG_DESCRIPTION = open(_README).read()
 
 # Setup information
 setup(
     name = 'firecloud',
-    version = VERSION,
+    version = __version__,
     packages = find_packages(),
     description = 'Firecloud API bindings and FISS CLI',
     author = 'Tim DeFreitas',
@@ -22,7 +21,7 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'httplib2',
+        'requests',
         'oauth2client',
         'yapsy'
     ],

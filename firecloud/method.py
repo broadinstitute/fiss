@@ -1,7 +1,9 @@
-import firecloud.api as fapi
 import json
-from firecloud.errors import FireCloudServerError
 from os.path import isfile
+
+from firecloud.errors import FireCloudServerError
+import firecloud.api as fapi
+
 
 class Method(object):
     """A FireCloud Method.
@@ -10,13 +12,13 @@ class Method(object):
         namespace (str): Method namespace for this method
         name (str): Method name
         snapshot_id (int): Version number
-        wdl (str): WDL description 
+        wdl (str): WDL description
         synopsis (str): Short description of task
         documentation (str): Extra documentation for method
         api_url (str): FireCloud API root
     """
 
-    def __init__(self, namespace, name, 
+    def __init__(self, namespace, name,
                  snapshot_id, api_url=fapi.PROD_API_ROOT):
         r, c = fapi.get_method(namespace, name, snapshot_id, api_url)
         if r.status != 200:
@@ -32,7 +34,7 @@ class Method(object):
 
 
     @staticmethod
-    def new(namespace, name, wdl, synopsis, 
+    def new(namespace, name, wdl, synopsis,
             documentation=None, api_url=fapi.PROD_API_ROOT):
         """Create new FireCloud method.
 
@@ -41,7 +43,7 @@ class Method(object):
         Args:
             namespace (str): Method namespace for this method
             name (str): Method name
-            wdl (file): WDL description 
+            wdl (file): WDL description
             synopsis (str): Short description of task
             documentation (file): Extra documentation for method
         """
@@ -76,7 +78,7 @@ class Method(object):
         """Set permissions for this method.
 
         Args:
-            role (str): Access level 
+            role (str): Access level
                 one of {one of "OWNER", "READER", "WRITER", "NO ACCESS"}
             users (list(str)): List of users to give role to
         """
@@ -86,4 +88,3 @@ class Method(object):
             acl_updates, self.api_url
         )
         fapi._check_response(r, c, [200])
-

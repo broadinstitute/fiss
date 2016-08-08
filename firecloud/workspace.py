@@ -1,10 +1,9 @@
-#! /usr/bin/env python
+import json
+import os
 
 from firecloud import api as fapi
 from firecloud.errors import FireCloudServerError
 from firecloud.entity import Entity
-import json
-import os
 
 class Workspace(object):
     """A FireCloud Workspace.
@@ -17,11 +16,11 @@ class Workspace(object):
     """
 
     def __init__(self, namespace, name, api_url=fapi.PROD_API_ROOT):
-        """Get an existing workspace from Firecloud by name. 
+        """Get an existing workspace from Firecloud by name.
 
-        This method assumes that a workspace with the given name and 
+        This method assumes that a workspace with the given name and
         namespace is present at the api_url given, and raises an error
-        if it does not exist. To create a new workspace, use 
+        if it does not exist. To create a new workspace, use
         Workspace.new()
 
         Raises:
@@ -40,7 +39,7 @@ class Workspace(object):
 
 
     @staticmethod
-    def new(namespace, name, protected=False, 
+    def new(namespace, name, protected=False,
             attributes=dict(), api_url=fapi.PROD_API_ROOT):
         """Create a new FireCloud workspace.
 
@@ -172,7 +171,7 @@ class Workspace(object):
             entities: iterable of firecloud.Entity objects.
         """
         edata = Entity.create_payload(entities)
-        r, c = fapi.upload_entities(self.namespace, self.name, 
+        r, c = fapi.upload_entities(self.namespace, self.name,
                                     edata, self.api_url)
         fapi._check_response(r, c, [200, 201])
 
@@ -185,11 +184,11 @@ class Workspace(object):
         """
         if etype not in {"sample", "pair", "participant"}:
             raise ValueError("Unsupported entity type:" + str(etype))
-    
+
         payload = "membership:" + etype + "_set_id\t" + etype + "_id\n"
-        
+
         for e in entities:
-            if e.etype != etype: 
+            if e.etype != etype:
                 msg =  "Entity type '" + e.etype + "' does not match "
                 msg += "set type '" + etype + "'"
                 raise ValueError(msg)
@@ -226,19 +225,19 @@ class Workspace(object):
 
     def entities(self):
         """List all entities in workspace."""
-        r, c = fapi.get_entities_with_type(self.namespace, 
+        r, c = fapi.get_entities_with_type(self.namespace,
                                            self.name, self.api_url)
         fapi._check_response(r, c, [200])
         edicts = json.loads(c)
-        return [Entity(e['entityType'], e['name'], e['attributes']) 
+        return [Entity(e['entityType'], e['name'], e['attributes'])
                 for e in edicts]
 
     def __get_entities(self, etype):
         """Helper to get entities for a given type."""
-        r, c = fapi.get_entities(self.namespace, self.name, 
+        r, c = fapi.get_entities(self.namespace, self.name,
                                  etype, self.api_url)
         fapi._check_response(r, c, [200])
-        return [Entity(e['entityType'], e['name'], e['attributes']) 
+        return [Entity(e['entityType'], e['name'], e['attributes'])
                 for e in json.loads(c)]
 
     def samples(self):
@@ -274,7 +273,7 @@ class Workspace(object):
             etype (str): Entity type
             enames (list(str)): List of entity names to copy
         """
-        r, c = fapi.copy_entities(from_namespace, from_workspace, 
+        r, c = fapi.copy_entities(from_namespace, from_workspace,
                                   self.namespace, self.name, etype, enames,
                                   self.api_url)
         fapi._check_response(r, c, [201])
@@ -308,7 +307,7 @@ class Workspace(object):
         """Set access permissions for this workspace
 
         Args:
-            role (str): Access level 
+            role (str): Access level
                 one of {one of "OWNER", "READER", "WRITER", "NO ACCESS"}
             users (list(str)): List of users to give role to
         """

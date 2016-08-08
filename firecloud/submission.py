@@ -1,5 +1,6 @@
-import firecloud.api as fapi
 import json
+
+import firecloud.api as fapi
 
 class Submission(object):
     """A FireCloud method configuration
@@ -11,9 +12,9 @@ class Submission(object):
         api_url (str): FireCloud API root
     """
 
-    def __init__(self, namespace, workspace, 
+    def __init__(self, namespace, workspace,
                  submission_id, api_url=fapi.PROD_API_ROOT):
-        r, c = fapi.get_submission(namespace, workspace, 
+        r, c = fapi.get_submission(namespace, workspace,
                                    submission_id, api_url)
         fapi._check_response(r, c, [200])
         self.namespace = namespace
@@ -29,4 +30,3 @@ class Submission(object):
                                       api_url)
         fapi._check_response(r, c, [201])
         #return Submission(wnamespace, workspace, ??)
-
