@@ -80,7 +80,7 @@ def get_entities_with_type(namespace, workspace,
     return requests.get(uri, headers=headers)
 
 
-def get_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
+def list_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
     """List the entity types present in a workspace.
 
     Args:
