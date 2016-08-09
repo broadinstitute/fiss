@@ -1,14 +1,16 @@
 #######################
-# FISSFC Plugin Template
+# FISSFC Dev Plugin.
 #######################
-
-from yapsy.IPlugin import IPlugin
-from six import print_
-from firecloud import api as fapi
-from firecloud.fiss import _are_you_sure, _err_response
 import json
 import subprocess
 import os
+
+from yapsy.IPlugin import IPlugin
+from six import print_
+
+from firecloud import api as fapi
+from firecloud.fiss import _are_you_sure, _check_response_code
+
 
 class GDACFissfcPlugin(IPlugin):
 
@@ -41,7 +43,7 @@ class GDACFissfcPlugin(IPlugin):
         prsr.add_argument('source', help='File or directory to upload')
         prsr.add_argument('-s', '--show', action='store_true',
                             help="Show the gsutil command, but don't run it")
-        
+
         dest_help = 'Destination relative to the bucket root. '
         dest_help += 'If omitted the file will be placed in the root directory'
         prsr.add_argument('-d', '--destination', help=dest_help)
@@ -49,13 +51,13 @@ class GDACFissfcPlugin(IPlugin):
 
         prsr.set_defaults(func=upload)
 
-        
-        
-def upload(args):
-    r, c = fapi.get_workspace(args.namespace, args.workspace, args.api_url)
-    _err_response(r, c, [200])
 
-    bucket = json.loads(c)['workspace']['bucketName']
+
+def upload(args):
+    r = fapi.get_workspace(args.namespace, args.workspace, args.api_url)
+    _check_response_code(r, 200)
+
+    bucket = r.json()['workspace']['bucketName']
 
     dest = 'gs://' + bucket + '/'
     if args.destination is not None:

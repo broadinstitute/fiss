@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 """
 This module provides python bindings for the Firecloud API.
 For more details see https://software.broadinstitute.org/firecloud/

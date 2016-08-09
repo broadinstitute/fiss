@@ -1,8 +1,9 @@
 #! /usr/bin/env python
 
 import unittest
-import nose
 import time
+
+import nose
 from six import print_
 
 import firecloud.api as fapi
