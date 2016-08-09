@@ -9,7 +9,7 @@ from yapsy.IPlugin import IPlugin
 from six import print_
 
 from firecloud import api as fapi
-from firecloud.fiss import _are_you_sure, _check_response_code
+from firecloud.fiss import _are_you_sure
 
 
 class GDACFissfcPlugin(IPlugin):
@@ -55,7 +55,7 @@ class GDACFissfcPlugin(IPlugin):
 
 def upload(args):
     r = fapi.get_workspace(args.namespace, args.workspace, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
 
     bucket = r.json()['workspace']['bucketName']
 
