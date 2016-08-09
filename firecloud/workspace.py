@@ -32,10 +32,10 @@ class Workspace(object):
         self.name = name
 
         ## Call out to FireCloud
-        r, c = fapi.get_workspace(namespace, name, api_url)
+        r = fapi.get_workspace(namespace, name, api_url)
 
-        fapi._check_response(r, c, [200])
-        self.data = json.loads(c)
+        fapi._check_response_code(r, 200)
+        self.data = r.json()
 
 
     @staticmethod
@@ -49,8 +49,8 @@ class Workspace(object):
         Raises:
             FireCloudServerError: API call failed.
         """
-        r, c = fapi.create_workspace(namespace, name, protected, attributes, api_url)
-        fapi._check_response(r, c, [201])
+        r = fapi.create_workspace(namespace, name, protected, attributes, api_url)
+        fapi._check_response_code(r, 201)
         return Workspace(namespace, name, api_url)
 
     def refresh(self):
@@ -59,9 +59,9 @@ class Workspace(object):
         Workspace metadata is cached in the data attribute of a Workspace,
         and may become stale, requiring a refresh().
         """
-        r, c = fapi.get_workspace(self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [200])
-        self.data = json.loads(c)
+        r = fapi.get_workspace(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 200)
+        self.data = r.json()
         return self
 
     def delete(self):
@@ -70,13 +70,13 @@ class Workspace(object):
         Note:
             This action cannot be undone. Be careful!
         """
-        r, c = fapi.delete_workspace(self.namespace, self.name)
-        fapi._check_response(r, c, [202])
+        r = fapi.delete_workspace(self.namespace, self.name)
+        fapi._check_response_code(r, 202)
 
     # Getting useful information out of the bucket
-    def json(self):
+    def __str__(self):
         """Return a JSON representation of the bucket."""
-        return str(json.dumps(self.data))
+        return json.dumps(self.data, indent=2)
 
     def bucket(self):
         """Return google bucket id for this workspace."""
@@ -88,15 +88,15 @@ class Workspace(object):
         This causes the workspace to behave in a read-only way,
         regardless of access permissions.
         """
-        r, c = fapi.lock_workspace(self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [204])
+        r = fapi.lock_workspace(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 204)
         self.data['workspace']['isLocked'] = True
         return self
 
     def unlock(self):
         """Unlock this Workspace."""
-        r, c = fapi.unlock_workspace(self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [204])
+        r = fapi.unlock_workspace(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 204)
         self.data['workspace']['isLocked'] = False
         return self
 
@@ -114,9 +114,9 @@ class Workspace(object):
     def update_attribute(self, attr, value):
         """Set the value of a workspace attribute."""
         update = [fapi._attr_up(attr, value)]
-        r, c = fapi.update_workspace_attributes(self.namespace, self.name,
-                                                update, self.api_url)
-        fapi._check_response(r, c, [200])
+        r = fapi.update_workspace_attributes(self.namespace, self.name,
+                                             update, self.api_url)
+        fapi._check_response_code(r, 200)
 
     def remove_attribute(self, attr):
         """Remove attribute from a workspace.
@@ -125,10 +125,10 @@ class Workspace(object):
             attr (str): attribute name
         """
         update = [fapi._attr_rem(attr)]
-        r, c = fapi.update_workspace_attributes(self.namespace, self.name,
+        r = fapi.update_workspace_attributes(self.namespace, self.name,
                                                 update, self.api_url)
-        self.data["workspace"]["attributes"].pop(attr,None)
-        fapi._check_response(r, c, [200])
+        self.data["workspace"]["attributes"].pop(attr, None)
+        fapi._check_response_code(r, 200)
 
     def import_tsv(self, tsv_file):
         """Upload entity data to workspace from tsv loadfile.
@@ -136,9 +136,9 @@ class Workspace(object):
         Args:
             tsv_file (file): Tab-delimited file of entity data
         """
-        r, c = fapi.upload_entities_tsv(self.namespace, self.name,
-                                        self.tsv_file, self.api_url)
-        fapi._check_response(r, c, [200, 201])
+        r = fapi.upload_entities_tsv(self.namespace, self.name,
+                                     self.tsv_file, self.api_url)
+        fapi._check_response_code(r, 201)
 
     def get_entity(self, etype, entity_id):
         """Return entity in this workspace.
@@ -147,10 +147,10 @@ class Workspace(object):
             etype (str): Entity type
             entity_id (str): Entity name/unique id
         """
-        r, c = fapi.get_entity(self.namespace, self.name, etype,
+        r = fapi.get_entity(self.namespace, self.name, etype,
                                entity_id, self.api_url)
-        fapi._check_response(r, c, [200])
-        dresp = json.loads(c)
+        fapi._check_response_code(r, 200)
+        dresp = r.json()
         return Entity(etype, entity_id, dresp['attributes'])
 
     def delete_entity(self, etype, entity_id):
@@ -160,9 +160,9 @@ class Workspace(object):
             etype (str): Entity type
             entity_id (str): Entity name/unique id
         """
-        r, c = fapi.delete_entity(self.namespace, self.name, etype,
+        r = fapi.delete_entity(self.namespace, self.name, etype,
                                   entity_id, self.api_url)
-        fapi._check_response(r, c, [202])
+        fapi._check_response_code(r, 202)
 
     def import_entities(self, entities):
         """Upload entity objects.
@@ -171,9 +171,9 @@ class Workspace(object):
             entities: iterable of firecloud.Entity objects.
         """
         edata = Entity.create_payload(entities)
-        r, c = fapi.upload_entities(self.namespace, self.name,
-                                    edata, self.api_url)
-        fapi._check_response(r, c, [200, 201])
+        r = fapi.upload_entities(self.namespace, self.name,
+                                 edata, self.api_url)
+        fapi._check_response_code(r, 201)
 
     def create_set(self, set_id, etype, entities):
         """Create a set of entities and upload to FireCloud.
@@ -195,9 +195,9 @@ class Workspace(object):
             payload += set_id + '\t' + e.entity_id + '\n'
 
 
-        r, c = fapi.upload_entities(self.namespace, self.name,
+        r = fapi.upload_entities(self.namespace, self.name,
                                     payload, self.api_url)
-        fapi._check_response(r, c, [200, 201])
+        fapi._check_response_code(r, 201)
 
     def create_sample_set(self, sset_id, samples):
         """Create FireCloud sample_set"""
@@ -213,32 +213,32 @@ class Workspace(object):
 
     def submissions(self):
         """List job submissions in workspace."""
-        r, c = fapi.get_submissions(self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [200])
-        return json.loads(c)
+        r = fapi.get_submissions(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 200)
+        return r.json()
 
     def entity_types(self):
         """List entity types in workspace."""
-        r, c = fapi.get_entity_types(self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [200])
-        return json.loads(c).keys()
+        r = fapi.get_entity_types(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 200)
+        return r.json().keys()
 
     def entities(self):
         """List all entities in workspace."""
-        r, c = fapi.get_entities_with_type(self.namespace,
-                                           self.name, self.api_url)
-        fapi._check_response(r, c, [200])
-        edicts = json.loads(c)
+        r = fapi.get_entities_with_type(self.namespace,
+                                        self.name, self.api_url)
+        fapi._check_response_code(r, 200)
+        edicts = r.json()
         return [Entity(e['entityType'], e['name'], e['attributes'])
                 for e in edicts]
 
     def __get_entities(self, etype):
         """Helper to get entities for a given type."""
-        r, c = fapi.get_entities(self.namespace, self.name,
-                                 etype, self.api_url)
-        fapi._check_response(r, c, [200])
+        r = fapi.get_entities(self.namespace, self.name,
+                              etype, self.api_url)
+        fapi._check_response_code(r, 200)
         return [Entity(e['entityType'], e['name'], e['attributes'])
-                for e in json.loads(c)]
+                for e in r.json()]
 
     def samples(self):
         """List samples in a workspace."""
@@ -273,35 +273,31 @@ class Workspace(object):
             etype (str): Entity type
             enames (list(str)): List of entity names to copy
         """
-        r, c = fapi.copy_entities(from_namespace, from_workspace,
-                                  self.namespace, self.name, etype, enames,
-                                  self.api_url)
-        fapi._check_response(r, c, [201])
+        r = fapi.copy_entities(from_namespace, from_workspace,
+                               self.namespace, self.name, etype, enames,
+                               self.api_url)
+        fapi._check_response_code(r, 201)
 
     def configs(self):
         """Get method configurations in a workspace."""
         raise NotImplementedError
-        r, c = fapi.get_configs(self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [200])
-        cdata = json.loads(c)
+        r = fapi.get_configs(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 200)
+        cdata = r.json()
         configs = []
         for c in cdata:
             cnamespace = c['namespace']
             cname = c['name']
             root_etype = c['rootEntityType']
-#[u'methodVersion', u'methodNamespace', u'methodName']
             method_namespace = c['methodRepoMethod']['methodNamespace']
             method_name = c['methodRepoMethod']['methodName']
             method_version = c['methodRepoMethod']['methodVersion']
 
-
-
     def acl(self):
         """Get the access control list for this workspace."""
-        r, c = fapi.get_workspace_acl(
-            self.namespace, self.name, self.api_url)
-        fapi._check_response(r, c, [200])
-        return json.loads(c)
+        r = fapi.get_workspace_acl(self.namespace, self.name, self.api_url)
+        fapi._check_response_code(r, 200)
+        return r.json()
 
     def set_acl(self, role, users):
         """Set access permissions for this workspace
@@ -312,9 +308,9 @@ class Workspace(object):
             users (list(str)): List of users to give role to
         """
         acl_updates = [{"email": user, "accessLevel": role} for user in users]
-        r, c = fapi.update_workspace_acl(self.namespace, self.name,
-                                         acl_updates, self.api_url)
-        fapi._check_response(r, c, [200])
+        r = fapi.update_workspace_acl(self.namespace, self.name,
+                                      acl_updates, self.api_url)
+        fapi._check_response_code(r, 200)
 
     def clone(self, to_namespace, to_name):
         """Clone this workspace.
@@ -323,7 +319,7 @@ class Workspace(object):
             to_namespace (str): Target workspace namespace
             to_name (str): Target workspace name
         """
-        r, c = fapi.clone_workspace(self.namespace, self.name,
-                                    to_namespace, to_name, self.api_url)
-        fapi._check_response(r, c, [201])
+        r = fapi.clone_workspace(self.namespace, self.name,
+                                 to_namespace, to_name, self.api_url)
+        fapi._check_response_code(r, 201)
         return Workspace(to_namespace, to_name, self.api_url)

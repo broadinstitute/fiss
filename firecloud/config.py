@@ -20,7 +20,7 @@ class Config(object):
         If snapshot_id is None,
 
         """
-        r, c = fapi.get_repository_configuration(
+        r = fapi.get_repository_configuration(
             namespace, config, snapshot_id, api_url)
         fapi._check_response(r, c, [200])
         self.namespace = namespace

@@ -14,9 +14,10 @@ class Submission(object):
 
     def __init__(self, namespace, workspace,
                  submission_id, api_url=fapi.PROD_API_ROOT):
-        r, c = fapi.get_submission(namespace, workspace,
-                                   submission_id, api_url)
-        fapi._check_response(r, c, [200])
+        r = fapi.get_submission(namespace, workspace,
+                                submission_id, api_url)
+        fapi._check_response_code(r, 200)
+
         self.namespace = namespace
         self.workspace = workspace
         self.submission_id = submission_id
@@ -28,5 +29,5 @@ class Submission(object):
         r, c = fapi.create_submission(wnamespace, workspace, cnamespace,
                                       config, entity_id, expression,
                                       api_url)
-        fapi._check_response(r, c, [201])
+    fapi._check_response_code(r, 201)
         #return Submission(wnamespace, workspace, ??)

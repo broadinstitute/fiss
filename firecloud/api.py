@@ -52,6 +52,17 @@ def _fiss_access_headers(headers=None):
         fiss_headers.update(headers)
     return fiss_headers
 
+def _check_response_code(response, code):
+    """
+    Throws an exception if the http response is not expected.
+
+    Example usage:
+        >>> r = api.get_workspace("broad-firecloud-testing", "Fake-Bucket")
+        >>> _check_response_code(r, 200)
+         ... FireCloudServerError ...
+    """
+    if response.status_code != code:
+        raise FireCloudServerError(response.status_code, response.content)
 
 ##############################################################
 # 1. Orchestration API calls, see https://api.firecloud.org/

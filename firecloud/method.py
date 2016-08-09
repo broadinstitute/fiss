@@ -20,10 +20,10 @@ class Method(object):
 
     def __init__(self, namespace, name,
                  snapshot_id, api_url=fapi.PROD_API_ROOT):
-        r, c = fapi.get_method(namespace, name, snapshot_id, api_url)
-        if r.status != 200:
-            raise FireCloudServerError(r.status, c)
-        data = json.loads(c)
+        r = fapi.get_method(namespace, name, snapshot_id, api_url)
+        fapi._check_response_code(r, 200)
+
+        data = r.json()
         self.namespace = namespace
         self.name = name
         self.snapshot_id = int(data["snapshotId"])
@@ -47,32 +47,32 @@ class Method(object):
             synopsis (str): Short description of task
             documentation (file): Extra documentation for method
         """
-        r, c = fapi.update_workflow(namespace, name, synopsis,
-                                    wdl, documentation, api_url)
-        fapi._check_response(r, c, [201])
-        d = json.loads(c)
+        r = fapi.update_workflow(namespace, name, synopsis,
+                                 wdl, documentation, api_url)
+        fapi._check_response_code(r, 201)
+        d = r.json()
         return Method(namespace, name, d["snapshotId"])
 
     def template(self):
         """Return a method template for this method."""
-        r, c = fapi.get_config_template(self.namespace, self.name,
+        r = fapi.get_config_template(self.namespace, self.name,
                                         self.snapshot_id, self.api_url)
-        fapi._check_response(r, c, [200])
-        return json.loads(c)
+        fapi._check_response_code(r, 200)
+        return r.json()
 
     def inputs_outputs(self):
         """Get information on method inputs & outputs."""
-        r, c = fapi.get_inputs_outputs(self.namespace, self.name,
-                                       self.snapshot_id, self.api_url)
-        fapi._check_response(r, c, [200])
-        return json.loads(c)
+        r = fapi.get_inputs_outputs(self.namespace, self.name,
+                                    self.snapshot_id, self.api_url)
+        fapi._check_response_code(r, 200)
+        return r.json()
 
     def acl(self):
         """Get the access control list for this method."""
-        r, c = fapi.get_repository_method_acl(
+        r = fapi.get_repository_method_acl(
             self.namespace, self.name, self.snapshot_id, self.api_url)
-        fapi._check_response(r, c, [200])
-        return json.loads(c)
+        fapi._check_response_code(r, 200)
+        return r.json()
 
     def set_acl(self, role, users):
         """Set permissions for this method.
@@ -83,8 +83,8 @@ class Method(object):
             users (list(str)): List of users to give role to
         """
         acl_updates = [{"user": user, "role": role} for user in users]
-        r, c = fapi.update_repository_method_acl(
+        r = fapi.update_repository_method_acl(
             self.namespace, self.name, self.snapshot_id,
             acl_updates, self.api_url
         )
-        fapi._check_response(r, c, [200])
+        fapi._check_response_code(r, 200)

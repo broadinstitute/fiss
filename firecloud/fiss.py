@@ -27,7 +27,7 @@ PLUGIN_PLACES = [os.path.expanduser('~/.fiss/plugins'), "plugins"]
 def space_list(args):
     """ List available workspaces. """
     r = fapi.list_workspaces(args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
 
     #Parse the JSON for the workspace + namespace
     workspaces = r.json()
@@ -47,21 +47,21 @@ def space_list(args):
 def space_lock(args):
     """  Lock a workspace. """
     r = fapi.lock_workspace(args.project, args.workspace, args.api_url)
-    _check_response_code(r, 204)
+    fapi._check_response_code(r, 204)
     print_('Locked workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_new(args):
     """ Create a new workspace. """
     r = fapi.create_workspace(args.project, args.workspace,
                                  args.protected, dict(), args.api_url)
-    _check_response_code(r, 201)
+    fapi._check_response_code(r, 201)
     print_('Created workspace {0}/{1}:'.format(args.project, args.workspace))
     print_(r.content)
 
 def space_info(args):
     """ Get metadata for a workspace. """
     r = fapi.get_workspace(args.project, args.workspace, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
 
     #TODO?: pretty_print_workspace(c)
     print_(r.content)
@@ -75,13 +75,13 @@ def space_delete(args):
         return
 
     r = fapi.delete_workspace(args.project, args.workspace, args.api_url)
-    _check_response_code(r, 202)
+    fapi._check_response_code(r, 202)
     print_('Deleted workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_unlock(args):
     """ Unlock a workspace. """
     r = fapi.unlock_workspace(args.project, args.workspace, args.api_url)
-    _check_response_code(r, 204)
+    fapi._check_response_code(r, 204)
     print_('Unlocked workspace {0}/{1}'.format(args.project, args.workspace))
 
 def space_clone(args):
@@ -90,7 +90,7 @@ def space_clone(args):
         args.from_namespace, args.from_workspace,
         args.to_namespace, args.to_workspace, args.api_url
     )
-    _check_response_code(r, 201)
+    fapi._check_response_code(r, 201)
     msg =  args.from_namespace + '/' + args.from_workspace
     msg += " successfully cloned to " + args.to_namespace
     msg += "/" + args.to_namespace
@@ -100,21 +100,21 @@ def entity_import(args):
     """ Upload an entity loadfile. """
     r = fapi.upload_entities_tsv(args.project, args.workspace,
                                  args.tsvfile, args.api_url)
-    _check_response_code(r, 201)
+    fapi._check_response_code(r, 201)
     print_('Successfully uploaded entities')
 
 def entity_types(args):
     """ List entity types in a workspace. """
     r = fapi.list_entity_types(args.project, args.workspace,
                               args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for etype in r.json():
         print_(etype)
 
 def entity_list(args):
     """ List entities in a workspace. """
     r = fapi.get_entities_with_type(args.project, args.workspace, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for entity in r.json():
         print_('{0}\t{1}'.format(entity['entityType'], entity['name']))
 
@@ -122,14 +122,14 @@ def entity_list_tsv(args):
     """ Get list of entities in TSV format. """
     r = fapi.get_entities_tsv(args.project, args.workspace,
                               args.etype, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_(r.content)
 
 def participant_list(args):
     """ List participants in a workspace. """
     r = fapi.get_entities(args.project, args.workspace,
                           "participant", args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for entity in r.json():
         print_(entity['name'])
 
@@ -137,7 +137,7 @@ def sample_list(args):
     """ List samples in a workspace. """
     r = fapi.get_entities(args.project, args.workspace,
                              "sample", args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for entity in json.loads(c):
         print_(entity['name'])
 
@@ -145,7 +145,7 @@ def sample_set_list(args):
     """ List sample sets in a workspace """
     r = fapi.get_entities(args.project, args.workspace,
                           "sample_set", args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
 
     for entity in r.json():
         print_(entity['name'])
@@ -160,7 +160,7 @@ def entity_delete(args):
         return
     r = fapi.delete_entity(args.project, args.workspace,
                            args.etype, args.ename, args.api_url)
-    _check_response_code(r, 204)
+    fapi._check_response_code(r, 204)
     print_("Succesfully deleted " + args.type)
 
 def participant_delete(args):
@@ -178,7 +178,7 @@ def sample_set_delete(args):
 def space_acl(args):
     """ Get Access Control List for a workspace."""
     r = fapi.get_workspace_acl(args.project, args.workspace, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for user, role in r.json().iteritems():
         print_('{0}\t{1}'.format(user, role))
 
@@ -188,14 +188,14 @@ def space_set_acl(args):
                    "accessLevel": args.role} for user in args.users]
     r = fapi.update_workspace_acl(args.project, args.workspace,
                                   acl_updates, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_("Successfully updated {0} role(s)".format(len(acl_updates)))
 
 def flow_new(args):
     """ Submit a new workflow to the methods repository. """
     r = fapi.update_repository_method(args.namespace, args.name, args.synopsis,
                                       args.wdl, args.doc, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_("Successfully pushed {0}/{1}".format(args.namespace, args.name))
 
 def flow_delete(args):
@@ -207,14 +207,14 @@ def flow_delete(args):
         return
     r = fapi.delete_repository_method(args.namespace, args.name,
                                       args.snapshot_id, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_("Successfully redacted workflow.")
 
 def flow_acl(args):
     """ Get Access Control List for a workflow """
     r = fapi.get_repository_method_acl(args.namespace, args.name,
                                        args.snapshot_id, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for d in r.json():
         user = d['user']
         role = d['role']
@@ -226,13 +226,13 @@ def flow_set_acl(args):
     r = fapi.update_repository_method_acl(args.namespace, args.name,
                                           args.snapshot_id, acl_updates,
                                           args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_("Successfully set method acl")
 
 def flow_list(args):
     """ List workflows in the methods repository """
     r = fapi.list_repository_methods(args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
 
     #Parse the JSON for the workspace + namespace
     methods = r.json()
@@ -252,7 +252,7 @@ def flow_list(args):
 def config_list(args):
     """ List configurations in the methods repository. """
     r = fapi.list_repository_configs(args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
 
     #Parse the JSON for the workspace + namespace
     methods = r.json()
@@ -273,7 +273,7 @@ def config_acl(args):
     """ Get Access Control List for a method configuration. """
     r = fapi.get_repository_config_acl(args.namespace, args.name,
                                        args.snapshot_id, args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     for d in r.json():
         user = d['user']
         role = d['role']
@@ -286,7 +286,7 @@ def attr_get(args):
     if args.etype is not None:
         r = fapi.get_entities_with_type(args.project, args.workspace,
                                         args.api_url)
-        _check_response_code(r, 200)
+        fapi._check_response_code(r, 200)
 
         dict_response = r.json()
 
@@ -326,7 +326,7 @@ def attr_get(args):
     #Otherwise get workspace attributes
     else:
         r = fapi.get_workspace(args.project, args.workspace, args.api_url)
-        _check_response_code(r, 200)
+        fapi._check_response_code(r, 200)
 
         workspace_attrs = r.json()['workspace']['attributes']
 
@@ -337,7 +337,7 @@ def attr_get(args):
 def ping(args):
     """ Ping FireCloud Server """
     r = fapi.ping(args.api_url)
-    _check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_(r.content)
 
 #################################################
@@ -354,18 +354,6 @@ def _are_you_sure(action):
     prompt = "WARNING: This will \n\t" + action + "\nAre you sure? [Y\\n]: "
     answer = raw_input(prompt)
     return answer in agreed
-
-def _check_response_code(response, code):
-    """
-    Throws an exception if the http response is not expected.
-
-    Example usage:
-        >>> r = api.get_workspace("broad-firecloud-testing", "Fake-Bucket")
-        >>> _check_response_code(r, 200)
-         ... FireCloudServerError ...
-    """
-    if response.status_code != code:
-        raise FireCloudServerError(response.status_code, response.content)
 
 def _nonempty_project(string):
     """
