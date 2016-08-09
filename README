@@ -3,7 +3,7 @@
 ====================
 
 Firecloud API bindings and Firehose Service Selector (FISS)
-Command-Line interface. 
+Command-Line interface.
 
 ====================
 2. Contents
@@ -19,7 +19,7 @@ Command-Line interface.
 
 This package contains low-level api bindings to FireCloud services,
 High-Level class abstractions for Workspaces and Entities, and the FISS
-command-line tool for scripting FireCloud Tasks. 
+command-line tool for scripting FireCloud Tasks.
 
 ====================
 3. Requirements
@@ -34,30 +34,36 @@ Or download the source and install with setup.py:
 This package depends on yapsy, oauth2client, and httplib2.
 
 FireCloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
-authorization. To use the firecloud CLI or API, you must install the SDK and 
+authorization. To use the firecloud CLI or API, you must install the SDK and
 login locally with
 
     gcloud auth login
 
-**Note: FireCloud encryts all web traffic with TLSv1.2. Some versions of 
+**Note: FireCloud encryts all web traffic with TLSv1.2. Some versions of
 python will not function correctly, and must be recompiled with openssl
-v1.02 or later. If recompiling is not an option, there is also a 
-dockerized version of the tool available on docker hub.
+v1.02 or later. If recompiling is not an option, there is also a
+dockerized version of the tool available on docker hub
+(https://hub.docker.com/r/broadgdac/fiss/).
 
-% docker pull broadgdac/fiss 
+% docker pull broadgdac/fiss
 
 ====================
 4. Release Notes
 ====================
-v0.8.1 - Improved test coverage. Enhanced interactive classes. Fixed error logic 
+v0.9.0 - Replace Httplib2 with Requests, which resolves the SSL handshake issue
+         for python3. Added six to required packages, making FireCloud fully
+         compatible with python 2 & 3. Add links to FireCloud's swagger
+         documentation.
+
+v0.8.1 - Improved test coverage. Enhanced interactive classes. Fixed error logic
          to match new server response.
 
 v0.8.0 - firecloud.api now boasts 100% coverage of existing (useful) API endpoints.
 
          Several api endpoints for manipulating NIH credentials and profile info
-         will deliberately remain unimplemented unless a good reason arises. Any 
-         discrepancies are noted in the api module's docstring; see 
-         help(firecloud.api) for a lengthy overview. 
+         will deliberately remain unimplemented unless a good reason arises. Any
+         discrepancies are noted in the api module's docstring; see
+         help(firecloud.api) for a lengthy overview.
 
          New Method and Configuration objects.
          >>> m = Method("broad-firecloud-gdac", "gistic2", 1)
@@ -65,7 +71,7 @@ v0.8.0 - firecloud.api now boasts 100% coverage of existing (useful) API endpoin
 
 v0.7.4 - FISS functions can now display their source code with the -F option.
 
-v0.7.3 - Improved documentation, with docstrings for every public function. 
+v0.7.3 - Improved documentation, with docstrings for every public function.
          This enables python's builtin help system to be used from the REPL.
          To see all the available firecloud api calls:
          % python
@@ -76,7 +82,7 @@ v0.7.2 - Fix some commands that broke with the API changes
 
 v0.7.1 - Add workspace functions for importing entities and creating entity sets.
 
-v0.7.0 - Renamed package "firecloud", replacing "fissfc" 
+v0.7.0 - Renamed package "firecloud", replacing "fissfc"
             - firecloud_cli.py renamed fiss.py
             - firecloud_api.py renamed api.py
          Added workspace class for more flexible python interactivity. Example:
@@ -90,35 +96,35 @@ v0.6.2 - Add '--protected' option for workspace creation.
 
 v0.6.1 - Firecloud production API is now https://api.firecloud.org/api
 
-v0.6.0 - Refactored the argument structure for inferring a default project. 
-         Instead of passing the namespace as an optional input to a 
-         subcommand, the project can be overriden explicitly with the -p 
-         top-level flag. This cleans up the syntax for many commands, and 
-         makes the help clearer. 
+v0.6.0 - Refactored the argument structure for inferring a default project.
+         Instead of passing the namespace as an optional input to a
+         subcommand, the project can be overriden explicitly with the -p
+         top-level flag. This cleans up the syntax for many commands, and
+         makes the help clearer.
 
          Add --all option to space_list
          attr_get:
-             * attributes now given a a list of positional arguments, 
+             * attributes now given a a list of positional arguments,
                   instead of comma-separated
              * entity type limited to firecloud supported entities
          Fixed help messages for many commands
 
 
-v0.5.0 - Add python 3 support, so that fissfc should be installable to 
-         either version. A TLS issue may still prevent fissfc from 
+v0.5.0 - Add python 3 support, so that fissfc should be installable to
+         either version. A TLS issue may still prevent fissfc from
          working on some versions of python.
 
 v0.4.1 - Add attr_get subcommand, as a replacement for fiss annot_get.
-         Clarify error message. 
+         Clarify error message.
 
 v0.4.0 - Implement default value for google project into most subcommands
 
 v0.3.2 - Add check in firecloud_api for  the existence of gcloud credentials
 
-v0.3.1 - Add confirmation prompt for delete commands, and a 
+v0.3.1 - Add confirmation prompt for delete commands, and a
          Flag to override them.
 
-v0.3.0 - Added support for Yapsy plugins. 
+v0.3.0 - Added support for Yapsy plugins.
 
 v0.0.1 - Initial Release
 
@@ -139,8 +145,8 @@ to get started.
 ===========================
 
 The following is a list of all RESTful API calls for public FireCloud
-orchestration-layer api. In general, there is a 1 to 1 relationship 
-between firecloud.api functions and these endpoints, except where 
+orchestration-layer api. In general, there is a 1 to 1 relationship
+between firecloud.api functions and these endpoints, except where
 a more useful function exitsts, such as delete_participant().
 
 '**' indicates an endpoint is not currently documented at https://api.firecloud.org
@@ -158,7 +164,7 @@ Entities:
     get_entities_tsv()          GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/tsv TSV file containing workspace entities of the specified type
     get_entity()                GET /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/{entityName} Get entity in a workspace
     delete_entity()             **DELETE /api/workspaces/{workspaceNamespace}/{workspaceName}/entities/{entityType}/{entityName} Delete entity in a workspace
-    delete_participant()*       The following are entity_specific delete functions, all use the same endpoint as delete_entity()                    
+    delete_participant()*       The following are entity_specific delete functions, all use the same endpoint as delete_entity()
     delete_participant_set()*
     delete_sample()*
     delete_sample_set()*

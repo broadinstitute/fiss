@@ -23,7 +23,8 @@ setup(
     install_requires = [
         'requests',
         'oauth2client',
-        'yapsy'
+        'yapsy',
+        'six'
     ],
     classifiers = [
         "Programming Language :: Python :: 2",
