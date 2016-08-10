@@ -50,6 +50,8 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
+v0.9.1 - Fix expected return code for flow_new.
+
 v0.9.0 - Replace Httplib2 with Requests, which resolves the SSL handshake issue
          for python3. Added six to required packages, making FireCloud fully
          compatible with python 2 & 3. Add links to FireCloud's swagger

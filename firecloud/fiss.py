@@ -195,7 +195,7 @@ def flow_new(args):
     """ Submit a new workflow to the methods repository. """
     r = fapi.update_repository_method(args.namespace, args.name, args.synopsis,
                                       args.wdl, args.doc, args.api_url)
-    fapi._check_response_code(r, 200)
+    fapi._check_response_code(r, 201)
     print_("Successfully pushed {0}/{1}".format(args.namespace, args.name))
 
 def flow_delete(args):
