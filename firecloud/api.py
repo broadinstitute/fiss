@@ -23,12 +23,6 @@ FISS_USER_AGENT = "FISS/" + __version__
 #################################################
 # Utilities
 #################################################
-def _credentials_exist():
-    """Return true if google default credentials exist"""
-    pth = expanduser('~/.config/gcloud/application_default_credentials.json')
-    return isfile(pth)
-
-
 def _fiss_access_headers(headers=None):
     """ Return request headers for fiss.
         Retrieves an access token with the user's google crededentials, and
@@ -38,12 +32,6 @@ def _fiss_access_headers(headers=None):
         headers (dict): Include additional headers as key-value pairs
 
     """
-    if not _credentials_exist():
-        print_("ERROR: Could not find default google SDK credentials")
-        print_("Ensure that the cloud SDK is installed, and then run")
-        print_("    gcloud auth login")
-        sys.exit(1)
-
     credentials = GoogleCredentials.get_application_default()
     access_token = credentials.get_access_token().access_token
     fiss_headers = {"Authorization" : "bearer " + access_token}
