@@ -7,7 +7,6 @@ the README at https://pypi.python.org/pypi/firecloud.
 """
 import json
 import sys
-from os.path import expanduser, isfile
 import urllib
 
 from six import print_
@@ -213,6 +212,7 @@ def get_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
         api_root, namespace, workspace, etype)
     return requests.get(uri, headers=headers)
 
+
 def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     """Request entity information.
 
@@ -232,8 +232,6 @@ def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
         api_root, namespace, workspace, etype, ename)
     return requests.get(uri, headers=headers)
-
-
 
 
 ## This method is undocumented in the public swagger
@@ -257,6 +255,7 @@ def delete_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
         api_root, namespace, workspace, etype, ename)
     return requests.delete(uri, headers=headers)
 
+
 def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
     """Delete participant in a workspace.
 
@@ -271,6 +270,7 @@ def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
     """
     return delete_entity(namespace, workspace, "participant",
                          name, api_root)
+
 
 def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     """Delete participant set in a workspace.
@@ -287,6 +287,7 @@ def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     return delete_entity(namespace, workspace, "participant_set",
                          name, api_root)
 
+
 def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
     """Delete sample in a workspace.
 
@@ -300,6 +301,7 @@ def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
         api_root (str): FireCloud API url, if not production
     """
     return delete_entity(namespace, workspace, "sample", name, api_root)
+
 
 def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     """Delete sample set in a workspace.
@@ -315,6 +317,7 @@ def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     """
     return delete_entity(namespace, workspace, "sample_set", name, api_root)
 
+
 def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
     """Delete pair in a workspace.
 
@@ -328,6 +331,7 @@ def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
         api_root (str): FireCloud API url, if not production
     """
     return delete_entity(namespace, workspace, "pair", name, api_root)
+
 
 def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     """Delete pair set in a workspace.
@@ -679,6 +683,7 @@ def get_repository_method(namespace, method, snapshot_id,
         api_root, namespace, method, snapshot_id)
     return requests.get(uri, headers=headers)
 
+
 def update_repository_method(namespace, method, synopsis,
                              wdl, doc=None, api_root=PROD_API_ROOT):
     """Create/Update workflow definition.
@@ -1001,6 +1006,7 @@ def list_workspaces(api_root=PROD_API_ROOT):
     headers = _fiss_access_headers()
     return requests.get(uri, headers=headers)
 
+
 def create_workspace(namespace, name, protected=False,
                      attributes=None, api_root=PROD_API_ROOT):
     """Create a new FireCloud Workspace.
@@ -1128,6 +1134,7 @@ def clone_workspace(from_namespace, from_workspace,
                                                from_workspace)
     return requests.post(uri, headers=headers, json=json_body)
 
+
 def lock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     """Lock FireCloud workspace, making it read-only.
 
@@ -1145,6 +1152,7 @@ def lock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     headers = _fiss_access_headers()
     uri = "{0}/workspaces/{1}/{2}/lock".format(api_root, namespace, workspace)
     return requests.put(uri, headers=headers)
+
 
 def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     """Unlock FireCloud workspace.
@@ -1191,6 +1199,7 @@ def update_workspace_attributes(namespace, workspace,
     body = json.dumps(attrs)
 
     return requests.patch(uri, headers=headers, data=body)
+
 
 # Helper functions to create attribute update dictionaries
 def _attr_up(attr, value):

@@ -32,7 +32,6 @@ class Method(object):
         self.documentation = data["documentation"]
         self.api_url = api_url
 
-
     @staticmethod
     def new(namespace, name, wdl, synopsis,
             documentation=None, api_url=fapi.PROD_API_ROOT):
