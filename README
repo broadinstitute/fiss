@@ -52,7 +52,10 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
-v0.9.3 - Improved documentation.
+v0.9.4 - Add ability to change inputs and other configuration details in a
+         workspace configuration
+
+v0.9.3 - Improved documentation. Fixed url for method configurations in a workspace.
 
 v0.9.2 - Remove file-based check for getting application default credentials,
          improving support for Jupyter-based sessions.

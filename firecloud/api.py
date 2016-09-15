@@ -411,7 +411,7 @@ def delete_workspace_config(namespace, workspace, cnamespace,
         https://api.firecloud.org/#!/Method_Configurations/deleteWorkspaceMethodConfig
     """
     headers = _fiss_access_headers()
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
+    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
         api_root, namespace, workspace, cnamespace, config)
     return requests.delete(uri, headers=headers)
 
@@ -432,14 +432,14 @@ def get_workspace_config(namespace, workspace, cnamespace,
 
     """
     headers = _fiss_access_headers()
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
+    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
         api_root, namespace, workspace, cnamespace, config)
     return requests.get(uri, headers=headers)
 
 
 def update_workspace_config(namespace, workspace, cnamespace,
-                            config, new_namespace, new_name,
-                            root_etype, api_root=PROD_API_ROOT):
+                            configname, config_updates,
+                            api_root=PROD_API_ROOT):
     """Update method configuration in workspace.
 
     Args:
@@ -456,14 +456,9 @@ def update_workspace_config(namespace, workspace, cnamespace,
         https://api.firecloud.org/#!/Method_Configurations/updateWorkspaceMethodConfig
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
-    json_body = {
-        "namespace": new_namespace,
-        "name": new_name,
-        "rootEntityType": root_etype
-    }
-    body = json.dumps(body)
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}".format(
-        api_root, namespace, workspace, cnamespace, config)
+    body = json.dumps(config_updates)
+    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
+        api_root, namespace, workspace, cnamespace, configname)
     return requests.put(uri, headers=headers, data=body)
 
 
@@ -482,7 +477,7 @@ def validate_config(namespace, workspace, cnamespace,
         https://api.firecloud.org/#!/Method_Configurations/validate_method_configuration
     """
     headers = _fiss_access_headers()
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}/validate".format(
+    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}/validate".format(
         api_root, namespace, workspace, cnamespace, config)
     return requests.get(uri, headers=headers)
 
@@ -508,7 +503,7 @@ def rename_workspace_config(namespace, workspace, cnamespace,
         "namespace" : new_name,
         "name"      : new_namespace
     }
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs/{3}/{4}/rename".format(
+    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}/rename".format(
         api_root, namespace, workspace, cnamespace, config)
     return requests.post(uri, headers=headers, json=json_body)
 
