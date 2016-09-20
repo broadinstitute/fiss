@@ -7,9 +7,9 @@ the README at https://pypi.python.org/pypi/firecloud.
 """
 import json
 import sys
-import urllib
 
 from six import print_
+from six.moves.urllib.parse import urlencode
 import requests
 from oauth2client.client import GoogleCredentials
 
@@ -106,7 +106,7 @@ def upload_entities(namespace, workspace,
     Swagger:
         https://api.firecloud.org/#!/Entities/importEntities
     """
-    body = urllib.urlencode({"entities" : entity_data})
+    body = urlencode({"entities" : entity_data})
     headers = _fiss_access_headers({
         'Content-type':  "application/x-www-form-urlencoded"
     })

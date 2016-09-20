@@ -118,7 +118,7 @@ def entity_list(args):
     for entity in r.json():
         print_('{0}\t{1}'.format(entity['entityType'], entity['name']))
 
-def entity_list_tsv(args):
+def entity_tsv(args):
     """ Get list of entities in TSV format. """
     r = fapi.get_entities_tsv(args.project, args.workspace,
                               args.etype, args.api_url)
@@ -141,7 +141,7 @@ def sample_list(args):
     for entity in json.loads(c):
         print_(entity['name'])
 
-def sample_set_list(args):
+def sset_list(args):
     """ List sample sets in a workspace """
     r = fapi.get_entities(args.project, args.workspace,
                           "sample_set", args.api_url)
@@ -171,7 +171,7 @@ def sample_delete(args):
     args.type = "sample"
     return entity_delete(args)
 
-def sample_set_delete(args):
+def sset_delete(args):
     args.type = "sample_set"
     return entity_delete(args)
 
@@ -509,7 +509,7 @@ def main():
         'entity_tsv', description='Get a tsv of workspace entities')
     etsv_parser.add_argument('workspace', help='Workspace name')
     etsv_parser.add_argument('etype', help='Entity type')
-    etsv_parser.set_defaults(func=entity_list_tsv)
+    etsv_parser.set_defaults(func=entity_tsv)
 
     #List of participants
     pl_parser = subparsers.add_parser(
@@ -527,7 +527,7 @@ def main():
     ssetl_parser = subparsers.add_parser(
         'sset_list', description='List sample sets in a workspace')
     ssetl_parser.add_argument('workspace', help='Workspace name')
-    ssetl_parser.set_defaults(func=sample_set_list)
+    ssetl_parser.set_defaults(func=sset_list)
 
     #Delete entity in a workspace
     edel_parser = subparsers.add_parser(
@@ -553,7 +553,7 @@ def main():
         'sset_delete', description='Delete sample set in a workspace')
     ssdel_parser.add_argument('workspace', help='Workspace name')
     ssdel_parser.add_argument('name', help='Sample set name')
-    ssdel_parser.set_defaults(func=sample_set_delete)
+    ssdel_parser.set_defaults(func=sset_delete)
 
     #Show workspace roles
     wacl_parser = subparsers.add_parser(

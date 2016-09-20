@@ -52,6 +52,8 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
+v0.9.5 - Fix urllib compatibility issue in upload_entities
+
 v0.9.4 - Add ability to change inputs and other configuration details in a
          workspace configuration
 
