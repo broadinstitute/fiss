@@ -100,7 +100,7 @@ def entity_import(args):
     """ Upload an entity loadfile. """
     r = fapi.upload_entities_tsv(args.project, args.workspace,
                                  args.tsvfile, args.api_url)
-    fapi._check_response_code(r, 201)
+    fapi._check_response_code(r, [200, 201])
     print_('Successfully uploaded entities')
 
 def entity_types(args):
