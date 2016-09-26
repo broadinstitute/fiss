@@ -5,7 +5,11 @@
 FireCloud API bindings and FireCloud Service Selector (FISS)
 Command-Line interface.
 
+FireCloud:
 https://software.broadinstitute.org/firecloud/
+
+Github:
+https://github.com/broadinstitute/fiss
 
 ====================
 2. Contents
