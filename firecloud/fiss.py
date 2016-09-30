@@ -13,6 +13,7 @@ from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
 import subprocess
 
 from six import print_, iteritems, string_types
+from six.moves import input
 from yapsy.PluginManager import PluginManager
 
 from firecloud import api as fapi
@@ -344,11 +345,17 @@ def ping(args):
 def mop(args):
     """ Clean up unreferenced data in a workspace """
     # First retrieve the workspace to get the bucket information
+    if args.verbose:
+        print_("Retrieving workspace information...")
     r = fapi.get_workspace(args.project, args.workspace, args.api_url)
     fapi._check_response_code(r, 200)
     workspace = r.json()
     bucket = workspace['workspace']['bucketName']
     bucket_prefix = 'gs://' + bucket
+    workspace_name = workspace['workspace']['name']
+
+    if args.verbose:
+        print_("{0} -- {1}".format(workspace_name, bucket_prefix))
 
     referenced_files = set()
     for value in workspace['workspace']['attributes'].values():
@@ -360,12 +367,21 @@ def mop(args):
     # # Now run a gsutil ls to list files present in the bucket
     try:
         gsutil_args = ['gsutil', 'ls', 'gs://' + bucket + '/**']
+        if args.verbose:
+            print_(' '.join(gsutil_args))
         bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.PIPE)
-        bucket_files = set(bucket_files.strip().split('\n'))
-    except:
-        print_("Error retrieving files from bucket. Bucket may be empty or"
-               + " no longer exist")
+        # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
+        if type(bucket_files) == bytes:
+            bucket_files = bucket_files.decode()
+
+    except subprocess.CalledProcessError as e:
+        print_("Error retrieving files from bucket: " + e)
         sys.exit(1)
+
+    bucket_files = set(bucket_files.strip().split('\n'))
+    if args.verbose:
+        num = len(bucket_files)
+        print_("Found {0} files in bucket {1}".format(num, bucket))
 
     # Now build a set of files that are referenced in the bucket
     # 1. Get a list of the entity types in the workspace
@@ -376,6 +392,8 @@ def mop(args):
 
     # 2. For each entity type, request all the entities
     for etype in entity_types:
+        if args.verbose:
+            print_("Getting annotations for " + etype + " entities...")
         r = fapi.get_entities(args.project, args.workspace,
                                   etype, args.api_url)
         fapi._check_response_code(r, 200)
@@ -384,6 +402,10 @@ def mop(args):
                 if isinstance(value, string_types) and value.startswith(bucket_prefix):
                     # 'value' is a file in this bucket
                     referenced_files.add(value)
+
+    if args.verbose:
+        num = len(referenced_files)
+        print_("Found {0} referenced files in workspace {1}".format(num, workspace_name))
 
     # Set difference shows files in bucket that aren't referenced
     unreferenced_files = bucket_files - referenced_files
@@ -409,13 +431,13 @@ def mop(args):
         print_("No files to mop in " + workspace['workspace']['name'])
         return
 
+    if args.verbose or args.dry_run:
+        print_("Found {0} files to delete:\n".format(len(deleteable_files))
+               + "\n".join(deleteable_files ) + '\n')
+
     prompt = "delete {0} files in {1} ({2})".format(
         len(deleteable_files), bucket_prefix, workspace['workspace']['name'])
-
-    if args.verbose:
-        print_("\n".join(deleteable_files))
-
-    if not args.yes and not _are_you_sure(prompt):
+    if args.dry_run or (not args.yes and not _are_you_sure(prompt)):
         #Don't do it!
         return
 
@@ -423,7 +445,8 @@ def mop(args):
     gsrm_args = ['gsutil', '-m', 'rm', '-I']
     PIPE = subprocess.PIPE
     STDOUT=subprocess.STDOUT
-
+    if args.verbose:
+        print_("Deleting files with gsutil...")
     gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     result = gsrm_proc.communicate(input='\n'.join(deleteable_files))[0]
     if args.verbose:
@@ -442,7 +465,7 @@ def _are_you_sure(action):
     """
     agreed = ("Y", "Yes", "yes", "y")
     prompt = "WARNING: This will \n\t" + action + "\nAre you sure? [Y\\n]: "
-    answer = raw_input(prompt)
+    answer = input(prompt)
     return answer in agreed
 
 def _nonempty_project(string):
@@ -775,7 +798,8 @@ def main():
     mop_parser.add_argument('workspace', help='Workspace name')
     mop_parser.add_argument('--dry-run', action='store_true',
                             help='Show deletions that would be performed')
-    mop_parser.add_argument('-y', '--yes', help='Disable confirmation prompts')
+    mop_parser.add_argument('-y', '--yes', action='store_true',
+                            help='Disable confirmation prompts')
     mop_parser.add_argument('-V', '--verbose',
                             action='store_true', help='Show actions')
     mop_parser.set_defaults(func=mop)
