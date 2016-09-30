@@ -56,6 +56,10 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
+v0.10.0 - Remove `fiss` entrypoint, to not overwrite fiss 1.0 installs. New fiss
+          "mop" command, to clean files that are not referenced in a workspace
+          attribute from the underlying google bucket. 
+
 v0.9.6 - Fix expected response code for entity_import
 
 v0.9.5 - Fix urllib compatibility issue in upload_entities

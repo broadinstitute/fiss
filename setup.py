@@ -15,8 +15,9 @@ setup(
     long_description = _LONG_DESCRIPTION,
     entry_points = {
         'console_scripts': [
-            'fissfc = firecloud.fiss:main',
-            'fiss = firecloud.fiss:main'
+            'fissfc = firecloud.fiss:main'
+            # Disable until fiss is formally deprecated
+            # 'fiss = firecloud.fiss:main'
         ]
     },
     test_suite = 'nose.collector',

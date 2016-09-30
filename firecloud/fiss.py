@@ -10,8 +10,9 @@ import sys
 import os
 from inspect import getsourcelines
 from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
+import subprocess
 
-from six import print_
+from six import print_, iteritems, string_types
 from yapsy.PluginManager import PluginManager
 
 from firecloud import api as fapi
@@ -339,6 +340,95 @@ def ping(args):
     r = fapi.ping(args.api_url)
     fapi._check_response_code(r, 200)
     print_(r.content)
+
+def mop(args):
+    """ Clean up unreferenced data in a workspace """
+    # First retrieve the workspace to get the bucket information
+    r = fapi.get_workspace(args.project, args.workspace, args.api_url)
+    fapi._check_response_code(r, 200)
+    workspace = r.json()
+    bucket = workspace['workspace']['bucketName']
+    bucket_prefix = 'gs://' + bucket
+
+    referenced_files = set()
+    for value in workspace['workspace']['attributes'].values():
+        if isinstance(value, string_types) and value.startswith(bucket_prefix):
+            referenced_files.add(value)
+
+
+    # TODO: Make this more efficient with a native api call?
+    # # Now run a gsutil ls to list files present in the bucket
+    try:
+        gsutil_args = ['gsutil', 'ls', 'gs://' + bucket + '/**']
+        bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.PIPE)
+        bucket_files = set(bucket_files.strip().split('\n'))
+    except:
+        print_("Error retrieving files from bucket. Bucket may be empty or"
+               + " no longer exist")
+        sys.exit(1)
+
+    # Now build a set of files that are referenced in the bucket
+    # 1. Get a list of the entity types in the workspace
+    r = fapi.list_entity_types(args.project, args.workspace,
+                              args.api_url)
+    fapi._check_response_code(r, 200)
+    entity_types = r.json().keys()
+
+    # 2. For each entity type, request all the entities
+    for etype in entity_types:
+        r = fapi.get_entities(args.project, args.workspace,
+                                  etype, args.api_url)
+        fapi._check_response_code(r, 200)
+        for entity in r.json():
+            for value in entity['attributes'].values():
+                if isinstance(value, string_types) and value.startswith(bucket_prefix):
+                    # 'value' is a file in this bucket
+                    referenced_files.add(value)
+
+    # Set difference shows files in bucket that aren't referenced
+    unreferenced_files = bucket_files - referenced_files
+
+    # Filter out files like .logs and rc.txt
+    def can_delete(f):
+        '''Return true if this file should not be deleted in a mop.'''
+        # Don't delete logs
+        if f.endswith('.log'):
+            return False
+        # Don't delete return codes from jobs
+        if f.endswith('-rc.txt'):
+            return False
+        # Don't delete tool's exec.sh
+        if f.endswith('exec.sh'):
+            return False
+
+        return True
+
+    deleteable_files = [f for f in unreferenced_files if can_delete(f)]
+
+    if len(deleteable_files) == 0:
+        print_("No files to mop in " + workspace['workspace']['name'])
+        return
+
+    prompt = "delete {0} files in {1} ({2})".format(
+        len(deleteable_files), bucket_prefix, workspace['workspace']['name'])
+
+    if args.verbose:
+        print_("\n".join(deleteable_files))
+
+    if not args.yes and not _are_you_sure(prompt):
+        #Don't do it!
+        return
+
+    # Pipe the deleteable_files into gsutil rm to remove them
+    gsrm_args = ['gsutil', '-m', 'rm', '-I']
+    PIPE = subprocess.PIPE
+    STDOUT=subprocess.STDOUT
+
+    gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    result = gsrm_proc.communicate(input='\n'.join(deleteable_files))[0]
+    if args.verbose:
+        print_(result.rstrip())
+
 
 #################################################
 # Utilities
@@ -678,6 +768,17 @@ def main():
     attr_parser.add_argument('attributes', nargs='*', metavar='attribute',
                              help=attr_help)
     attr_parser.set_defaults(func=attr_get)
+
+    mop_parser = subparsers.add_parser(
+        'mop', description='Remove unused files from a workspace\'s bucket'
+    )
+    mop_parser.add_argument('workspace', help='Workspace name')
+    mop_parser.add_argument('--dry-run', action='store_true',
+                            help='Show deletions that would be performed')
+    mop_parser.add_argument('-y', '--yes', help='Disable confirmation prompts')
+    mop_parser.add_argument('-V', '--verbose',
+                            action='store_true', help='Show actions')
+    mop_parser.set_defaults(func=mop)
 
     # Add any commands from the plugin
     for pluginInfo in manager.getAllPlugins():
