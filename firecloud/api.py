@@ -351,6 +351,35 @@ def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     return delete_entity(namespace, workspace, "pair_set", name, api_root)
 
 
+def get_entities_query(namespace, workspace, etype, page=1,
+                       page_size=100, sort_direction="asc",
+                       filter_terms=None, api_root=PROD_API_ROOT):
+    """Paginated version of get_entities_with_type.
+
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        api_root (str): FireCloud API url, if not production
+
+    Swagger:
+        https://api.firecloud.org/#!/Entities/entityQuery
+
+    """
+    headers = _fiss_access_headers()
+    # Initial parameters for pagination
+    params = {
+        "page" : page,
+        "pageSize" : page_size,
+        "sortDirection" : sort_direction
+    }
+    if filter_terms:
+        params['filterTerms'] = filter_terms
+
+    uri = "{0}/workspaces/{1}/{2}/entityQuery/{3}".format(
+        api_root, namespace, workspace, etype)
+    return requests.get(uri, headers=headers, params=params)
+
+
 ###############################
 ### 1.2 Method Configurations
 ###############################

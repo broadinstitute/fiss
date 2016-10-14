@@ -286,27 +286,20 @@ def attr_get(args):
     """ Get attributes from entities or workspaces. """
     ##if entities was specified
     if args.etype is not None:
-        r = fapi.get_entities_with_type(args.project, args.workspace,
-                                        args.api_url)
-        fapi._check_response_code(r, 200)
+        entities = _entity_paginator(args.project, args.workspace, args.etype,
+                                     page_size=1000, filter_terms=None,
+                                     sort_direction="asc",api_root=args.api_url)
 
-        dict_response = r.json()
-
-        #Filter entities to only the one asked for
-        matching_entities = [d for d in dict_response
-                            if d['entityType'] == args.etype]
-
-        all_attr = [d['attributes'] for d in matching_entities]
-
-        #Union of all keys in the dictionary, i.e. all possible attributes
-        aa = args.attributes
-        attr_list = set().union(*all_attr) if len(aa) == 0 else aa
-        attr_list = sorted(attr_list)
+        attr_list = args.attributes
+        if not attr_list:
+            # Get a set of all available attributes, then sort them
+            attr_list = {k for e in entities for k in e['attributes'].keys()}
+            attr_list = sorted(attr_list)
 
         header = args.etype + "_id\t" + "\t".join(attr_list)
         print_(header)
 
-        for entity_dict in matching_entities:
+        for entity_dict in entities:
             name = entity_dict['name']
             etype = entity_dict['entityType']
             attrs = entity_dict['attributes']
@@ -335,6 +328,59 @@ def attr_get(args):
         for k in sorted(workspace_attrs.keys()):
             if k in args.attributes or len(args.attributes) == 0:
                 print_(k + "\t" + workspace_attrs[k])
+
+
+def attr_fill_null(args):
+    """
+    Assign the null sentinel value for all entities which do not have a value
+    for the given attributes.
+
+    see gs://broad-institute-gdac/GDAC_FC_NULL for more details
+    """
+    NULL_SENTINEL = "gs://broad-institute-gdac/GDAC_FC_NULL"
+    attrs = args.attributes
+
+    if not attrs:
+        print_("Error: provide at least one attribute to set")
+        sys.exit(1)
+
+    if 'participant' in attrs or 'samples' in attrs:
+        print_("Error: can't assign null to samples or participant")
+        sys.exit(1)
+
+    # Set entity attributes
+    if args.etype is not None:
+        # Get existing attributes
+        entities = _entity_paginator(args.project, args.workspace, args.etype,
+                                     page_size=1000, filter_terms=None,
+                                     sort_direction="asc",api_root=args.api_url)
+
+        entity_data = "entity:" + args.etype + "_id\t" + "\t".join(attrs) + '\n'
+
+        # Construct new entity data, replacing any null values with the sentinel
+        null_count = 0
+        for entity_dict in entities:
+            name = entity_dict['name']
+            etype = entity_dict['entityType']
+            e_attrs = entity_dict['attributes']
+            line = name
+            for attr in attrs:
+                if attr not in e_attrs:
+                    null_count += 1
+                line += "\t" + str(e_attrs.get(attr, NULL_SENTINEL))
+                    
+            entity_data += line + '\n'
+
+        # Now push the entity data back to firecloud
+        r = fapi.upload_entities(args.project, args.workspace, entity_data,
+                                 args.api_url)
+        fapi._check_response_code(r, 200)
+        print_("Set " + str(null_count) + " null sentinels")
+    else:
+        # TODO: set workspace attributes
+        print_("attr_fill_null requires an entity type")
+        sys.exit(1)
+
 
 def ping(args):
     """ Ping FireCloud Server """
@@ -477,6 +523,42 @@ def _nonempty_project(string):
         msg = "No project provided and no DEFAULT_PROJECT found"
         raise ArgumentTypeError(msg)
     return value
+
+def _entity_paginator(namespace, workspace, etype, page_size=100,
+                      filter_terms=None, sort_direction="asc",
+                      api_root=fapi.PROD_API_ROOT):
+    """Pages through the get_entities_query endpoint to get all entities in
+       the workspace without crashing.
+    """
+
+    page = 1
+    all_entities = []
+    # Make initial request
+    r = fapi.get_entities_query(namespace, workspace, etype, page=page,
+                           page_size=page_size, sort_direction=sort_direction,
+                           filter_terms=filter_terms, api_root=api_root)
+    fapi._check_response_code(r, 200)
+
+    response_body = r.json()
+    # Get the total number of pages
+    total_pages = response_body['resultMetadata']['filteredPageCount']
+
+    # append the first set of results
+    entities = response_body['results']
+    all_entities.extend(entities)
+    # Now iterate over remaining pages to retrieve all the results
+    page = 2
+    while page <= total_pages:
+        r = fapi.get_entities_query(namespace, workspace, etype, page=page,
+                               page_size=page_size, sort_direction=sort_direction,
+                               filter_terms=filter_terms, api_root=api_root)
+        fapi._check_response_code(r, 200)
+        entities = r.json()['results']
+        all_entities.extend(entities)
+        page += 1
+
+    return all_entities
+
 
 #################################################
 # Main, entrypoint for fissfc
@@ -771,9 +853,9 @@ def main():
     status_prsr = subparsers.add_parser(
         'ping', description='Show status of FireCloud services')
     status_prsr.set_defaults(func=ping)
+
+
     #Get attributes
-
-
     attr_parser = subparsers.add_parser(
         'attr_get', description='Get attributes from entities in a workspace')
     attr_parser.add_argument('workspace', help='Workspace name')
@@ -782,7 +864,7 @@ def main():
     etype_help += 'If omitted, workspace annotations will be retrieved'
     attr_parser.add_argument(
         '-t', '--entity-type', dest='etype', help=etype_help,
-        choices=['individual', 'individual_set',
+        choices=['participant', 'participant_set',
                  'sample', 'sample_set',
                  'pair', 'pair_set'
                  ]
@@ -791,6 +873,26 @@ def main():
     attr_parser.add_argument('attributes', nargs='*', metavar='attribute',
                              help=attr_help)
     attr_parser.set_defaults(func=attr_get)
+
+    # Set null sentinel values
+    attrf_parser = subparsers.add_parser(
+        'attr_fill_null', description='Assign NULL sentinel value to attributes')
+    attrf_parser.add_argument('workspace', help='Workspace name')
+
+    etype_help =  'Entity type to assign null values, if attribute is missing'
+    attrf_parser.add_argument(
+        '-t', '--entity-type', dest='etype', help=etype_help,
+        choices=['participant', 'participant_set',
+                 'sample', 'sample_set',
+                 'pair', 'pair_set'
+                 ]
+    )
+
+    attrf_help='Attributes to fill with null'
+    attrf_parser.add_argument('attributes', nargs='*', metavar='attribute',
+                             help=attr_help)
+    attrf_parser.set_defaults(func=attr_fill_null)
+
 
     mop_parser = subparsers.add_parser(
         'mop', description='Remove unused files from a workspace\'s bucket'
