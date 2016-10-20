@@ -12,7 +12,7 @@ from inspect import getsourcelines
 from argparse import ArgumentParser, _SubParsersAction, ArgumentTypeError
 import subprocess
 
-from six import print_, iteritems, string_types
+from six import print_, iteritems, string_types, itervalues
 from six.moves import input
 from yapsy.PluginManager import PluginManager
 
@@ -70,9 +70,10 @@ def space_info(args):
 
 def space_delete(args):
     """ Delete a workspace. """
-    prompt = "Delete workspace: {0}/{1}".format(args.project,
-                                                args.workspace)
-    if not args.yes and not _are_you_sure(prompt):
+    message = "WARNING: this will delete workspace: \n\t{0}/{1}".format(
+        args.project, args.workspace
+    )
+    if not args.yes and not _confirm_prompt(message):
         #Don't do it!
         return
 
@@ -154,10 +155,10 @@ def sset_list(args):
 
 def entity_delete(args):
     """ Delete entity in a workspace. """
-    prompt = "Delete {0} {1} in {2}/{3}".format(
+    prompt = "\n\tDelete {0} {1} in {2}/{3}".format(
         args.etype, args.ename, args.project, args.workspace
     )
-    if not args.yes and not _are_you_sure(prompt):
+    if not args.yes and not _confirm_prompt(prompt):
         #Don't do it!
         return
     r = fapi.delete_entity(args.project, args.workspace,
@@ -202,9 +203,10 @@ def flow_new(args):
 
 def flow_delete(args):
     """ Redact a workflow in the methods repository """
-    prompt = "Delete workflow {0}/{1}:{2}".format(
-        args.namespace, args.name, args.snapshot_id)
-    if not args.yes and not _are_you_sure(prompt):
+    message = "WARNING: this will delete workflow \n\t{0}/{1}:{2}".format(
+        args.namespace, args.name, args.snapshot_id
+    )
+    if not args.yes and not _confirm_prompt(message):
         #Don't do it!
         return
     r = fapi.delete_repository_method(args.namespace, args.name,
@@ -342,44 +344,109 @@ def attr_fill_null(args):
 
     if not attrs:
         print_("Error: provide at least one attribute to set")
-        sys.exit(1)
+        return 1
 
     if 'participant' in attrs or 'samples' in attrs:
         print_("Error: can't assign null to samples or participant")
-        sys.exit(1)
+        return 1
 
     # Set entity attributes
     if args.etype is not None:
+        print_("Collecting entity data...")
         # Get existing attributes
         entities = _entity_paginator(args.project, args.workspace, args.etype,
                                      page_size=1000, filter_terms=None,
                                      sort_direction="asc",api_root=args.api_url)
 
-        entity_data = "entity:" + args.etype + "_id\t" + "\t".join(attrs) + '\n'
+        # samples need participant_id as well
+        #TODO: This may need more fixing for other types
+        orig_attrs = list(attrs)
+        if args.etype == "sample":
+            attrs.insert(0, "participant_id")
 
-        # Construct new entity data, replacing any null values with the sentinel
-        null_count = 0
+        header = "entity:" + args.etype + "_id\t" + "\t".join(attrs)
+        # Book keep the number of updates for each attribute
+        attr_update_counts = {a : 0 for a in orig_attrs}
+
+        # construct new entity data by inserting null sentinel, and counting
+        # the number of updates
+        entity_data = []
         for entity_dict in entities:
             name = entity_dict['name']
             etype = entity_dict['entityType']
             e_attrs = entity_dict['attributes']
             line = name
+            altered = False
             for attr in attrs:
+                if attr == "participant_id":
+                    line += "\t" + e_attrs['participant']['entityName']
+                    continue # This attribute is never updated by fill_null
                 if attr not in e_attrs:
-                    null_count += 1
+                    altered = True
+                    attr_update_counts[attr] += 1
                 line += "\t" + str(e_attrs.get(attr, NULL_SENTINEL))
-                    
-            entity_data += line + '\n'
+            # Improve performance by only updating records that have changed
+            if altered:
+                entity_data.append(line)
 
-        # Now push the entity data back to firecloud
-        r = fapi.upload_entities(args.project, args.workspace, entity_data,
-                                 args.api_url)
-        fapi._check_response_code(r, 200)
-        print_("Set " + str(null_count) + " null sentinels")
+        # Check to see if all entities are being set to null for any attributes
+        # This is usually a mistake, so warn the user
+        num_entities = len(entities)
+        prompt = "Continue? [Y\\n]: "
+        for attr in orig_attrs:
+            if num_entities == attr_update_counts[attr]:
+                message = "WARNING: no {0}s with attribute '{1}'\n".format(
+                    args.etype, attr
+                )
+                if not args.yes and not _confirm_prompt(message, prompt):
+                    #Don't do it!
+                    return
+
+        # check to see if no sentinels are necessary
+        if not any(c != 0 for c in itervalues(attr_update_counts)):
+            print_("No null sentinels required, exiting...")
+            return
+
+        if args.to_loadfile:
+            print_("Saving loadfile to " + args.to_loadfile)
+            with open(args.to_loadfile, "w") as f:
+                f.write(header + '\n')
+                f.write("\n".join(entity_data))
+            return
+
+        updates_table = "     count attribute\n"
+        for attr in sorted(attr_update_counts):
+            count = attr_update_counts[attr]
+            updates_table += "{0:>10} {1}\n".format(count, attr)
+
+        message = "WARNING: This will insert null sentinels for "
+        message += "these attributes:\n" + updates_table
+        if not args.yes and not _confirm_prompt(message):
+            #Don't do it!
+            return
+
+        # Chunk the entities into batches of 500, and upload to FC
+        print_("Batching " + str(len(entity_data)) + " updates to Firecloud...")
+        chunk_len = 500
+        total = int(len(entity_data) / chunk_len) + 1
+        batch = 0
+        for i in range(0, len(entity_data), chunk_len):
+            batch += 1
+            print_("Updating samples {0}-{1}, batch {2}/{3}".format(
+                i+1, i+chunk_len, batch, total
+            ))
+            this_data = header + '\n' + '\n'.join(entity_data[i:i+chunk_len])
+
+            # Now push the entity data back to firecloud
+            r = fapi.upload_entities(args.project, args.workspace, this_data,
+                                     args.api_url)
+            fapi._check_response_code(r, 200)
+
+        print_("Done.")
     else:
         # TODO: set workspace attributes
         print_("attr_fill_null requires an entity type")
-        sys.exit(1)
+        return 1
 
 
 def ping(args):
@@ -422,7 +489,7 @@ def mop(args):
 
     except subprocess.CalledProcessError as e:
         print_("Error retrieving files from bucket: " + e)
-        sys.exit(1)
+        return 1
 
     bucket_files = set(bucket_files.strip().split('\n'))
     if args.verbose:
@@ -481,9 +548,9 @@ def mop(args):
         print_("Found {0} files to delete:\n".format(len(deleteable_files))
                + "\n".join(deleteable_files ) + '\n')
 
-    prompt = "delete {0} files in {1} ({2})".format(
+    message = "WARNING: Delete {0} files in {1} ({2})".format(
         len(deleteable_files), bucket_prefix, workspace['workspace']['name'])
-    if args.dry_run or (not args.yes and not _are_you_sure(prompt)):
+    if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         #Don't do it!
         return
 
@@ -499,20 +566,35 @@ def mop(args):
         print_(result.rstrip())
 
 
+def flow_submit(args):
+    """Submit a workflow on the given entity"""
+    print_("Submitting {0} on {1} in {2}/{3}".format(
+        args.config_name, args.entity, args.project, args.workspace
+    ))
+    r = fapi.create_submission(args.project, args.workspace,
+                               args.config_namespace, args.config_name,
+                               args.entity, args.etype, args.expression,
+                               args.api_url)
+    fapi._check_response_code(r, 201)
+    # Give submission id in response
+    sub_id = r.json()['submissionId']
+    print_("Submission successful. Submission_id: " + sub_id )
+
+
+
+
 #################################################
 # Utilities
 #################################################
 
-def _are_you_sure(action):
+def _confirm_prompt(message, prompt="\nAre you sure? [Y\\n]: ",
+                    affirmations=("Y", "Yes", "yes", "y")):
     """
-    Prompts the user to agree (Y/y) to the proposed action.
-
-    Returns true on (Y, Yes, y, yes), any other input is false
+    Display a message, then confirmation prompt, and return true
+    if the user responds with one of the affirmations.
     """
-    agreed = ("Y", "Yes", "yes", "y")
-    prompt = "WARNING: This will \n\t" + action + "\nAre you sure? [Y\\n]: "
-    answer = input(prompt)
-    return answer in agreed
+    answer = input(message + prompt)
+    return answer in affirmations
 
 def _nonempty_project(string):
     """
@@ -891,6 +973,8 @@ def main():
     attrf_help='Attributes to fill with null'
     attrf_parser.add_argument('attributes', nargs='*', metavar='attribute',
                              help=attr_help)
+    attrf_parser.add_argument("-o", "--to-loadfile", metavar='loadfile',
+                              help="Save changes to provided loadfile, but do not perform update")
     attrf_parser.set_defaults(func=attr_fill_null)
 
 
@@ -906,6 +990,31 @@ def main():
                             action='store_true', help='Show actions')
     mop_parser.set_defaults(func=mop)
 
+    # Submit a workflow
+    flow_submit_prsr = subparsers.add_parser(
+        'flow_submit', description='Submit a workflow in a workspace'
+    )
+    flow_submit_prsr.add_argument('workspace', help='Workspace name')
+    etype_help =  'Entity type to assign null values, if attribute is missing.'
+    etype_help += '\nDefault: sample_set'
+    flow_submit_prsr.add_argument(
+        '-t', '--entity-type', dest='etype', help=etype_help,
+        default='sample_set',
+        choices=[
+            'participant', 'participant_set', 'sample', 'sample_set',
+                 'pair', 'pair_set'
+        ]
+    )
+    flow_submit_prsr.add_argument('config_namespace', help='Configuration namespace')
+    flow_submit_prsr.add_argument('config_name', help='Workflow configuration name')
+    ehelp = "Entity to run workflow on. Type is specified by entity-type option."
+    flow_submit_prsr.add_argument('entity', help=ehelp)
+    expr_help = "(optional) Entity expression to use when entity type doesn't"
+    expr_help += " match the method configuration. Example: 'this.samples'"
+    flow_submit_prsr.add_argument('expression', nargs="?", help=expr_help)
+    flow_submit_prsr.set_defaults(func=flow_submit)
+
+
     # Add any commands from the plugin
     for pluginInfo in manager.getAllPlugins():
         pluginInfo.plugin_object.register_commands(subparsers)
@@ -914,7 +1023,6 @@ def main():
     ##Special cases, print help with no arguments
     if len(sys.argv) == 1:
             parser.print_help()
-            sys.exit(0)
     elif sys.argv[1]=='-l':
         #Print commands in a more readable way
         choices=[]
@@ -922,8 +1030,14 @@ def main():
             if isinstance(a, _SubParsersAction):
                 for choice, _ in a.choices.items():
                     choices.append(choice)
+
+        # next arg is search term, if specified
+        search = ''
+        if len(sys.argv) > 2:
+            search = sys.argv[2]
         for c in sorted(choices):
-            print_('\t' + c)
+            if search in c:
+                print_('\t' + c)
     elif sys.argv[1] == '-F':
         ## Show source for remaining args
         for fname in sys.argv[2:]:
@@ -939,7 +1053,7 @@ def main():
         ##Otherwise parse args and call correct subcommand
         args = parser.parse_args()
 
-        args.func(args)
+        sys.exit(args.func(args))
 
 
 if __name__ == '__main__':

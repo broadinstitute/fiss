@@ -9,7 +9,7 @@ from yapsy.IPlugin import IPlugin
 from six import print_
 
 from firecloud import api as fapi
-from firecloud.fiss import _are_you_sure
+from firecloud.fiss import _confirm_prompt
 
 
 class GDACFissfcPlugin(IPlugin):

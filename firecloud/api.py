@@ -522,8 +522,8 @@ def rename_workspace_config(namespace, workspace, cnamespace,
         namespace (str): Google project for the workspace
         workspace (str): Workspace name
         mnamespace (str): Config namespace
-        config (str): Method name
-        new_namespace (str): Updated method namespace
+        config (str): Config name
+        new_namespace (str): Updated config namespace
         new_name (str): Updated method name
         api_root (str): FireCloud API url, if not production
 
@@ -532,8 +532,13 @@ def rename_workspace_config(namespace, workspace, cnamespace,
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
     json_body = {
-        "namespace" : new_name,
-        "name"      : new_namespace
+        "namespace" : new_namespace,
+        "name"      : new_name,
+        # I have no idea why this is required by FC, but it is...
+        "workspaceName" : {
+            "namespace" : namespace,
+            "name"      : workspace
+        }
     }
     uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}/rename".format(
         api_root, namespace, workspace, cnamespace, config)
@@ -572,7 +577,9 @@ def copy_config_from_repo(namespace, workspace, from_cnamespace,
     return requests.post(uri, headers=headers, json=json_body)
 
 
-def copy_config_to_repo():
+def copy_config_to_repo(namespace, workspace, from_cnamespace,
+                        from_config, to_cnamespace, to_config,
+                        api_root=PROD_API_ROOT):
     """Copy a method config from a workspace to the methods repository.
 
     Args:
@@ -917,7 +924,7 @@ def list_submissions(namespace, workspace, api_root=PROD_API_ROOT):
 
 
 def create_submission(wnamespace, workspace, cnamespace, config,
-                      entity, etype, expression, api_root=PROD_API_ROOT):
+                      entity, etype, expression=None, api_root=PROD_API_ROOT):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -943,11 +950,13 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         "methodConfigurationNamespace" : cnamespace,
         "methodConfigurationName" : config,
          "entityType" : etype,
-         "entityName" : entity,
-         "expression" : expression
+         "entityName" : entity
     }
 
-    return http.post(uri, headers=headers, json=json_body)
+    if expression:
+        json_body['expression'] = expression
+
+    return requests.post(uri, headers=headers, json=json_body)
 
 
 def abort_sumbission(namespace, workspace,
