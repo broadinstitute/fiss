@@ -55,7 +55,7 @@ def space_new(args):
     r = fapi.create_workspace(args.project, args.workspace,
                                  args.protected, dict(), args.api_url)
     fapi._check_response_code(r, 201)
-    print_('Created workspace {0}/{1}:'.format(args.project, args.workspace))
+    print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
     print_(r.content)
 
 def space_info(args):
@@ -87,14 +87,24 @@ def space_unlock(args):
 
 def space_clone(args):
     """ Clone a workspace """
+    if not args.to_workspace:
+        args.to_workspace = args.workspace
+    if not args.to_project:
+        args.to_project = args.project
+    if (args.project == args.to_project
+        and args.workspace == args.to_workspace):
+        eprint("Error: destination project and namespace must differ from"
+               " cloned workspace")
+        return 1
+
     r = fapi.clone_workspace(
-        args.from_namespace, args.from_workspace,
-        args.to_namespace, args.to_workspace, args.api_url
+        args.project, args.workspace,
+        args.to_project, args.to_workspace, args.api_url
     )
     fapi._check_response_code(r, 201)
-    msg =  args.from_namespace + '/' + args.from_workspace
-    msg += " successfully cloned to " + args.to_namespace
-    msg += "/" + args.to_namespace
+    msg =  args.project + '/' + args.workspace
+    msg += " successfully cloned to " + args.to_project
+    msg += "/" + args.to_workspace
     print_(msg)
 
 def entity_import(args):
@@ -638,6 +648,10 @@ def _entity_paginator(namespace, workspace, etype, page_size=100,
         page += 1
 
     return all_entities
+
+def eprint(*args, **kwargs):
+    """ Print a message to stderr """
+    print_(*args, file=sys.stderr, **kwargs)
 
 
 #################################################
