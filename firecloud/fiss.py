@@ -167,34 +167,36 @@ def sset_list(args):
 
 def entity_delete(args):
     """ Delete entity in a workspace. """
-    prompt = "\n\tDelete {0} {1} in {2}/{3}".format(
-        args.etype, args.ename, args.project, args.workspace
+    raise NotImplementedError("Entity deletion is currently broken in FC :(")
+
+    prompt = "WARNING: this will delete {0} {1} in {2}/{3}".format(
+        args.entity_type, args.entity, args.project, args.workspace
     )
     if not args.yes and not _confirm_prompt(prompt):
         #Don't do it!
         return
     r = fapi.delete_entity(args.project, args.workspace,
-                           args.etype, args.ename, args.api_url)
+                           args.entity_type, args.entity, args.api_url)
     fapi._check_response_code(r, 204)
-    print_("Succesfully deleted " + args.type)
+    print_("Succesfully deleted " + args.type + " " + args.entity)
 
 def participant_delete(args):
-    args.type = "participant"
+    args.entity_type = "participant"
     return entity_delete(args)
 
 def sample_delete(args):
-    args.type = "sample"
+    args.entity_type = "sample"
     return entity_delete(args)
 
 def sset_delete(args):
-    args.type = "sample_set"
+    args.entity_type = "sample_set"
     return entity_delete(args)
 
 def space_acl(args):
     """ Get Access Control List for a workspace."""
     r = fapi.get_workspace_acl(args.project, args.workspace, args.api_url)
     fapi._check_response_code(r, 200)
-    for user, role in r.json().iteritems():
+    for user, role in iteritems(r.json()):
         print_('{0}\t{1}'.format(user, role))
 
 def space_set_acl(args):
@@ -725,9 +727,8 @@ def main():
     # Commands that update ACL roles require a role and list of users
     acl_parent = argparse.ArgumentParser(add_help=False)
     acl_parent.add_argument('-r', '--role', help='ACL role', required=True,
-                           choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'],
-                           nargs='+')
-    acl_parent.add_argument('--users', help='FireCloud usernames',
+                           choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
+    acl_parent.add_argument('--users', help='FireCloud usernames', nargs='+',
                             required=True)
 
     # Commands that operates on entity_types
