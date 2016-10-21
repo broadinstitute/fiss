@@ -117,7 +117,7 @@ def entity_import(args):
 def entity_types(args):
     """ List entity types in a workspace. """
     r = fapi.list_entity_types(args.project, args.workspace,
-                              args.api_url)
+                               args.api_url)
     fapi._check_response_code(r, 200)
     for etype in r.json():
         print_(etype)
@@ -129,12 +129,16 @@ def entity_list(args):
     for entity in r.json():
         print_('{0}\t{1}'.format(entity['entityType'], entity['name']))
 
-def entity_tsv(args):
-    """ Get list of entities in TSV format. """
-    r = fapi.get_entities_tsv(args.project, args.workspace,
-                              args.etype, args.api_url)
-    fapi._check_response_code(r, 200)
-    print_(r.content)
+
+# REMOVED: This now returns a *.zip* file containing two tsvs, which is far
+# less useful for FISS users...
+# def entity_tsv(args):
+#     """ Get list of entities in TSV format. """
+#     r = fapi.get_entities_tsv(args.project, args.workspace,
+#                               args.entity_type, args.api_url)
+#     fapi._check_response_code(r, 200)
+#
+#     print_(r.content)
 
 def participant_list(args):
     """ List participants in a workspace. """
@@ -149,7 +153,7 @@ def sample_list(args):
     r = fapi.get_entities(args.project, args.workspace,
                              "sample", args.api_url)
     fapi._check_response_code(r, 200)
-    for entity in json.loads(c):
+    for entity in r.json():
         print_(entity['name'])
 
 def sset_list(args):
@@ -840,11 +844,12 @@ def main():
     el_parser.set_defaults(func=entity_list)
 
     # List entities in tsv format
-    etsv_parser = subparsers.add_parser(
-        'entity_tsv', description='Get a tsv of workspace entities',
-        parents=[workspace_parent, etype_parent]
-    )
-    etsv_parser.set_defaults(func=entity_tsv)
+    # REMOVED: see entity_tsv()
+    # etsv_parser = subparsers.add_parser(
+    #     'entity_tsv', description='Get a tsv of workspace entities',
+    #     parents=[workspace_parent, etype_parent]
+    # )
+    # etsv_parser.set_defaults(func=entity_tsv)
 
     #List of participants
     pl_parser = subparsers.add_parser(
