@@ -301,10 +301,11 @@ def config_acl(args):
 def attr_get(args):
     """ Get attributes from entities or workspaces. """
     ##if entities was specified
-    if args.etype is not None:
-        entities = _entity_paginator(args.project, args.workspace, args.etype,
+    if args.entity_type is not None:
+        entities = _entity_paginator(args.project, args.workspace,
+                                     args.entity_type,
                                      page_size=1000, filter_terms=None,
-                                     sort_direction="asc",api_root=args.api_url)
+                                     sort_direction="asc", api_root=args.api_url)
 
         attr_list = args.attributes
         if not attr_list:
@@ -312,7 +313,7 @@ def attr_get(args):
             attr_list = {k for e in entities for k in e['attributes'].keys()}
             attr_list = sorted(attr_list)
 
-        header = args.etype + "_id\t" + "\t".join(attr_list)
+        header = args.entity_type + "_id\t" + "\t".join(attr_list)
         print_(header)
 
         for entity_dict in entities:
