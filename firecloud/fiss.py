@@ -252,22 +252,22 @@ def space_set_acl(args):
 @fiss_cmd
 def flow_new(args):
     """ Submit a new workflow to the methods repository. """
-    r = fapi.update_repository_method(args.namespace, args.name, args.synopsis,
+    r = fapi.update_repository_method(args.namespace, args.method, args.synopsis,
                                       args.wdl, args.doc, args.api_url)
     fapi._check_response_code(r, 201)
-    print_("Successfully pushed {0}/{1}".format(args.namespace, args.name))
+    print_("Successfully pushed {0}/{1}".format(args.namespace, args.method))
 
 
 @fiss_cmd
 def flow_delete(args):
     """ Redact a workflow in the methods repository """
     message = "WARNING: this will delete workflow \n\t{0}/{1}:{2}".format(
-        args.namespace, args.name, args.snapshot_id
+        args.namespace, args.method, args.snapshot_id
     )
     if not args.yes and not _confirm_prompt(message):
         #Don't do it!
         return
-    r = fapi.delete_repository_method(args.namespace, args.name,
+    r = fapi.delete_repository_method(args.namespace, args.method,
                                       args.snapshot_id, args.api_url)
     fapi._check_response_code(r, 200)
     print_("Successfully redacted workflow.")
@@ -276,7 +276,7 @@ def flow_delete(args):
 @fiss_cmd
 def flow_acl(args):
     """ Get Access Control List for a workflow """
-    r = fapi.get_repository_method_acl(args.namespace, args.name,
+    r = fapi.get_repository_method_acl(args.namespace, args.method,
                                        args.snapshot_id, args.api_url)
     fapi._check_response_code(r, 200)
     for d in r.json():
@@ -289,7 +289,7 @@ def flow_acl(args):
 def flow_set_acl(args):
     """ Assign an ACL role to a list of users for a worklow. """
     acl_updates = [{"user": user, "role": args.role} for user in args.users]
-    r = fapi.update_repository_method_acl(args.namespace, args.name,
+    r = fapi.update_repository_method_acl(args.namespace, args.method,
                                           args.snapshot_id, acl_updates,
                                           args.api_url)
     fapi._check_response_code(r, 200)
@@ -352,7 +352,7 @@ def config_list(args):
 @fiss_cmd
 def config_acl(args):
     """ Get Access Control List for a method configuration. """
-    r = fapi.get_repository_config_acl(args.namespace, args.name,
+    r = fapi.get_repository_config_acl(args.namespace, args.config,
                                        args.snapshot_id, args.api_url)
     fapi._check_response_code(r, 200)
     for d in r.json():
@@ -702,7 +702,6 @@ def sset_loop(args):
 
         if not args.keep_going and code != 0:
             return code
-
 
 
 #################################################
