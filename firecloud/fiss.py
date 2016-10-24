@@ -366,20 +366,21 @@ def attr_fill_null(args):
         return 1
 
     # Set entity attributes
-    if args.etype is not None:
+    if args.entity_type is not None:
         print_("Collecting entity data...")
         # Get existing attributes
-        entities = _entity_paginator(args.project, args.workspace, args.etype,
+        entities = _entity_paginator(args.project, args.workspace,
+                                     args.entity_type,
                                      page_size=1000, filter_terms=None,
                                      sort_direction="asc",api_root=args.api_url)
 
         # samples need participant_id as well
         #TODO: This may need more fixing for other types
         orig_attrs = list(attrs)
-        if args.etype == "sample":
+        if args.entity_type == "sample":
             attrs.insert(0, "participant_id")
 
-        header = "entity:" + args.etype + "_id\t" + "\t".join(attrs)
+        header = "entity:" + args.entity_type + "_id\t" + "\t".join(attrs)
         # Book keep the number of updates for each attribute
         attr_update_counts = {a : 0 for a in orig_attrs}
 
@@ -411,7 +412,7 @@ def attr_fill_null(args):
         for attr in orig_attrs:
             if num_entities == attr_update_counts[attr]:
                 message = "WARNING: no {0}s with attribute '{1}'\n".format(
-                    args.etype, attr
+                    args.entity_type, attr
                 )
                 if not args.yes and not _confirm_prompt(message, prompt):
                     #Don't do it!
@@ -448,7 +449,7 @@ def attr_fill_null(args):
         for i in range(0, len(entity_data), chunk_len):
             batch += 1
             print_("Updating samples {0}-{1}, batch {2}/{3}".format(
-                i+1, i+chunk_len, batch, total
+                i+1, min(i+chunk_len, len(entity_data)), batch, total
             ))
             this_data = header + '\n' + '\n'.join(entity_data[i:i+chunk_len])
 
@@ -522,10 +523,12 @@ def mop(args):
     for etype in entity_types:
         if args.verbose:
             print_("Getting annotations for " + etype + " entities...")
-        r = fapi.get_entities(args.project, args.workspace,
-                                  etype, args.api_url)
-        fapi._check_response_code(r, 200)
-        for entity in r.json():
+        # use the paginated version of the query
+        entities = _entity_paginator(args.project, args.workspace, etype,
+                              page_size=1000, filter_terms=None,
+                              sort_direction="asc", api_root=fapi.PROD_API_ROOT)
+
+        for entity in entities:
             for value in entity['attributes'].values():
                 if isinstance(value, string_types) and value.startswith(bucket_prefix):
                     # 'value' is a file in this bucket
@@ -576,6 +579,7 @@ def mop(args):
     if args.verbose:
         print_("Deleting files with gsutil...")
     gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    # Pipe the deleteable_files into gsutil
     result = gsrm_proc.communicate(input='\n'.join(deleteable_files))[0]
     if args.verbose:
         print_(result.rstrip())
@@ -588,14 +592,12 @@ def flow_submit(args):
     ))
     r = fapi.create_submission(args.project, args.workspace,
                                args.config_namespace, args.config_name,
-                               args.entity, args.etype, args.expression,
+                               args.entity, args.entity_type, args.expression,
                                args.api_url)
     fapi._check_response_code(r, 201)
     # Give submission id in response
     sub_id = r.json()['submissionId']
     print_("Submission successful. Submission_id: " + sub_id )
-
-
 
 
 #################################################
