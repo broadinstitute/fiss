@@ -700,7 +700,7 @@ def sset_loop(args):
             eprint("Error: " + str(e))
             code = -1
 
-        if not args.keep_going and code != 0:
+        if not args.keep_going and code:
             return code
 
 
