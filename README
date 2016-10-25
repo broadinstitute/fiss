@@ -56,6 +56,11 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
+v0.13.0 - New supervisor command -- a robust mechanism of submitting related
+          workflows similar to Firehose workflows. Workflows described in DOT
+          can be submitted and monitored in one command, and if the supervisor
+          crashes, can be resumed with recover_supervisor.
+
 v0.12.0 - Large refactor of argument handling for FISS. Almost all arguments
           are now passed using flags instead of positional arguments, enabling
           the argument namespace to be shared by command iterators. This allows

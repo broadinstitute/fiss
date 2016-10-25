@@ -80,6 +80,26 @@ def init_supervisor_data(dotfile, sample_sets):
 
     return monitor_data, dependencies
 
+
+def recover_and_supervise(recovery_file):
+    """ Retrieve monitor data from recovery_file and resume monitoring """
+    try:
+        logging.info("Attempting to recover Supervisor data from " + recovery_file)
+        with open(recovery_file) as rf:
+            recovery_data = json.load(rf)
+            monitor_data = recovery_data['monitor_data']
+            dependencies = recovery_data['dependencies']
+            args = recovery_data['args']
+
+    except:
+        logging.error("Could not recover monitor data, exiting...")
+        return 1
+
+    logging.info("Data successfully loaded, resuming Supervisor")
+    supervise_until_complete(monitor_data, dependencies, args, recovery_file)
+    logging.info("All submissions completed, shutting down Supervisor...")
+
+
 def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
     """ Supervisor loop. Loop forever until all tasks are evaluated or completed """
     project = args['project']
@@ -88,8 +108,7 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
     namespace = args['namespace']
     sample_sets = args['sample_sets']
     recovery_data = {'args': args}
-    while not all(monitor_data[sset][n]['evaluated']
-                  for sset in monitor_data for n in monitor_data[sset]):
+    while True:
         # There are 4 possible states for each node:
         #   1. Not Started -- In this state, check all the dependencies for the
         #         node (possibly 0). If all of them have been evaluated, and the
@@ -180,12 +199,16 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
                         success = 'Failed' not in submission['workflowStatuses']
                         task_data['evaluated'] = True
                         task_data['succeeded'] = success
-                        task_data['status'] = "Completed"
+                        task_data['state'] = "Completed"
 
                         completed += 1
                     else:
                         # Submission isn't done, don't do anything
                         running += 1
+
+                else:
+                    # Either Completed or evaluated
+                    completed += 1
 
                 # Save the state of the monitor for recovery purposes
                 # Have to do this for every workflow + sample_set so we don't lose track of any
@@ -197,6 +220,9 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
 
         logging.info("{0} Waiting, {1} Running, {2} Completed".format(waiting, running, completed))
 
-        # Sleep, wait for changes
+        # If all tasks have been evaluated, we are done
+        if all(monitor_data[sset][n]['evaluated']
+                      for sset in monitor_data for n in monitor_data[sset]):
+            break
         time.sleep(30)
     pass

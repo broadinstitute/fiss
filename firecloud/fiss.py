@@ -745,6 +745,12 @@ def supervise(args):
                                 workflow, sample_sets,
                                 recovery_file, api_url)
 
+
+@fiss_cmd
+def recover_supervisor(args):
+    recovery_file = args.recovery_file
+    return supervisor.recover_and_supervise(recovery_file)
+
 #################################################
 # Utilities
 #################################################
@@ -1242,6 +1248,14 @@ def main():
                             help='Name of file to save monitor data')
     sup_parser.set_defaults(func=supervise)
 
+    # Recover an old supervisor
+    rec_help = "Recover a supervisor submission from the checkpoint file"
+    rec_parser = subparsers.add_parser(
+        'recover_supervisor', description=rec_help
+    )
+    rec_parser.add_argument('recovery_file', default=recovery, nargs='?',
+                            help='File where supervisor metadata was stored')
+    rec_parser.set_defaults(func=recover_supervisor)
 
 
     # Add any commands from the plugin
