@@ -715,7 +715,35 @@ def monitor(args):
 @fiss_cmd
 def supervise(args):
     """ Run Firehose-style workflow of workflows """
-    return supervisor.supervise(args)
+    project = args.project
+    workspace = args.workspace
+    namespace = args.namespace
+    workflow = args.workflow
+    sample_sets = args.sample_sets
+    api_url = args.api_url
+    recovery_file = args.json_checkpoint
+
+    # If no somple sets are provided, run on all sample sets
+    if not sample_sets:
+        r = fapi.get_entities(args.project, args.workspace,
+                              "sample_set", args.api_url)
+        fapi._check_response_code(r, 200)
+        sample_sets = [s['name'] for s in r.json()]
+
+    message = "Sample Sets:\n\t".format(len(sample_sets))
+    message += "\n\t".join(sample_sets)
+
+    prompt = "\nLaunch workflow in " + project + "/" + workspace
+    prompt += " on these sample sets? [Y\\n]: "
+
+
+    if not args.yes and not _confirm_prompt(message, prompt):
+        #Don't do it!
+        return
+
+    return supervisor.supervise(project, workspace, namespace,
+                                workflow, sample_sets,
+                                recovery_file, api_url)
 
 #################################################
 # Utilities
@@ -1200,11 +1228,18 @@ def main():
     sup_help = "Run a Firehose-style workflow of workflows specified in DOT"
     sup_parser = subparsers.add_parser(
         'supervise', description=sup_help,
-        parents=[workspace_parent, entity_parent]
+        parents=[workspace_parent]
     )
     sup_parser.add_argument('workflow', help='Workflow description in DOT')
     sup_parser.add_argument('-n', '--namespace', required=True,
                              help='Methods namespace')
+    sup_parser.add_argument('-s', '--sample-sets', nargs='+',
+                            help='Sample sets to run workflow on')
+    jhelp = "File to save monitor data. This file can be passed to "
+    jhelp = "fissfc recover_supervisor in case the supervisor crashes"
+    recovery = os.path.expanduser('~/.fiss/monitor_data.json')
+    sup_parser.add_argument('-j', '--json-checkpoint', default=recovery,
+                            help='Name of file to save monitor data')
     sup_parser.set_defaults(func=supervise)
 
 
