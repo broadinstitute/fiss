@@ -19,6 +19,7 @@ from yapsy.PluginManager import PluginManager
 from firecloud import api as fapi
 from firecloud.errors import *
 from firecloud.__about__ import __version__
+from firecloud import supervisor
 
 PLUGIN_PLACES = ["plugins", os.path.expanduser('~/.fiss/plugins')]
 
@@ -711,6 +712,11 @@ def monitor(args):
     print_(r.content)
     print_(len(r.json()))
 
+@fiss_cmd
+def supervise(args):
+    """ Run Firehose-style workflow of workflows """
+    return supervisor.supervise(args)
+
 #################################################
 # Utilities
 #################################################
@@ -816,7 +822,7 @@ def main():
     #TODO: Add longer description
     u  = 'fissfc [OPTIONS] CMD [arg ...]\n'
     u += '       fissfc [ --help | -v | --version ]'
-    parser = argparse.ArgumentParser(usage=u,
+    parser = argparse.ArgumentParser(
                                      description='FISS: The FireCloud CLI')
 
     # Core Flags
@@ -1188,6 +1194,20 @@ def main():
         parents=[workspace_parent]
     )
     mon_parser.set_defaults(func=monitor)
+
+
+    # Supervisor mode
+    sup_help = "Run a Firehose-style workflow of workflows specified in DOT"
+    sup_parser = subparsers.add_parser(
+        'supervise', description=sup_help,
+        parents=[workspace_parent, entity_parent]
+    )
+    sup_parser.add_argument('workflow', help='Workflow description in DOT')
+    sup_parser.add_argument('-n', '--namespace', required=True,
+                             help='Methods namespace')
+    sup_parser.set_defaults(func=supervise)
+
+
 
     # Add any commands from the plugin
     for pluginInfo in manager.getAllPlugins():

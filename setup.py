@@ -22,10 +22,11 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'requests',
         'oauth2client',
-        'yapsy',
-        'six'
+        'pydot',
+        'requests',
+        'six',
+        'yapsy'
     ],
     classifiers = [
         "Programming Language :: Python :: 2",
