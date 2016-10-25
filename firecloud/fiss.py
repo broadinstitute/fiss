@@ -704,6 +704,13 @@ def sset_loop(args):
             return code
 
 
+@fiss_cmd
+def monitor(args):
+    """ View submitted jobs in a workspace. """
+    r = fapi.list_submissions(args.project, args.workspace, args.api_url)
+    print_(r.content)
+    print_(len(r.json()))
+
 #################################################
 # Utilities
 #################################################
@@ -806,9 +813,10 @@ def main():
     default_project_list = [default_project] if default_project != '' else []
 
     #Initialize core parser
+    #TODO: Add longer description
     u  = 'fissfc [OPTIONS] CMD [arg ...]\n'
     u += '       fissfc [ --help | -v | --version ]'
-    parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(usage=u,
                                      description='FISS: The FireCloud CLI')
 
     # Core Flags
@@ -1176,6 +1184,10 @@ def main():
     ssloop_parser.add_argument('-x', '--expression', help=expr_help)
     ssloop_parser.set_defaults(func=sset_loop)
 
+    mon_parser = subparsers.add_parser('monitor', help="Monitor submitted jobs.",
+        parents=[workspace_parent]
+    )
+    mon_parser.set_defaults(func=monitor)
 
     # Add any commands from the plugin
     for pluginInfo in manager.getAllPlugins():
