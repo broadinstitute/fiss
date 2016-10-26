@@ -11,6 +11,7 @@ import os
 from inspect import getsourcelines
 import argparse
 import subprocess
+import re
 
 from six import print_, iteritems, string_types, itervalues
 from six.moves import input
@@ -814,6 +815,53 @@ def recover_supervisor(args):
     recovery_file = args.recovery_file
     return supervisor.recover_and_supervise(recovery_file)
 
+
+@fiss_cmd
+def space_search(args):
+    """ Search for workspaces matching certain criteria """
+    r = fapi.list_workspaces(args.api_url)
+    fapi._check_response_code(r, 200)
+
+    #Parse the JSON for the workspace + namespace
+    workspaces = r.json()
+
+    # Now filter based on the search terms. Each search term is treated as
+    # a regular expression
+    extra_terms = []
+    if args.bucket:
+        workspaces = [w for w in workspaces
+                      if re.search(args.bucket, w['workspace']['bucketName'])]
+        extra_terms.append('bucket')
+
+    # TODO: add more filter terms
+
+    # If there was only one result, print it the simple way
+    if len(workspaces) == 1:
+        ws = workspaces[0]['workspace']['namespace']
+        ns = workspaces[0]['workspace']['name']
+        print_(ns + '/' + ws)
+    elif len(workspaces)==0:
+        print_("No workspaces found matching search criteria")
+    else:
+    # Print all the matching results
+        print_('\t'.join(["Workspace"] + extra_terms))
+        pretty_spaces = []
+        for space in workspaces:
+            ns = space['workspace']['namespace']
+            ws = space['workspace']['name']
+            pspace = ns + '/' + ws
+            if args.bucket:
+                b = space['workspace']['bucketName']
+                pspace += '\t' + b
+
+            pretty_spaces.append(pspace)
+
+
+        #Sort for easier viewing, ignore case
+        pretty_spaces = sorted(pretty_spaces, key=lambda s: s.lower())
+        for s in pretty_spaces:
+            print_(s)
+
 #################################################
 # Utilities
 #################################################
@@ -1344,6 +1392,12 @@ def main():
                             help='File where supervisor metadata was stored')
     rec_parser.set_defaults(func=recover_supervisor)
 
+    # Space search
+    ssearch_prsr = subparsers.add_parser(
+        'space_search', description="Search for workspaces"
+    )
+    ssearch_prsr.add_argument('-b', '--bucket', help='Regex to match bucketName')
+    ssearch_prsr.set_defaults(func=space_search)
 
     # Create the .fiss directory if it doesn't exist
     fiss_home = os.path.expanduser("~/.fiss")
