@@ -862,6 +862,41 @@ def space_search(args):
         for s in pretty_spaces:
             print_(s)
 
+
+@fiss_cmd
+def entity_copy(args):
+    """ Copy entities from one workspace to another. """
+    if not args.to_workspace:
+        args.to_workspace = args.workspace
+    if not args.to_project:
+        args.to_project = args.project
+    if (args.project == args.to_project
+        and args.workspace == args.to_workspace):
+        eprint("Error: destination project and namespace must differ from"
+               " source workspace")
+        return 1
+
+    if not args.entities:
+        # get a list of entities from source workspace matching entity_type
+        ents = _entity_paginator(args.project, args.workspace, args.entity_type,
+                                 page_size=500, filter_terms=None,
+                                 sort_direction='asc', api_root=args.api_url)
+        args.entities = [e['name'] for e in ents]
+
+    prompt = "Copy {0} {1}(s) from {2}/{3} to {4}/{5}?\n[Y\\n]: "
+    prompt = prompt.format(len(args.entities), args.entity_type, args.project,
+                           args.workspace, args.to_project, args.to_workspace)
+
+    if not args.yes and not _confirm_prompt("", prompt):
+        return
+
+    r = fapi.copy_entities(
+        args.project, args.workspace, args.to_project, args.to_workspace,
+        args.entity_type, args.entities, args.api_url
+    )
+    fapi._check_response_code(r, 201)
+    print_("Done.")
+
 #################################################
 # Utilities
 #################################################
@@ -885,7 +920,7 @@ def _nonempty_project(string):
         raise argparse.ArgumentTypeError(msg)
     return value
 
-def _entity_paginator(namespace, workspace, etype, page_size=100,
+def _entity_paginator(namespace, workspace, etype, page_size=500,
                       filter_terms=None, sort_direction="asc",
                       api_root=fapi.PROD_API_ROOT):
     """Pages through the get_entities_query endpoint to get all entities in
@@ -1398,6 +1433,19 @@ def main():
     )
     ssearch_prsr.add_argument('-b', '--bucket', help='Regex to match bucketName')
     ssearch_prsr.set_defaults(func=space_search)
+
+
+    ecopy_prsr = subparsers.add_parser(
+        'entity_copy', description='Copy entities from one workspace to another',
+        parents=[workspace_parent, dest_space_parent, etype_parent]
+    )
+
+    ecopy_prsr.add_argument(
+        '-e', '--entities', nargs='+',
+        help='Entities to copy. If omitted, all entities will be copied.'
+    )
+    ecopy_prsr.set_defaults(func=entity_copy)
+
 
     # Create the .fiss directory if it doesn't exist
     fiss_home = os.path.expanduser("~/.fiss")
