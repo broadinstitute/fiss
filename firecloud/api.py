@@ -1220,7 +1220,7 @@ def update_workspace_attributes(namespace, workspace,
         attrs (list(dict)): List of update operations for workspace attributes.
             Use the helper dictionary construction functions to create these:
 
-            _attr_up()      : Set/Update attribute
+            _attr_set()      : Set/Update attribute
             _attr_rem()     : Remove attribute
             _attr_ladd()    : Add list member to attribute
             _attr_lrem()    : Remove list member from attribute
@@ -1238,7 +1238,7 @@ def update_workspace_attributes(namespace, workspace,
 
 
 # Helper functions to create attribute update dictionaries
-def _attr_up(attr, value):
+def _attr_set(attr, value):
     """Create an 'update 'dictionary for update_workspace_attributes()"""
     return {
         "op"                 : "AddUpdateAttribute",

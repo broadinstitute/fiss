@@ -410,6 +410,72 @@ def attr_get(args):
 
 
 @fiss_cmd
+def attr_set(args):
+    """ Set attributes on a workspace or entities """
+    # Update workspace attributes
+    prompt = "Set {0}={1} in {2}/{3}?\n[Y\\n]: ".format(
+        args.attribute, args.value, args.project, args.workspace
+    )
+
+    if not args.yes and not _confirm_prompt("", prompt):
+        return #Don't do it!
+
+    update = fapi._attr_set(args.attribute, args.value)
+    r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                    [update], api_root=args.api_url)
+    r = fapi._check_response_code(r, 200)
+    print_("Done.")
+
+
+@fiss_cmd
+def attr_copy(args):
+    """ Copy workspace attributes between workspaces. """
+    if not args.to_workspace:
+        args.to_workspace = args.workspace
+    if not args.to_project:
+        args.to_project = args.project
+    if (args.project == args.to_project
+        and args.workspace == args.to_workspace):
+        eprint("Error: destination project and namespace must differ from"
+               " source workspace")
+        return 1
+
+    # First get the workspace attributes of the source workspace
+    r = fapi.get_workspace(args.project, args.workspace, args.api_url)
+    fapi._check_response_code(r, 200)
+
+    # Parse the attributes
+    workspace_attrs = r.json()['workspace']['attributes']
+
+    # If we passed attributes, only use those
+    if args.attributes:
+        workspace_attrs = {k:v for k, v in iteritems(workspace_attrs)
+                           if k in args.attributes}
+
+    if len(workspace_attrs) == 0:
+        print_("No workspace attributes defined in {0}/{1}".format(
+            args.project, args.workspace
+        ))
+        return
+
+    message = "This will copy the following workspace attributes to {0}/{1}\n"
+    message = message.format(args.to_project, args.to_workspace)
+    for k, v in sorted(iteritems(workspace_attrs)):
+        message += '\t{0}\t{1}\n'.format(k, v)
+
+    if not args.yes and not _confirm_prompt(message):
+        return
+
+    # make the attributes into updates
+    updates = [fapi._attr_set(k,v) for k,v in iteritems(workspace_attrs)]
+    r = fapi.update_workspace_attributes(args.to_project, args.to_workspace,
+                                    updates, api_root=args.api_url)
+    r = fapi._check_response_code(r, 200)
+    print_("Done.")
+
+
+
+@fiss_cmd
 def attr_fill_null(args):
     """
     Assign the null sentinel value for all entities which do not have a value
@@ -886,6 +952,12 @@ def main():
     workspace_parent.add_argument('-p', '--project', default=default_project,
                                   help=proj_help, required=proj_required)
 
+    dest_space_parent = argparse.ArgumentParser(add_help=False)
+    dest_space_parent.add_argument("-P", "--to-project",
+                               help="Project (Namespace) of clone workspace")
+    dest_space_parent.add_argument("-W", "--to-workspace",
+                               help="Name of clone workspace")
+
     # Commands that update ACL roles require a role and list of users
     acl_parent = argparse.ArgumentParser(add_help=False)
     acl_parent.add_argument('-r', '--role', help='ACL role', required=True,
@@ -976,12 +1048,10 @@ def main():
     clone_desc = 'Clone a workspace. The destination namespace or name must be '
     clone_desc += 'different from the workspace being cloned'
     clone_parser = subparsers.add_parser(
-        'space_clone', description=clone_desc, parents=[workspace_parent]
+        'space_clone', description=clone_desc,
+        parents=[workspace_parent, dest_space_parent]
     )
-    clone_parser.add_argument("-P", "--to-project",
-                               help="Project (Namespace) of clone workspace")
-    clone_parser.add_argument("-W", "--to-workspace",
-                               help="Name of clone workspace")
+
     clone_parser.set_defaults(func=space_clone)
 
     #Import data into a workspace
@@ -1153,6 +1223,26 @@ def main():
         'attr_get', description='Get attributes from entities in a workspace',
         parents=[workspace_parent, attr_parent]
     )
+
+    # Set attribute on workspace or entities
+    attr_set_prsr = subparsers.add_parser(
+        'attr_set', description="Set attributes on a workspace",
+        parents=[workspace_parent]
+    )
+    attr_set_prsr.add_argument('-a', '--attribute', required=True,
+                               metavar='attr', help='Name of attribute to set')
+    attr_set_prsr.add_argument('-v', '--value', required=True,
+                              help='Attribute value')
+    attr_set_prsr.set_defaults(func=attr_set)
+
+    # Copy workspace attributes
+    attr_copy_prsr = subparsers.add_parser(
+        'attr_copy', description="Copy workspace attributes between workspaces",
+        parents=[workspace_parent, dest_space_parent, attr_parent]
+    )
+    attr_copy_prsr.set_defaults(func=attr_copy)
+
+
     # Duplicate entity-type here, because it is optional for attr_get
     etype_help =  'Entity type to retrieve annotations from. '
     etype_help += 'If omitted, workspace annotations will be retrieved'
