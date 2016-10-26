@@ -371,7 +371,6 @@ def attr_get(args):
                                      args.entity_type,
                                      page_size=1000, filter_terms=None,
                                      sort_direction="asc", api_root=args.api_url)
-
         attr_list = args.attributes
         if not attr_list:
             # Get a set of all available attributes, then sort them
@@ -387,17 +386,15 @@ def attr_get(args):
             attrs = entity_dict['attributes']
             line = name
             for attr in attr_list:
-                ##Handle values that aren't just strings
-                if attr == 'participant':
-                    p = attrs.get(attr, None)
-                    pname = p['entityName'] if p is not None else ""
-                    line += "\t" + pname
-                elif attr == 'samples':
-                    slist = attrs.get(attr, [])
-                    snames = ",".join([s['entityName'] for s in slist])
-                    line += "\t" + snames
-                else:
-                    line += "\t" + str(attrs.get(attr, ""))
+                ##Get attribute value
+                value = attrs.get(attr, "")
+
+                # If it's a dict, we get the entity name from the "items" section
+                # Otherwise it's a string (either empty or the value of the attribute)
+                # so no modifications are needed
+                if type(value) == dict:
+                    value = ",".join([i['entityName'] for i in value['items']])
+                line += "\t" + value
             print_(line)
 
     #Otherwise get workspace attributes
