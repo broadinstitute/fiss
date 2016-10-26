@@ -56,10 +56,25 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
-v0.13.0 - New supervisor command -- a robust mechanism of submitting related
-          workflows similar to Firehose workflows. Workflows described in DOT
-          can be submitted and monitored in one command, and if the supervisor
-          crashes, can be resumed with recover_supervisor.
+v0.13.0 - Some fixes to match API changes in FireCloud Orchestration and
+          several new commands:
+
+          supervise -- a robust mechanism of submitting related
+            workflows similar to Firehose workflows. Workflows described in DOT
+            can be submitted and monitored in one command, and fissfc will
+            monitor the entire workflow until completion.
+
+          recover_supervisor -- supervise saves workflow execution state after
+            each API call, so that the monitor can be restarted with this
+            command in case of a FISS crash.
+
+          attr_set -- set attributes in a workspace.
+
+          attr_copy -- copy attributes from one workspace to another.
+
+          entity_copy -- copy entities from one workspace to another. Note that
+            referential constraints currently limit the ability to overwrite
+            entities in the target workspace.
 
 v0.12.0 - Large refactor of argument handling for FISS. Almost all arguments
           are now passed using flags instead of positional arguments, enabling
