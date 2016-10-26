@@ -1258,6 +1258,11 @@ def main():
     rec_parser.set_defaults(func=recover_supervisor)
 
 
+    # Create the .fiss directory if it doesn't exist
+    fiss_home = os.path.expanduser("~/.fiss")
+    if not os.path.isdir(fiss_home):
+        os.makedirs(fiss_home)
+
     # Add any commands from the plugin
     for pluginInfo in manager.getAllPlugins():
         pluginInfo.plugin_object.register_commands(subparsers)
