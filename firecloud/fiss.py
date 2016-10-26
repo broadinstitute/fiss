@@ -413,18 +413,55 @@ def attr_get(args):
 @fiss_cmd
 def attr_set(args):
     """ Set attributes on a workspace or entities """
-    # Update workspace attributes
-    prompt = "Set {0}={1} in {2}/{3}?\n[Y\\n]: ".format(
-        args.attribute, args.value, args.project, args.workspace
-    )
+    if not args.entity_type:
+        # Update workspace attributes
+        prompt = "Set {0}={1} in {2}/{3}?\n[Y\\n]: ".format(
+            args.attribute, args.value, args.project, args.workspace
+        )
 
-    if not args.yes and not _confirm_prompt("", prompt):
-        return #Don't do it!
+        if not args.yes and not _confirm_prompt("", prompt):
+            return #Don't do it!
 
-    update = fapi._attr_set(args.attribute, args.value)
-    r = fapi.update_workspace_attributes(args.project, args.workspace,
-                                    [update], api_root=args.api_url)
-    r = fapi._check_response_code(r, 200)
+        update = fapi._attr_set(args.attribute, args.value)
+        r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                        [update], api_root=args.api_url)
+        r = fapi._check_response_code(r, 200)
+    else:
+        #TODO: Implement this for entities
+        raise NotImplementedError("attr_set not implemented for entities")
+    print_("Done.")
+
+
+@fiss_cmd
+def attr_delete(args):
+    """ Delete attributes on a workspace or entities """
+
+    if not args.entity_type:
+        message = "WARNING: this will delete the following attributes in "
+        message += "{0}/{1}\n\t".format(args.project, args.workspace)
+        message += "\n\t".join(args.attributes)
+
+        if not args.yes and not _confirm_prompt(message):
+            return #Don't do it!
+
+        updates = [fapi._attr_rem(a) for a in args.attributes]
+        r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                             updates, api_root=args.api_url)
+        fapi._check_response_code(r, 200)
+
+    else:
+        #TODO: Implement this for entties
+        raise NotImplementedError("attr_delete not implemented for entities")
+        # Remove attributes from an entity
+        message = "WARNING: this will delete these attributes:\n\n"
+        message += ','.join(args.attributes) + '\n\n'
+        message += 'on these {0}s:\n\n'.format(args.entity_type)
+        message += ', '.join(args.entities)
+        message += "\n\nin workspace {0}/{1}\n".format(args.project, args.workspace)
+        if not args.yes and not _confirm_prompt(message):
+            return #Don't do it!
+
+        pass
     print_("Done.")
 
 
@@ -471,7 +508,7 @@ def attr_copy(args):
     updates = [fapi._attr_set(k,v) for k,v in iteritems(workspace_attrs)]
     r = fapi.update_workspace_attributes(args.to_project, args.to_workspace,
                                     updates, api_root=args.api_url)
-    r = fapi._check_response_code(r, 200)
+    fapi._check_response_code(r, 200)
     print_("Done.")
 
 
@@ -1055,8 +1092,13 @@ def main():
 
     # Commands that require an entity name
     entity_parent = argparse.ArgumentParser(add_help=False)
-    entity_parent.add_argument('-e', '--entity', required=True,
-                             help="FireCloud entity name")
+    entity_parent.add_argument(
+        '-e', '--entity', required=True,
+        choices=[
+            'participant', 'participant_set', 'sample', 'sample_set',
+            'pair', 'pair_set'
+        ], help="FireCloud entity name"
+    )
 
     # Commands that work with methods
     meth_parent = argparse.ArgumentParser(add_help=False)
@@ -1324,6 +1366,21 @@ def main():
         parents=[workspace_parent, dest_space_parent, attr_parent]
     )
     attr_copy_prsr.set_defaults(func=attr_copy)
+
+    # delete attributes
+    attr_del_prsr = subparsers.add_parser(
+        'attr_delete', description="Delete attributes in a workspace",
+        parents=[workspace_parent, attr_parent]
+    )
+    attr_del_prsr.add_argument(
+        '-t', '--entity-type', choices=[
+            'participant', 'participant_set', 'sample', 'sample_set',
+            'pair', 'pair_set'
+        ], help="FireCloud entity type"
+    )
+    attr_del_prsr.add_argument('-e', '--entities', nargs='*',
+                               help='FireCloud entities')
+    attr_del_prsr.set_defaults(func=attr_delete)
 
 
     # Duplicate entity-type here, because it is optional for attr_get
