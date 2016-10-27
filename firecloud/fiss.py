@@ -451,15 +451,83 @@ def attr_delete(args):
 
     else:
         #TODO: Implement this for entties
-        raise NotImplementedError("attr_delete not implemented for entities")
+        # Since there is no delete entity endpoint, we have to to two operations to delete
+        # and attribute for an entity. First we must retrieve the entity_ids,
+        # and any foreign keys (e.g. participant_id for sample_id), and then
+        # construct a loadfile that deletes those entities. FireCloud uses the
+        # magic keyword "__DELETE__" to indicate that the attribute should
+        # be deleted.
+
+        # Get entities
+
+        entities = _entity_paginator(args.project, args.workspace,
+                                     args.entity_type,
+                                     page_size=1000, filter_terms=None,
+                                     sort_direction="asc",api_root=args.api_url)
+
+        # Now filter to just the entities requested
+        if args.entities:
+            entities = [e for e in entities if e['name'] in args.entities]
+
+
+        # Now construct a loadfile to delete these attributes
+
+        attrs = sorted(args.attributes)
+        etype = args.entity_type
+
+        entity_data = []
+        for entity_dict in entities:
+            name = entity_dict['name']
+            line = name
+            # TODO: Fix other types?
+            if etype == "sample":
+                line += "\t" + entity_dict['attributes']['participant']['entityName']
+            for attr in attrs:
+                line += "\t__DELETE__"
+            # Improve performance by only updating records that have changed
+            entity_data.append(line)
+
+        entity_header = ["entity:" + etype + "_id"]
+        if etype == "sample":
+            entity_header.append("participant_id")
+        entity_header = '\t'.join(entity_header + list(attrs))
+
+
         # Remove attributes from an entity
         message = "WARNING: this will delete these attributes:\n\n"
-        message += ','.join(args.attributes) + '\n\n'
-        message += 'on these {0}s:\n\n'.format(args.entity_type)
-        message += ', '.join(args.entities)
+        message += ','.join(args.attributes) + "\n\n"
+        if args.entities:
+            message += 'on these {0}s:\n\n'.format(args.entity_type)
+            message += ', '.join(args.entities)
+        else:
+            message += 'on all {0}s'.format(args.entity_type)
         message += "\n\nin workspace {0}/{1}\n".format(args.project, args.workspace)
         if not args.yes and not _confirm_prompt(message):
             return #Don't do it!
+
+
+        #TODO: reconcile with other batch updates
+        # Chunk the entities into batches of 500, and upload to FC
+        if args.verbose:
+            print_("Batching " + str(len(entity_data)) + " updates to Firecloud...")
+        chunk_len = 500
+        total = int(len(entity_data) / chunk_len) + 1
+        batch = 0
+        for i in range(0, len(entity_data), chunk_len):
+            batch += 1
+            if args.verbose:
+                print_("Updating samples {0}-{1}, batch {2}/{3}".format(
+                    i+1, min(i+chunk_len, len(entity_data)), batch, total
+                ))
+            this_data = entity_header + '\n' + '\n'.join(entity_data[i:i+chunk_len])
+
+            # Now push the entity data back to firecloud
+            r = fapi.upload_entities(args.project, args.workspace, this_data,
+                                     args.api_url)
+            fapi._check_response_code(r, 200)
+
+
+
 
         pass
     print_("Done.")

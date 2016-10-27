@@ -70,6 +70,8 @@ v0.13.0 - Some fixes to match API changes in FireCloud Orchestration and
 
           attr_set -- set attributes in a workspace.
 
+          attr_delete -- delete attributes in a workspace.
+
           attr_copy -- copy attributes from one workspace to another.
 
           entity_copy -- copy entities from one workspace to another. Note that
