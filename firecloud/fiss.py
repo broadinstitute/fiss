@@ -130,9 +130,19 @@ def space_clone(args):
 @fiss_cmd
 def entity_import(args):
     """ Upload an entity loadfile. """
-    r = fapi.upload_entities_tsv(args.project, args.workspace,
-                                 args.tsvfile, args.api_url)
-    fapi._check_response_code(r, [200, 201])
+    project = args.project
+    workspace = args.workspace
+    chunk_size = args.chunk_size
+    api_url = args.api_url
+    verbose = args.verbose
+
+    with open(args.tsvfile) as tsvf:
+        headerline = tsvf.readline().strip()
+        entity_data = [l.strip() for l in tsvf]
+
+    _batch_load(project, workspace, headerline, entity_data,
+                    chunk_size, api_url, verbose)
+
     print_('Successfully uploaded entities')
 
 
@@ -388,7 +398,10 @@ def attr_get(args):
             line = name
             for attr in attr_list:
                 ##Get attribute value
-                value = attrs.get(attr, "")
+                if attr == "participant_id" and args.entity_type == "sample":
+                    value = attrs['participant']['entityName']
+                else:
+                    value = attrs.get(attr, "")
 
                 # If it's a dict, we get the entity name from the "items" section
                 # Otherwise it's a string (either empty or the value of the attribute)
@@ -526,10 +539,6 @@ def attr_delete(args):
                                      args.api_url)
             fapi._check_response_code(r, 200)
 
-
-
-
-        pass
     print_("Done.")
 
 
@@ -1074,6 +1083,29 @@ def __cmd_to_func(cmd):
         func = None
     return func
 
+def _batch_load(project, workspace, headerline, entity_data,
+                chunk_size=500, api_url=fapi.PROD_API_ROOT, verbose=False):
+    """ Submit a large number of entity updates in batches of chunk_size """
+    if verbose:
+        print_("Batching " + str(len(entity_data)) + " updates to Firecloud...")
+
+    #Parse the entity type from the first cell, e.g. "entity:sample_id"
+    etype = headerline.split('\t')[0].split(':')[1].replace("_id", "")
+
+    # Split entity_data into chunks
+    total = int(len(entity_data) / chunk_size) + 1
+    batch = 0
+    for i in range(0, len(entity_data), chunk_size):
+        batch += 1
+        if verbose:
+            print_("Updating {0}s {1}-{2}, batch {3}/{4}".format(
+                etype, i+1, min(i+chunk_size, len(entity_data)), batch, total
+            ))
+        this_data = headerline + '\n' + '\n'.join(entity_data[i:i+chunk_size])
+
+        # Now push the entity data to firecloud
+        r = fapi.upload_entities(project, workspace, this_data, api_url)
+        fapi._check_response_code(r, 200)
 
 #################################################
 # Main, entrypoint for fissfc
@@ -1252,7 +1284,10 @@ def main():
         'entity_import', description='Import data into a workspace',
         parents=[workspace_parent]
     )
-    import_parser.add_argument('-f','--tsvfile', help='Tab-delimited loadfile')
+    import_parser.add_argument('-f','--tsvfile', required=True,
+                               help='Tab-delimited loadfile')
+    import_parser.add_argument('-C', '--chunk-size', default=500,
+                               help='Maximum entities to import per api call')
     import_parser.set_defaults(func=entity_import)
 
     #List of entity types in a workspace
@@ -1417,6 +1452,18 @@ def main():
         parents=[workspace_parent, attr_parent]
     )
 
+    # Duplicate entity-type here, because it is optional for attr_get
+    etype_help =  'Entity type to retrieve annotations from. '
+    etype_help += 'If omitted, workspace annotations will be retrieved'
+    attr_parser.add_argument(
+        '-t', '--entity-type', help=etype_help,
+        choices=[
+            'participant', 'participant_set', 'sample', 'sample_set',
+            'pair', 'pair_set'
+        ]
+    )
+    attr_parser.set_defaults(func=attr_get)
+
     # Set attribute on workspace or entities
     attr_set_prsr = subparsers.add_parser(
         'attr_set', description="Set attributes on a workspace",
@@ -1449,19 +1496,6 @@ def main():
     attr_del_prsr.add_argument('-e', '--entities', nargs='*',
                                help='FireCloud entities')
     attr_del_prsr.set_defaults(func=attr_delete)
-
-
-    # Duplicate entity-type here, because it is optional for attr_get
-    etype_help =  'Entity type to retrieve annotations from. '
-    etype_help += 'If omitted, workspace annotations will be retrieved'
-    attr_parser.add_argument(
-        '-t', '--entity-type', help=etype_help,
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ]
-    )
-    attr_parser.set_defaults(func=attr_get)
 
     # Set null sentinel values
     attrf_parser = subparsers.add_parser(
