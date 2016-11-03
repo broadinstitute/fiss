@@ -1290,7 +1290,7 @@ def main():
                                help='Maximum entities to import per api call')
     import_parser.set_defaults(func=entity_import)
 
-    #List of entity types in a workspace
+    # List of entity types in a workspace
     et_parser = subparsers.add_parser(
         'entity_types', parents=[workspace_parent],
         description='List entity types in a workspace'
@@ -1312,28 +1312,28 @@ def main():
     # )
     # etsv_parser.set_defaults(func=entity_tsv)
 
-    #List of participants
+    # List of participants
     pl_parser = subparsers.add_parser(
         'participant_list', description='List participants in a workspace',
         parents=[workspace_parent]
     )
     pl_parser.set_defaults(func=participant_list)
 
-    #List of samples
+    # List of samples
     sl_parser = subparsers.add_parser(
         'sample_list', description='List samples in a workspace',
         parents=[workspace_parent]
     )
     sl_parser.set_defaults(func=sample_list)
 
-    #List of sample sets
+    # List of sample sets
     ssetl_parser = subparsers.add_parser(
         'sset_list', description='List sample sets in a workspace',
         parents=[workspace_parent]
     )
     ssetl_parser.set_defaults(func=sset_list)
 
-    #Delete entity in a workspace
+    # Delete entity in a workspace
     edel_parser = subparsers.add_parser(
         'entity_delete', description='Delete entity in a workspace',
         parents=[workspace_parent, etype_parent, entity_parent]
