@@ -140,10 +140,13 @@ def entity_import(args):
         headerline = tsvf.readline().strip()
         entity_data = [l.strip() for l in tsvf]
 
-    _batch_load(project, workspace, headerline, entity_data,
-                    chunk_size, api_url, verbose)
+    if not _batch_load(project, workspace, headerline, entity_data,
+                    chunk_size, api_url, verbose):
 
-    print_('Successfully uploaded entities')
+        print_('Successfully uploaded entities')
+    else:
+        print_('Error encountered trying to upload entities, quitting....')
+        return 1
 
 
 @fiss_cmd
@@ -1083,6 +1086,32 @@ def __cmd_to_func(cmd):
         func = None
     return func
 
+def _valid_headerline(l):
+    """return true if the given string is a valid loadfile header"""
+
+    if not l:
+        return False
+    headers = l.split('\t')
+    first_col = headers[0]
+
+    tsplit = first_col.split(':')
+    if len(tsplit) != 2:
+        return False
+
+    if tsplit[0] == 'entity':
+        return tsplit[1] in ('participant_id', 'participant_set_id',
+                             'sample_id', 'sample_set_id',
+                             'pair_id', 'pair_set_id')
+    elif tsplit[0] == 'membership':
+        if len(headers) < 2:
+            return False
+        # membership:sample_set_id   sample_id, e.g.
+        return tsplit[1].replace('set_', '') == headers[1]
+    else:
+        return False
+
+
+
 def _batch_load(project, workspace, headerline, entity_data,
                 chunk_size=500, api_url=fapi.PROD_API_ROOT, verbose=False):
     """ Submit a large number of entity updates in batches of chunk_size """
@@ -1090,6 +1119,12 @@ def _batch_load(project, workspace, headerline, entity_data,
         print_("Batching " + str(len(entity_data)) + " updates to Firecloud...")
 
     #Parse the entity type from the first cell, e.g. "entity:sample_id"
+    # First check that the header is valid
+    if not _valid_headerline(headerline):
+        print_("Invalid loadfile header:\n" + headerline)
+        return 1
+
+    update_type = "membership" if headerline.startswith("membership") else "entitie"
     etype = headerline.split('\t')[0].split(':')[1].replace("_id", "")
 
     # Split entity_data into chunks
@@ -1098,8 +1133,8 @@ def _batch_load(project, workspace, headerline, entity_data,
     for i in range(0, len(entity_data), chunk_size):
         batch += 1
         if verbose:
-            print_("Updating {0}s {1}-{2}, batch {3}/{4}".format(
-                etype, i+1, min(i+chunk_size, len(entity_data)), batch, total
+            print_("Updating {0} {1}s {2}-{3}, batch {4}/{5}".format(
+                etype, update_type, i+1, min(i+chunk_size, len(entity_data)), batch, total
             ))
         this_data = headerline + '\n' + '\n'.join(entity_data[i:i+chunk_size])
 
