@@ -1321,7 +1321,7 @@ def main():
     )
     import_parser.add_argument('-f','--tsvfile', required=True,
                                help='Tab-delimited loadfile')
-    import_parser.add_argument('-C', '--chunk-size', default=500,
+    import_parser.add_argument('-C', '--chunk-size', default=500, type=int,
                                help='Maximum entities to import per api call')
     import_parser.set_defaults(func=entity_import)
 
