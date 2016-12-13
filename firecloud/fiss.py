@@ -422,7 +422,7 @@ def attr_get(args):
         workspace_attrs = r.json()['workspace']['attributes']
 
         for k in sorted(workspace_attrs.keys()):
-            if k in args.attributes or len(args.attributes) == 0:
+            if not args.attributes or k in args.attributes:
                 print_(k + "\t" + workspace_attrs[k])
 
 
