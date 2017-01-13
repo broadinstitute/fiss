@@ -346,7 +346,7 @@ class TestFirecloudAPI(unittest.TestCase):
 
     def test_update_workspace_attributes(self):
         """Test update_workspace_attributes()."""
-        updates = [fapi._attr_up("key1", "value1")]
+        updates = [fapi._attr_set("key1", "value1")]
         r =  fapi.update_workspace_attributes(self.namespace,
                                               self.static_workspace, updates)
         print_(r.status_code, r.content)
