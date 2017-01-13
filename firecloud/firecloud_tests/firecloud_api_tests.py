@@ -20,7 +20,24 @@ class TestFirecloudAPI(unittest.TestCase):
     def setUpClass(cls):
         """Set up test conditions."""
         cls.timestamp = time.strftime('%Y_%m_%d__%H_%M_%S', time.localtime())
-        cls.namespace = "broad-firecloud-testing"
+
+        # get a list of available namespaces
+
+        r = fapi.list_billing_projects()
+        projs = [d['projectName'] for d in r.json()]
+
+        # prefer projects names with 'test' in the name, if present
+        test_projs = sorted([p for p in projs if 'test' in p])
+
+        if len(test_projs) > 0:
+            cls.namespace = test_projs[0]
+        elif len(projs) > 0:
+            cls.namespace = projs[0]
+        else:
+            raise ValueError("ERROR: You do not have access to any firecloud"
+                             " billing accounts, aborting tests")
+
+        print_("Running tests using namespace: " + cls.namespace)
 
         # Set up a static workspace that will exist for the duration
         # of the tests. Individual workspaces will be created as temp,
