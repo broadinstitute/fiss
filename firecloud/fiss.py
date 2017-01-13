@@ -1014,6 +1014,17 @@ def entity_copy(args):
     fapi._check_response_code(r, 201)
     print_("Done.")
 
+@fiss_cmd
+def proj_list(args):
+    """ List available billing projects """
+    r = fapi.list_billing_projects(args.api_url)
+    fapi._check_response_code(r, 200)
+    projects = sorted(r.json(), key=lambda d: d['projectName'])
+    print_("Project\tRole")
+    for p in projects:
+        print_(p['projectName'] + '\t' + p['role'])
+
+
 #################################################
 # Utilities
 #################################################
@@ -1639,6 +1650,13 @@ def main():
         help='Entities to copy. If omitted, all entities will be copied.'
     )
     ecopy_prsr.set_defaults(func=entity_copy)
+
+
+    # List billing projects
+    proj_list_prsr = subparsers.add_parser(
+        'proj_list', description="List available billing projects"
+    )
+    proj_list_prsr.set_defaults(func=proj_list)
 
 
     # Create the .fiss directory if it doesn't exist

@@ -56,7 +56,9 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
-v0.13.2 - Fix getting workspace attributes when not using the attributes flag. 
+v0.14.0 - proj_list command for listing available billing projects
+
+v0.13.2 - Fix getting workspace attributes when not using the attributes flag.
 
 v0.13.1 - More helpful error checking for loadfile format during entity_import.
 
