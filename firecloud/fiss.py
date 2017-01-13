@@ -928,7 +928,7 @@ def supervise(args):
 
 
 @fiss_cmd
-def recover_supervisor(args):
+def supervise_recover(args):
     recovery_file = args.recovery_file
     return supervisor.recover_and_supervise(recovery_file)
 
@@ -1617,7 +1617,7 @@ def main():
     sup_parser.add_argument('-s', '--sample-sets', nargs='+',
                             help='Sample sets to run workflow on')
     jhelp = "File to save monitor data. This file can be passed to "
-    jhelp = "fissfc recover_supervisor in case the supervisor crashes"
+    jhelp = "fissfc supervise_recover in case the supervisor crashes"
     recovery = os.path.expanduser('~/.fiss/monitor_data.json')
     sup_parser.add_argument('-j', '--json-checkpoint', default=recovery,
                             help='Name of file to save monitor data')
@@ -1626,11 +1626,11 @@ def main():
     # Recover an old supervisor
     rec_help = "Recover a supervisor submission from the checkpoint file"
     rec_parser = subparsers.add_parser(
-        'recover_supervisor', description=rec_help
+        'supervise_recover', description=rec_help
     )
     rec_parser.add_argument('recovery_file', default=recovery, nargs='?',
                             help='File where supervisor metadata was stored')
-    rec_parser.set_defaults(func=recover_supervisor)
+    rec_parser.set_defaults(func=supervise_recover)
 
     # Space search
     ssearch_prsr = subparsers.add_parser(
