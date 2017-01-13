@@ -1,4 +1,11 @@
 
+PYTHON_HOME=$(shell ./findPython.sh)
+$(info $(PYTHON_HOME))
+DEST=$(PYTHON_HOME)
+BIN_DIR=$(DEST)/bin                 # Python virtual environment here
+PYTHON=$(DEST)/bin/python
+PIP=$(DEST)/bin/pip
+
 help:
 	@echo
 	@echo "test and install the firecloud command line tool"
@@ -12,27 +19,27 @@ help:
 	@echo
 
 test:
-	python setup.py nosetests --verbosity=3 && \
+	$(PYTHON) setup.py nosetests --verbosity=3 && \
 	rm -rf build dist *.egg-info
 
 install:
-	pip install --upgrade .
+	$(PIP) install --upgrade .
 
 reinstall:
 	$(MAKE) uninstall
 	$(MAKE) install
 
 uninstall:
-	pip uninstall -y firecloud
+	$(PIP) uninstall -y firecloud
 
 publish:
-	python setup.py sdist upload && \
+	$(PYTHON) setup.py sdist upload && \
 	rm -rf build dist *.egg-info
 
 image:
 	docker build -t broadgdac/fiss .
 
 clean:
-	rm -rf build dist *.egg-info
+	rm -rf build dist *.egg-info *~
 
 .PHONY: help test install release publish clean

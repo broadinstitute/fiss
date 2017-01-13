@@ -1519,6 +1519,13 @@ def main():
                                metavar='attr', help='Name of attribute to set')
     attr_set_prsr.add_argument('-v', '--value', required=True,
                               help='Attribute value')
+    attr_set_prsr.add_argument(
+        '-t', '--entity-type', help=etype_help,
+        choices=[
+            'participant', 'participant_set', 'sample', 'sample_set',
+            'pair', 'pair_set'
+        ]
+    )
     attr_set_prsr.set_defaults(func=attr_set)
 
     # Copy workspace attributes
