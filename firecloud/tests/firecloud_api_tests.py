@@ -55,8 +55,8 @@ class TestFirecloudAPI(unittest.TestCase):
     # Test individual api calls, 1 test per api call,
     # listed in alphabetical order for convenience
     @unittest.skip("Not Implemented")
-    def test_abort_sumbission(self):
-        """Test abort_sumbission()."""
+    def test_abort_submission(self):
+        """Test abort_submission()."""
         pass
 
     def test_clone_workspace(self):
