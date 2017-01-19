@@ -40,6 +40,6 @@ image:
 	docker build -t broadgdac/fiss .
 
 clean:
-	rm -rf build dist *.egg-info *~
+	rm -rf build dist *.egg-info *~ */*~ *.pyc */*.pyc
 
 .PHONY: help test install release publish clean
