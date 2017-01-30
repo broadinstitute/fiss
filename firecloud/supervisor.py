@@ -50,7 +50,7 @@ def init_supervisor_data(dotfile, sample_sets):
         graph_data = wf.read()
 
     graph = pydot.graph_from_dot_data(graph_data)[0]
-    nodes = [n.get_name() for n in graph.get_nodes()]
+    nodes = [n.get_name().strip('"') for n in graph.get_nodes()]
 
     monitor_data = dict()
     dependencies = {n:[] for n in nodes}
@@ -69,8 +69,8 @@ def init_supervisor_data(dotfile, sample_sets):
 
     # Iterate over the edges, and get the dependency information for each node
     for e in edges:
-        source = e.get_source()
-        dest = e.get_destination()
+        source = e.get_source().strip('"')
+        dest = e.get_destination().strip('"')
 
         dep = e.get_attributes()
         dep['upstream_task'] = source
@@ -110,8 +110,6 @@ def validate_monitor_tasks(dependencies, args):
         valid = True
 
         for config in sup_configs:
-            # Strip quotes
-            config = config.strip('"')
             # ensure config exists in the workspace
             if config not in space_configs:
                 logging.error("No task configuration for "
@@ -197,7 +195,6 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
         for n in dependencies:
             for sset in sample_sets:
                 task_data = monitor_data[n][sset]
-
                 if task_data['state'] == "Not Started":
                     # See if all of the dependencies have been evaluated
                     upstream_evaluated = True
@@ -224,7 +221,7 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
 
                         if should_run:
                             # Submit the workflow to FC
-                            fc_config = n.strip('"')
+                            fc_config = n
                             logging.info("Starting workflow " + fc_config + " on " + sset)
 
                             # How to handle errors at this step?
