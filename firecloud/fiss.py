@@ -304,11 +304,26 @@ def flow_acl(args):
 def flow_set_acl(args):
     """ Assign an ACL role to a list of users for a worklow. """
     acl_updates = [{"user": user, "role": args.role} for user in args.users]
+
+    snap_id = args.snapshot_id
+
+    if not snap_id:
+        # get the latest snapshot_id for this method from the methods repo
+        r = fapi.list_repository_methods(args.api_url)
+        fapi._check_response_code(r, 200)
+        flow_versions = [m for m in r.json()
+                         if m['name'] == args.method and m['namespace'] == args.namespace]
+        if len(flow_versions) == 0:
+            print_("Error: no versions of {0}/{1} found".format(args.namespace, args.method))
+            return 1
+        latest_version = sorted(flow_versions, key=lambda m: m['snapshotId'])[-1]
+        snap_id = latest_version['snapshotId']
+
     r = fapi.update_repository_method_acl(args.namespace, args.method,
-                                          args.snapshot_id, acl_updates,
+                                          snap_id, acl_updates,
                                           args.api_url)
     fapi._check_response_code(r, 200)
-    print_("Successfully set method acl")
+    print_("Updated permissions for {0}/{1}:{2}".format(args.namespace, args.method, snap_id))
 
 
 @fiss_cmd
@@ -1228,7 +1243,7 @@ def main():
     acl_parent = argparse.ArgumentParser(add_help=False)
     acl_parent.add_argument('-r', '--role', help='ACL role', required=True,
                            choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
-    acl_parent.add_argument('--users', help='FireCloud usernames', nargs='+',
+    acl_parent.add_argument('--users', help='FireCloud usernames. Use "public" to set global permissions.', nargs='+',
                             required=True)
 
     # Commands that operates on entity_types
@@ -1448,8 +1463,10 @@ def main():
     #Set ACL
     macl_parser = subparsers.add_parser(
         'flow_set_acl', description='Show users and roles in workspace',
-        parents=[meth_parent, snapshot_parent, acl_parent]
+        parents=[meth_parent, acl_parent]
     )
+    macl_parser.add_argument('-i', '--snapshot-id',
+                             help="Snapshot ID (version) of method/config")
     macl_parser.set_defaults(func=flow_set_acl)
 
     # List available methods
