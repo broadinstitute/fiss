@@ -148,7 +148,6 @@ def recover_and_supervise(recovery_file):
 
     logging.info("Data successfully loaded, resuming Supervisor")
     supervise_until_complete(monitor_data, dependencies, args, recovery_file)
-    logging.info("All submissions completed, shutting down Supervisor...")
 
 
 def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
