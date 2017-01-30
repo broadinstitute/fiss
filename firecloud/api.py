@@ -959,7 +959,7 @@ def create_submission(wnamespace, workspace, cnamespace, config,
     return requests.post(uri, headers=headers, json=json_body)
 
 
-def abort_sumbission(namespace, workspace,
+def abort_submission(namespace, workspace,
                      submission_id, api_root=PROD_API_ROOT):
     """Abort running job in a workspace.
 

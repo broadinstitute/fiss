@@ -232,7 +232,7 @@ The following is a list of available endpoints as of v0.9.3. Swagger
 documentation for the FireCloud orchestration layer is available at
 https://api.firecloud.org/. See help(firecloud.api) for more details.
 
-abort_sumbission()
+abort_submission()
 clone_workspace()
 copy_config_from_repo()
 copy_config_to_repo()
