@@ -42,7 +42,6 @@ def supervise(project, workspace, namespace, workflow,
 
     # Monitor loop. Keep going until all nodes have been evaluated
     supervise_until_complete(monitor_data, dependencies, args, recovery_file)
-    logging.info("All submissions completed, shutting down Supervisor...")
 
 
 def init_supervisor_data(dotfile, sample_sets):
@@ -57,10 +56,10 @@ def init_supervisor_data(dotfile, sample_sets):
     dependencies = {n:[] for n in nodes}
 
     # Initialize empty list of dependencies
-    for sset in sample_sets:
-        monitor_data[sset] = dict()
-        for n in nodes:
-            monitor_data[sset][n] = {
+    for n in nodes:
+        monitor_data[n] = dict()
+        for sset in sample_sets:
+            monitor_data[n][sset] = {
                 'state'        : "Not Started",
                 'evaluated'    : False,
                 'succeeded'    : False
@@ -74,12 +73,66 @@ def init_supervisor_data(dotfile, sample_sets):
         dest = e.get_destination()
 
         dep = e.get_attributes()
-        dep['workflow'] = source
+        dep['upstream_task'] = source
 
         dependencies[dest].append(dep)
 
     return monitor_data, dependencies
 
+
+def validate_monitor_tasks(dependencies, args):
+    """ Validate that all entries in the supervisor are valid task configurations and
+        that all permissions requirements are satisfied.
+    """
+    # Make a list of all task configurations needed to supervise
+    sup_configs = sorted(dependencies.keys())
+
+
+    try:
+        logging.info("Validating supervisor data...")
+        # Make an api call to list task configurations in the workspace
+        r = fapi.list_workspace_configs(args['project'], args['workspace'])
+        fapi._check_response_code(r, 200)
+        space_configs = r.json()
+
+        # Make a dict for easy lookup later
+        space_configs = { c["name"]: c for c in space_configs}
+
+        # Also make an api call to list methods you have view permissions for
+        r = fapi.list_repository_methods()
+        fapi._check_response_code(r, 200)
+        repo_methods = r.json()
+
+        ## Put in a form that is more easily searchable: namespace/name:snapshot
+        repo_methods = {m['namespace'] + '/' + m['name'] + ':' + str(m['snapshotId'])
+                        for m in repo_methods if m['entityType'] == 'Workflow'}
+
+        valid = True
+
+        for config in sup_configs:
+            # Strip quotes
+            config = config.strip('"')
+            # ensure config exists in the workspace
+            if config not in space_configs:
+                logging.error("No task configuration for "
+                              + config + " found in " + args['project'] + "/"
+                              + args['workspace'])
+                valid = False
+            else:
+                # Check access permissions for the referenced method
+                m = space_configs[config]['methodRepoMethod']
+                ref_method = m['methodNamespace'] + "/" + m['methodName'] + ":" + str(m['methodVersion'])
+                if ref_method not in repo_methods:
+                    logging.error(config+ " -- You don't have permisson to run the referenced method: "
+                                  + ref_method)
+                    valid = False
+
+    except Exception as e:
+        logging.error("Exception occurred while validating supervisor: " + str(e))
+        raise
+        return False
+
+    return valid
 
 def recover_and_supervise(recovery_file):
     """ Retrieve monitor data from recovery_file and resume monitoring """
@@ -108,6 +161,11 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
     namespace = args['namespace']
     sample_sets = args['sample_sets']
     recovery_data = {'args': args}
+
+    if not validate_monitor_tasks(dependencies, args):
+        logging.error("Errors found, aborting...")
+        return
+
     while True:
         # There are 4 possible states for each node:
         #   1. Not Started -- In this state, check all the dependencies for the
@@ -135,31 +193,31 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
         #TODO: filter this list by submission time first?
         sub_lookup = {s["submissionId"]: s for s in sub_list}
 
-        for sset in sample_sets:
-            # The keys in dependencies is also conveniently the list of tasks
-            for n in dependencies:
-                task_data = monitor_data[sset][n]
+        # Keys of dependencies is the list of tasks to run
+        for n in dependencies:
+            for sset in sample_sets:
+                task_data = monitor_data[n][sset]
 
                 if task_data['state'] == "Not Started":
                     # See if all of the dependencies have been evaluated
-                    all_evaluated = True
+                    upstream_evaluated = True
                     for dep in dependencies[n]:
                         # Look up the status of the task
-                        dep_data = monitor_data[sset][dep['workflow']]
-                        if not dep_data.evaluated:
-                            all_evaluated = False
+                        upstream_task_data = monitor_data[dep['upstream_task']][sset]
+                        if not upstream_task_data.get('evaluated'):
+                            upstream_evaluated = False
 
                     # if all of the dependencies have been evaluated, we can evaluate
                     # this node
-                    if all_evaluated:
+                    if upstream_evaluated:
                         # Now check the satisfied Mode of all the dependencies
                         should_run = True
                         for dep in dependencies[n]:
-                            dep_data = monitor_data[sset][dep['workflow']]
+                            upstream_task_data = monitor_data[dep['upstream_task']][sset]
                             mode = dep['satisfiedMode']
 
                             # Task must have succeeded for OnComplete
-                            if mode == '"OnComplete"' and not dep_data['succeeded']:
+                            if mode == '"OnComplete"' and not upstream_task_data['succeeded']:
                                 should_run = False
                             # 'Always' and 'Optional' run once the deps have been
                             # evaluated
@@ -168,17 +226,31 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
                             # Submit the workflow to FC
                             fc_config = n.strip('"')
                             logging.info("Starting workflow " + fc_config + " on " + sset)
-                            r = fapi.create_submission(
-                                project, workspace, namespace, fc_config,
-                                sset, etype="sample_set", expression=None,
-                                api_root=api_url
-                            )
 
-                            #TODO: Error handling
-                            # save the submission_id so we can refer to it later
-                            task_data['submissionId'] = r.json()['submissionId']
-                            task_data['state'] = "Running"
-                            running += 1
+                            # How to handle errors at this step?
+                            for retry in range(3):
+                                r = fapi.create_submission(
+                                    project, workspace, namespace, fc_config,
+                                    sset, etype="sample_set", expression=None,
+                                    api_root=api_url
+                                )
+                                if r.status_code == 201:
+                                    task_data['submissionId'] = r.json()['submissionId']
+                                    task_data['state'] = "Running"
+                                    running += 1
+                                    break
+                                else:
+                                    # There was an error, under certain circumstances retry
+                                    logging.debug("Create_submission for " + fc_config
+                                                  + "failed on " + sset + " with the following response:"
+                                                  + r.content + "\nRetrying...")
+
+                            else:
+                                # None of the attempts above succeeded, log an error, mark as failed
+                                logging.error("Maximum retries exceeded")
+                                task_data['state'] == 'Completed'
+                                task_data['evaluated'] = True
+                                task_data['succeeded'] = False
 
                         else:
                             # This task will never be able to run, mark evaluated
@@ -221,8 +293,8 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
         logging.info("{0} Waiting, {1} Running, {2} Completed".format(waiting, running, completed))
 
         # If all tasks have been evaluated, we are done
-        if all(monitor_data[sset][n]['evaluated']
-                      for sset in monitor_data for n in monitor_data[sset]):
+        if all(monitor_data[n][sset]['evaluated']
+                      for n in monitor_data for sset in monitor_data[n]):
+            logging.info("DONE.")
             break
         time.sleep(30)
-    pass
