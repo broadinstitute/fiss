@@ -56,6 +56,9 @@ dockerized version of the tool available on docker hub
 ====================
 4. Release Notes
 ====================
+v0.15.0 - New 'config_validate' and 'runnable' commands for evaluating configurations
+          against the state of the data model in a workspace.
+
 v0.14.1 - Bugfixes and validation for supervisor mode. Make flow_set_acl smarter,
           and make the snapshot_id argument be optional, defaulting to the latest.
 

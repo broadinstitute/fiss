@@ -1127,17 +1127,19 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None):
 
 
 @fiss_cmd
-def caniuse(args):
+def runnable(args):
     """ Show me what can be run in a given workspace """
-    if args.config and not args.entity:
+    w = fapi.get_workspace(args.project, args.workspace, args.api_url)
+    fapi._check_response_code(w, 200)
+    workspace_d = w.json()
+
+    if args.config and args.namespace and not args.entity:
         # See what entities I can run on with this config
         r = fapi.validate_config(args.project, args.workspace, args.namespace,
                                  args.config, args.api_url)
         fapi._check_response_code(r, 200)
         config_d = r.json()
-        w = fapi.get_workspace(args.project, args.workspace, args.api_url)
-        fapi._check_response_code(w, 200)
-        workspace_d = w.json()
+
 
 
         # First validate without any sample sets
@@ -1165,14 +1167,91 @@ def caniuse(args):
 
         # Print what can be run
         if can_run_on:
-            print_("{0} CAN be run on these {1}(s)".format(args.config, entity_type))
+            print_("{0} CAN be run on {1} {2}(s):".format(args.config, len(can_run_on), entity_type))
             print_("\n".join(can_run_on)+"\n")
 
-        if cannot_run_on:
-            print_("{0} CANNOT be run on these {1}(s)".format(args.config, entity_type))
-            print_("\n".join(cannot_run_on))
+        print_("{0} CANNOT be run on {1} {2}(s):".format(args.config, len(cannot_run_on), entity_type))
+            #print_("\n".join(cannot_run_on))
+
+    # See what method configs are possible for the given sample set
+    elif args.entity and args.entity_type and not args.config:
+        entity_r = fapi.get_entity(args.project, args.workspace,
+                                   args.entity_type, args.entity, args.api_url)
+        fapi._check_response_code(entity_r, [200,404])
+        if entity_r.status_code == 404:
+            print_("Error: No {0} named '{1}'".format(args.entity_type, args.entity))
+            return 2
+        entity_d = entity_r.json()
+
+        # Now get all the method configs in the workspace
+        conf_r = fapi.list_workspace_configs(args.project, args.workspace, args.api_url)
+        fapi._check_response_code(conf_r, 200)
+
+        # Iterate over configs in the workspace, and validate against them
+        for cfg in conf_r.json():
+            # If we limit search to a particular namespace, skip ones that don't match
+            if args.namespace and cfg['namespace'] != args.namespace:
+                continue
+
+            # But we have to get the full description
+            r = fapi.validate_config(args.project, args.workspace,
+                                    cfg['namespace'], cfg['name'], args.api_url)
+            fapi._check_response_code(r, [200, 404])
+            if r.status_code == 404:
+                # Permission error, continue
+                continue
+            config_d = r.json()
+            errs = sum(_validate_helper(args, config_d, workspace_d, entity_d),[])
+            if not errs:
+                print_(cfg['namespace'] + "/" + cfg['name'])
+
+    elif args.entity_type:
+        # Last mode, build a matrix of everything based on the entity type
+        # Get all of the entity_type
+        ent_r = fapi.get_entities(args.project, args.workspace, args.entity_type, args.api_url)
+        fapi._check_response_code(ent_r, 200)
+        entities = ent_r.json()
+        entity_names = sorted(e['name'] for e in entities)
+
+        conf_r = fapi.list_workspace_configs(args.project, args.workspace, args.api_url)
+        fapi._check_response_code(conf_r, 200)
+        conf_list = conf_r.json()
+        config_names = sorted(c['namespace'] + '/' + c['name'] for c in conf_list)
+        mat = {c:dict() for c in config_names}
+
+        # Now iterate over configs, building up the matrix
+        # Iterate over configs in the workspace, and validate against them
+        for cfg in conf_list:
+
+            # If we limit search to a particular namespace, skip ones that don't match
+            if args.namespace and cfg['namespace'] != args.namespace:
+                continue
+            # But we have to get the full description
+            r = fapi.validate_config(args.project, args.workspace,
+                                    cfg['namespace'], cfg['name'], args.api_url)
+            fapi._check_response_code(r, [200, 404])
+            if r.status_code == 404:
+                # Permission error, continue
+                continue
+            config_d = r.json()
+
+            # Validate against every entity
+            for entity_d in entities:
+                errs = sum(_validate_helper(args, config_d, workspace_d, entity_d),[])
+                #TODO: True/False? Y/N?
+                symbol = "X" if not errs else ""
+                cfg_name = cfg['namespace'] + '/' + cfg['name']
+                mat[cfg_name][entity_d['name']] = symbol
+
+        # Now print the validation matrix
+        # headers
+        print_("Namespace/Method Config\t" + "\t".join(entity_names))
+        for conf in config_names:
+            print_(conf + "\t" + "\t".join(mat[conf][e] for e in entity_names))
+
+
     else:
-        print_("caniuse requires a configuration or an entity")
+        print_("runnable requires a namespace+configuration or entity type")
         return 1
 
 
@@ -1835,19 +1914,27 @@ def main():
                                help='Method configuration namespace')
     conf_val_prsr.set_defaults(func=config_validate)
 
-    caniuse_prsr = subparsers.add_parser(
-        'caniuse', description="Show me what configurations can be run on which sample sets.",
+    runnable_prsr = subparsers.add_parser(
+        'runnable', description="Show me what configurations can be run on which sample sets.",
         parents=[workspace_parent]
     )
-    caniuse_prsr.add_argument('-c', '--config',
+    runnable_prsr.add_argument('-c', '--config',
                                help='Method configuration name')
-    caniuse_prsr.add_argument('-n', '--namespace',
+    runnable_prsr.add_argument('-n', '--namespace',
                                help='Method configuration namespace')
-    caniuse_prsr.add_argument(
+    runnable_prsr.add_argument(
        '-e', '--entity',
        help="Show me what configurations can be run on this entity",
     )
-    caniuse_prsr.set_defaults(func=caniuse)
+    runnable_prsr.add_argument(
+        '-t', '--entity-type',
+        choices=[
+            'participant', 'participant_set', 'sample', 'sample_set',
+            'pair', 'pair_set'
+        ],
+         help="FireCloud entity type"
+    )
+    runnable_prsr.set_defaults(func=runnable)
 
 
     # Create the .fiss directory if it doesn't exist
