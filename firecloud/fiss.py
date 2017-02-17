@@ -1060,7 +1060,12 @@ def config_validate(args):
         else:
             entity_d = entity_r.json()
 
-    ii, io, ma, mwa = _validate_helper(args, config_d, entity_d)
+    # also get the workspace info
+    w = fapi.get_workspace(args.project, args.workspace, args.api_url)
+    fapi._check_response_code(w, 200)
+    workspace_d = w.json()
+
+    ii, io, ma, mwa = _validate_helper(args, config_d, workspace_d, entity_d)
     ii_msg = "\nInvalid inputs:"
     io_msg = "\nInvalid outputs:"
     ma_msg = "\n{0} {1} doesn't satisfy the following inputs:".format(entity_type, args.entity) if args.entity else ""
@@ -1075,7 +1080,8 @@ def config_validate(args):
     if ii + io + ma + mwa:
         return 1
 
-def _validate_helper(args, config_d, entity_d=None):
+
+def _validate_helper(args, config_d, workspace_d, entity_d=None):
     """ Return FISSFC validation information on config for a certain entity """
         # 4 ways to have invalid config:
     invalid_inputs = sorted(config_d["invalidInputs"])
@@ -1091,7 +1097,7 @@ def _validate_helper(args, config_d, entity_d=None):
         entity_attrs = set(entity_d['attributes'])
 
         # Optimization, only get the workspace attrs if the method config has any
-        workspace_attrs = None
+        workspace_attrs = workspace_d['workspace']['attributes']
 
         # So now iterate over the inputs
         for inp, val in iteritems(config_d['methodConfiguration']['inputs']):
@@ -1111,15 +1117,11 @@ def _validate_helper(args, config_d, entity_d=None):
                     missing_attrs.append((inp, val))
 
             if val.startswith("workspace."):
-                if not workspace_attrs:
-                    w = fapi.get_workspace(args.project, args.workspace, args.api_url)
-                    fapi._check_response_code(w, 200)
-                    workspace_attrs = set(w.json()['workspace']['attributes'])
-
                 # Anything not matching this format will be caught above
                 expected_attr = val.split('.')[1]
                 if expected_attr not in workspace_attrs:
                     missing_wksp_attrs.append((inp, val))
+            # Anything else is a literal
 
     return invalid_inputs, invalid_outputs, missing_attrs, missing_wksp_attrs
 
@@ -1127,9 +1129,51 @@ def _validate_helper(args, config_d, entity_d=None):
 @fiss_cmd
 def caniuse(args):
     """ Show me what can be run in a given workspace """
-    if args.config:
-        pass
+    if args.config and not args.entity:
+        # See what entities I can run on with this config
+        r = fapi.validate_config(args.project, args.workspace, args.namespace,
+                                 args.config, args.api_url)
+        fapi._check_response_code(r, 200)
+        config_d = r.json()
+        w = fapi.get_workspace(args.project, args.workspace, args.api_url)
+        fapi._check_response_code(w, 200)
+        workspace_d = w.json()
 
+
+        # First validate without any sample sets
+        errs = sum(_validate_helper(args, config_d, workspace_d, None), [])
+        if errs:
+            print_("Configuration contains invalid expressions")
+            return 1
+
+        # Now get  all the possible entities, and evaluate each
+        entity_type = config_d['methodConfiguration']['rootEntityType']
+        ent_r = fapi.get_entities(args.project, args.workspace, entity_type, args.api_url)
+        fapi._check_response_code(r, 200)
+        entities = ent_r.json()
+
+        can_run_on    = []
+        cannot_run_on = []
+
+        # Validate every entity
+        for entity_d in entities:
+            # If there are errors in the validation
+            if sum(_validate_helper(args, config_d, workspace_d, entity_d), []):
+                cannot_run_on.append(entity_d['name'])
+            else:
+                can_run_on.append(entity_d['name'])
+
+        # Print what can be run
+        if can_run_on:
+            print_("{0} CAN be run on these {1}(s)".format(args.config, entity_type))
+            print_("\n".join(can_run_on)+"\n")
+
+        if cannot_run_on:
+            print_("{0} CANNOT be run on these {1}(s)".format(args.config, entity_type))
+            print_("\n".join(cannot_run_on))
+    else:
+        print_("caniuse requires a configuration or an entity")
+        return 1
 
 
 
@@ -1790,6 +1834,20 @@ def main():
     conf_val_prsr.add_argument('-n', '--namespace',
                                help='Method configuration namespace')
     conf_val_prsr.set_defaults(func=config_validate)
+
+    caniuse_prsr = subparsers.add_parser(
+        'caniuse', description="Show me what configurations can be run on which sample sets.",
+        parents=[workspace_parent]
+    )
+    caniuse_prsr.add_argument('-c', '--config',
+                               help='Method configuration name')
+    caniuse_prsr.add_argument('-n', '--namespace',
+                               help='Method configuration namespace')
+    caniuse_prsr.add_argument(
+       '-e', '--entity',
+       help="Show me what configurations can be run on this entity",
+    )
+    caniuse_prsr.set_defaults(func=caniuse)
 
 
     # Create the .fiss directory if it doesn't exist
