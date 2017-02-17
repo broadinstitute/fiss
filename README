@@ -43,7 +43,7 @@ FireCloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
 authorization. To use the firecloud CLI or API, you must install the SDK and
 login locally with
 
-    gcloud auth login
+    gcloud auth application-default login
 
 **Note: FireCloud encryts all web traffic with TLSv1.2. Some versions of
 python will not function correctly, and must be recompiled with openssl
