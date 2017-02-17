@@ -1170,7 +1170,7 @@ def runnable(args):
             print_("{0} CAN be run on {1} {2}(s):".format(args.config, len(can_run_on), entity_type))
             print_("\n".join(can_run_on)+"\n")
 
-        print_("{0} CANNOT be run on {1} {2}(s):".format(args.config, len(cannot_run_on), entity_type))
+        print_("{0} CANNOT be run on {1} {2}(s)".format(args.config, len(cannot_run_on), entity_type))
             #print_("\n".join(cannot_run_on))
 
     # See what method configs are possible for the given sample set
