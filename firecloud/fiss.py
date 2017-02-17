@@ -1086,6 +1086,11 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None):
         # 4 ways to have invalid config:
     invalid_inputs = sorted(config_d["invalidInputs"])
     invalid_outputs = sorted(config_d["invalidOutputs"])
+
+    # Also insert values for invalid i/o
+    invalid_inputs = [(i, config_d['methodConfiguration']['inputs'][i]) for i in invalid_inputs]
+    invalid_outputs = [(i, config_d['methodConfiguration']['outputs'][i]) for i in invalid_outputs]
+
     missing_attrs = []
     missing_wksp_attrs = []
 
