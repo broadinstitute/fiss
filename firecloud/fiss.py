@@ -1047,86 +1047,89 @@ def config_validate(args):
     r = fapi.validate_config(args.project, args.workspace, args.namespace,
                              args.config, args.api_url)
     fapi._check_response_code(r, 200)
-    r = r.json()
+    entity_d = None
+    config_d = r.json()
+    if args.entity:
+        entity_type = config_d['methodConfiguration']['rootEntityType']
+        entity_r = fapi.get_entity(args.project, args.workspace,
+                                   entity_type, args.entity, args.api_url)
+        fapi._check_response_code(entity_r, [200,404])
+        if entity_r.status_code == 404:
+            print_("Error: No {0} named '{1}'".format(entity_type, args.entity))
+            return 2
+        else:
+            entity_d = entity_r.json()
 
-    # 4 ways to have invalid config:
-    invalid_inputs = sorted(r["invalidInputs"])
-    invalid_outputs = sorted(r["invalidOutputs"])
+    ii, io, ma, mwa = _validate_helper(args, config_d, entity_d)
+    ii_msg = "\nInvalid inputs:"
+    io_msg = "\nInvalid outputs:"
+    ma_msg = "\n{0} {1} doesn't satisfy the following inputs:".format(entity_type, args.entity) if args.entity else ""
+    mwa_msg = "\nWorkspace {0}/{1} doesn't satisfy following inputs:".format(args.project, args.workspace)
+
+    for errs, msg in zip([ii, io, ma, mwa], [ii_msg, io_msg, ma_msg, mwa_msg]):
+        if errs:
+            print_(msg)
+            for inp, val in errs:
+                print_("{0} -> {1}".format(inp, val))
+
+    if ii + io + ma + mwa:
+        return 1
+
+def _validate_helper(args, config_d, entity_d=None):
+    """ Return FISSFC validation information on config for a certain entity """
+        # 4 ways to have invalid config:
+    invalid_inputs = sorted(config_d["invalidInputs"])
+    invalid_outputs = sorted(config_d["invalidOutputs"])
     missing_attrs = []
     missing_wksp_attrs = []
 
-
-    #First check for valid/invalid inputs
-    if invalid_inputs:
-        print_("\nInvalid inputs:")
-        for i in invalid_inputs:
-            print_("{0} -> {1}".format(i, r['methodConfiguration']['inputs'][i]))
-
-    if invalid_outputs:
-        print_("\nInvalid outputs:")
-        for o in invalid_outputs:
-            print_("{0} -> {1}".format(o, r['methodConfiguration']['outputs'][o]))
-
     # If an entity was provided, also check to see if that entity has the necessary inputs
-    if args.entity:
-        entity_type = r['methodConfiguration']['rootEntityType']
-        entity_r = fapi.get_entity(args.project, args.workspace,
-                                   entity_type, args.entity, args.api_url)
+    if entity_d:
+        entity_type = config_d['methodConfiguration']['rootEntityType']
 
-        # 200 = good, 404 = bad, but not an error
-        fapi._check_response_code(entity_r, [200,404])
+        # If the attribute is listed here, it has an entry
+        entity_attrs = set(entity_d['attributes'])
 
-        # If we get a 404, then the entity doesn't exist
-        if entity_r.status_code == 404:
-            print_("Error: No {0} named '{1}'".format(entity_type, args.entity))
-        else:
-            # If the attribute is listed here, it has an entry
-            entity_attrs = set(entity_r.json()['attributes'])
+        # Optimization, only get the workspace attrs if the method config has any
+        workspace_attrs = None
 
-            # Optimization, only get the workspace attrs if the method config has any
-            workspace_attrs = None
+        # So now iterate over the inputs
+        for inp, val in iteritems(config_d['methodConfiguration']['inputs']):
+            # Must be an attribute on the entity
+            if val.startswith("this."):
+                # Normally, the value is of the form 'this.attribute',
+                # but for operations on sets, e.g. one can also do
+                # 'this.samples.attr'. But even in this case, there must be a
+                # 'samples' attribute on the sample set, so checking for the middle
+                # value works as expected. Other pathological cases would've been
+                # caught above by the validation endpoint
+                expected_attr = val.split('.')[1]
+                # 'name' is special, it really means '_id', which everything has
+                if expected_attr == "name":
+                    continue
+                if expected_attr not in entity_attrs:
+                    missing_attrs.append((inp, val))
 
-            # So now iterate over the inputs
-            for inp, val in iteritems(r['methodConfiguration']['inputs']):
-                # Must be an attribute on the entity
-                if val.startswith("this."):
-                    # Normally, the value is of the form 'this.attribute',
-                    # but for operations on sets, e.g. one can also do
-                    # 'this.samples.attr'. But even in this case, there must be a
-                    # 'samples' attribute on the sample set, so checking for the middle
-                    # value works as expected. Other pathological cases would've been
-                    # caught above by the validation endpoint
-                    expected_attr = val.split('.')[1]
-                    # 'name' is special, it really means '_id', which everything has
-                    if expected_attr == "name":
-                        continue
-                    if expected_attr not in entity_attrs:
-                        missing_attrs.append((inp, val))
+            if val.startswith("workspace."):
+                if not workspace_attrs:
+                    w = fapi.get_workspace(args.project, args.workspace, args.api_url)
+                    fapi._check_response_code(w, 200)
+                    workspace_attrs = set(w.json()['workspace']['attributes'])
 
-                if val.startswith("workspace."):
-                    if not workspace_attrs:
-                        w = fapi.get_workspace(args.project, args.workspace, args.api_url)
-                        fapi._check_response_code(w, 200)
-                        workspace_attrs = set(w.json()['workspace']['attributes'])
+                # Anything not matching this format will be caught above
+                expected_attr = val.split('.')[1]
+                if expected_attr not in workspace_attrs:
+                    missing_wksp_attrs.append((inp, val))
 
-                    # Anything not matching this format will be caught above
-                    expected_attr = val.split('.')[1]
-                    if expected_attr not in workspace_attrs:
-                        missing_wksp_attrs.append((inp, val))
+    return invalid_inputs, invalid_outputs, missing_attrs, missing_wksp_attrs
 
 
-            if missing_attrs:
-                print_("\n{0} {1} doesn't satisfy the following inputs:".format(entity_type, args.entity))
-                for inp, val in missing_attrs:
-                    print_("{0} -> {1}".format(inp, val))
+@fiss_cmd
+def caniuse(args):
+    """ Show me what can be run in a given workspace """
+    if args.config:
+        pass
 
-            if missing_wksp_attrs:
-                print_("\nWorkspace {0}/{1} doesn't satisfy following inputs:".format(args.project, args.workspace))
-                for inp, val in missing_wksp_attrs:
-                    print_("{0} -> {1}".format(inp, val))
-
-    if invalid_inputs or invalid_outputs or missing_attrs or missing_wksp_attrs:
-        return 1
 
 
 
