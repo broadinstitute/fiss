@@ -969,8 +969,8 @@ def space_search(args):
 
     # If there was only one result, print it the simple way
     if len(workspaces) == 1:
-        ws = workspaces[0]['workspace']['namespace']
-        ns = workspaces[0]['workspace']['name']
+        ns = workspaces[0]['workspace']['namespace']
+        ws = workspaces[0]['workspace']['name']
         print_(ns + '/' + ws)
     elif len(workspaces)==0:
         print_("No workspaces found matching search criteria")

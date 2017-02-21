@@ -57,21 +57,28 @@ class TestFISS(unittest.TestCase):
             raise ValueError("ERROR: You do not have access to any firecloud"
                              " billing accounts, aborting tests")
 
-        print_("Running tests using namespace: " + cls.namespace)
+        logging.debug("Running tests using namespace: " + cls.namespace)
 
         # Set up a static workspace that will exist for the duration
         # of the tests. Individual workspaces will be created as temp,
         # but are responsible for tearing themselves down
         cls.static_workspace = cls.user + '_FISS_CLI_UNITTEST'
 
-        fapi.create_workspace(cls.namespace, cls.static_workspace)
+        r = fapi.create_workspace(cls.namespace, cls.static_workspace)
+        fapi._check_response_code(r, 201)
+        sw = r.json()
+        cls.sw = sw
 
     @classmethod
     def tearDownClass(cls):
         """Tear down test conditions."""
-        # Delete the static workspace
-        fapi.delete_workspace(cls.namespace, cls.static_workspace)
+        # Delete all workspaces with _FISS_CLI_UNITTEST in the name
+        workspaces = fapi.list_workspaces().json()
 
+        test_spaces = [w['workspace']['name'] for w in workspaces if '_FISS_CLI_UNITTEST' in w['workspace']['name']]
+        for ts in test_spaces:
+            logging.debug("Deleting workspace: " + ts)
+            fapi.delete_workspace(cls.namespace, ts)
 
     def test_ping(self):
         """Test fissfc ping"""
@@ -145,8 +152,15 @@ class TestFISS(unittest.TestCase):
         logging.debug(''.join(unlock_output))
         self.assertEqual(0, ret)
 
+    def test_space_search(self):
+        """Test space_search """
+        ss_args = ["fissfc", "space_search", "-b", self.sw['bucketName']]
+        with Capturing() as search_output:
+            ret = call_fiss(ss_args)
 
-
+        # We should get the static bucket back when searching using its bucket name
+        self.assertIn(self.sw['name'], ''.join(search_output))
+        self.assertEqual(0, ret)
 
 def main():
     nose.main()
