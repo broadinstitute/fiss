@@ -74,10 +74,12 @@ class TestFISS(unittest.TestCase):
 
 
     def test_ping(self):
+        """Test fissfc ping"""
         ret = call_fiss(["fissfc", "ping"])
         self.assertEqual(0, ret)
 
     def test_space_info(self):
+        """Test fissfc space_info"""
         fargs = [ "fissfc", "space_info",
                   "-p", self.namespace,
                   "-w", self.static_workspace
@@ -88,6 +90,23 @@ class TestFISS(unittest.TestCase):
         space_info = json.loads(''.join(fiss_output))
         self.assertEqual(space_info['workspace']['name'], self.static_workspace)
         self.assertEqual(0, ret)
+
+    def test_dash_l(self):
+        """Test fissfc -l"""
+        with Capturing() as fiss_output:
+            ret = call_fiss(["fissfc", "-l"])
+        fiss_output = ''.join(fiss_output)
+        logging.debug(fiss_output)
+        self.assertIn("space_info", fiss_output)
+
+        # Also test -l <pattern>
+        with Capturing() as fiss_output2:
+            ret = call_fiss(["fissfc", "-l", "config"])
+        fo2 = ''.join(fiss_output2)
+        logging.debug(fo2)
+        self.assertIn("config_validate", fo2)
+        self.assertNotIn("space_info", fo2)
+
 
 
 def main():
