@@ -130,6 +130,21 @@ class TestFISS(unittest.TestCase):
         logging.debug(''.join(del_output))
         self.assertEqual(0, ret)
 
+    def test_space_lock_unlock(self):
+        """ Test fissfc space_lock + space_unlock """
+        lock_args = ["fissfc", "space_lock", "-p", self.namespace, "-w", self.static_workspace]
+
+        with Capturing() as lock_output:
+            ret = call_fiss(lock_args)
+        logging.debug(''.join(lock_output))
+        self.assertEqual(0, ret)
+
+        unlock_args = ["fissfc", "space_unlock", "-p", self.namespace, "-w", self.static_workspace]
+        with Capturing() as unlock_output:
+            ret = call_fiss(unlock_args)
+        logging.debug(''.join(unlock_output))
+        self.assertEqual(0, ret)
+
 
 
 
