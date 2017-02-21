@@ -22,6 +22,9 @@ test:
 	$(PYTHON) setup.py nosetests --verbosity=3 && \
 	rm -rf build dist *.egg-info
 
+test_fiss:
+	$(PYTHON) setup.py nosetests -w firecloud/tests/fiss_cli_tests.py
+
 install:
 	$(PIP) install --upgrade .
 
@@ -42,4 +45,4 @@ image:
 clean:
 	rm -rf build dist *.egg-info *~ */*~ *.pyc */*.pyc
 
-.PHONY: help test install release publish clean
+.PHONY: help test test_fiss install release publish clean
