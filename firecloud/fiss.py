@@ -1395,7 +1395,10 @@ def _batch_load(project, workspace, headerline, entity_data,
 ################################################
 
 
-def main():
+def main(argv=None):
+    # If argv is none, use sys.argv
+    argv = argv if argv else sys.argv
+
     #Set defaults using CLI default values
     default_api_url = fapi.PROD_API_ROOT
     default_project = ''
@@ -1952,9 +1955,9 @@ def main():
         pluginInfo.plugin_object.register_commands(subparsers)
 
     ##Special cases, print help with no arguments
-    if len(sys.argv) == 1:
+    if len(argv) == 1:
             parser.print_help()
-    elif sys.argv[1]=='-l':
+    elif argv[1]=='-l':
         #Print commands in a more readable way
         choices=[]
         for a in parser._actions:
@@ -1964,14 +1967,14 @@ def main():
 
         # next arg is search term, if specified
         search = ''
-        if len(sys.argv) > 2:
-            search = sys.argv[2]
+        if len(argv) > 2:
+            search = argv[2]
         for c in sorted(choices):
             if search in c:
                 print_('\t' + c)
-    elif sys.argv[1] == '-F':
+    elif argv[1] == '-F':
         ## Show source for remaining args
-        for fname in sys.argv[2:]:
+        for fname in argv[2:]:
             # Get module name
             fiss_module = sys.modules[__name__]
             try:
@@ -1982,10 +1985,13 @@ def main():
                 pass
     else:
         ##Otherwise parse args and call correct subcommand
-        args = parser.parse_args()
+        # Chop off argv[0]
+        args = parser.parse_args(argv[1:])
 
-        sys.exit(args.func(args))
-
+        exit_code = args.func(args)
+        if not exit_code:
+            exit_code = 0
+        return exit_code
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
