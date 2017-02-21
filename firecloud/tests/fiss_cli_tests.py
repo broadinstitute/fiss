@@ -4,6 +4,8 @@ import unittest
 import time
 import json
 import logging
+import os
+
 from getpass import getuser
 
 
@@ -161,6 +163,22 @@ class TestFISS(unittest.TestCase):
         # We should get the static bucket back when searching using its bucket name
         self.assertIn(self.sw['name'], ''.join(search_output))
         self.assertEqual(0, ret)
+
+    def test_space_list(self):
+        """Test space_list """
+        sl_args = ["fissfc", "space_list"]
+        with Capturing() as sl:
+            ret = call_fiss(sl_args)
+
+        self.assertIn(self.static_workspace, ''.join(sl))
+        self.assertEquals(0, ret)
+
+    def test_entity_import(self):
+        """Test entity_import """
+        eia = ["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
+               "-f", os.path.join("firecloud", "tests", "participants.tsv")]
+        ret = call_fiss(eia)
+        self.assertEquals(0, ret)
 
 def main():
     nose.main()
