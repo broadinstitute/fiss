@@ -115,6 +115,21 @@ class TestFISS(unittest.TestCase):
         logging.debug(fo)
         self.assertIn('def space_info(args)', fo)
 
+    def test_space_new_delete(self):
+        """ Test fissfc space_new + space_delete """
+        new_args = ["fissfc", "space_new", "-p", self.namespace, "-w", self.static_workspace + "_snd"]
+
+        with Capturing() as new_output:
+            ret = call_fiss(new_args)
+        logging.debug(''.join(new_output))
+        self.assertEqual(0, ret)
+
+        del_args = ["fissfc", "-y", "space_delete", "-p", self.namespace, "-w", self.static_workspace + "_snd"]
+        with Capturing() as del_output:
+            ret = call_fiss(del_args)
+        logging.debug(''.join(del_output))
+        self.assertEqual(0, ret)
+
 
 
 
