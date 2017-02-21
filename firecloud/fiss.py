@@ -249,8 +249,9 @@ def space_acl(args):
     """ Get Access Control List for a workspace."""
     r = fapi.get_workspace_acl(args.project, args.workspace, args.api_url)
     fapi._check_response_code(r, 200)
-    for user, role in iteritems(r.json()):
-        print_('{0}\t{1}'.format(user, role))
+    acl = r.json()['acl']
+    for user in sorted(acl):
+        print_('{0}\t{1}'.format(user, acl[user]['accessLevel']))
 
 
 @fiss_cmd
