@@ -262,7 +262,15 @@ def space_set_acl(args):
     r = fapi.update_workspace_acl(args.project, args.workspace,
                                   acl_updates, args.api_url)
     fapi._check_response_code(r, 200)
-    print_("Successfully updated {0} role(s)".format(len(acl_updates)))
+    update_info = r.json()
+
+    if len(update_info['usersNotFound']) == 0:
+        print_("Successfully updated {0} role(s)".format(len(acl_updates)))
+    else:
+        print_("Unable to assign role to the following users (usernames not found):")
+        for u in update_info['usersNotFound']:
+            print_(u['email'])
+        return 1
 
 
 @fiss_cmd
