@@ -107,6 +107,15 @@ class TestFISS(unittest.TestCase):
         self.assertIn("config_validate", fo2)
         self.assertNotIn("space_info", fo2)
 
+    def test_dash_F(self):
+        """Test fissfc -F"""
+        with Capturing() as fiss_output:
+            call_fiss(["fissfc", "-F", "space_info"])
+        fo = ''.join(fiss_output)
+        logging.debug(fo)
+        self.assertIn('def space_info(args)', fo)
+
+
 
 
 def main():
