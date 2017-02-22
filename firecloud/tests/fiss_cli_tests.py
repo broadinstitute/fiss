@@ -180,6 +180,50 @@ class TestFISS(unittest.TestCase):
         ret = call_fiss(eia)
         self.assertEquals(0, ret)
 
+    def test_attr_workspace(self):
+        """Test attr_get/set on workspace """
+        call_fiss(["fissfc", "-y", "attr_set", "-p", self.namespace, "-w", self.static_workspace,
+                   "-a", "workspace_attr", "-v", "test_value"])
+
+        with Capturing() as fo:
+            ret = call_fiss(["fissfc", "attr_get", "-p", self.namespace, "-w", self.static_workspace,
+                             "-a", "workspace_attr"])
+        logging.debug(''.join(fo))
+        self.assertEquals(''.join(fo), "workspace_attr\ttest_value")
+        self.assertEquals(0, ret)
+
+    def test_attr_ops(self):
+        """ Test attr_ops on entities"""
+        # Upload the 4 test data files
+        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
+                   "-f", os.path.join("firecloud", "tests", "participants.tsv")])
+        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
+                   "-f", os.path.join("firecloud", "tests", "samples.tsv")])
+        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
+                   "-f", os.path.join("firecloud", "tests", "sset_membership.tsv")])
+        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
+                   "-f", os.path.join("firecloud", "tests", "sset.tsv")])
+
+        # Now call attr_get
+        with Capturing() as fo:
+            ret = call_fiss(["fissfc", "attr_get", "-p", self.namespace, "-w", self.static_workspace,
+                            "-t", "sample_set", "-a", "set_attr_1"])
+        logging.debug('\n'.join(fo))
+
+        self.assertEquals('\n'.join(fo), "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
+        self.assertEquals(0, ret)
+
+        # Now call attr_set on a sample_set, followed by attr_get
+        call_fiss(["fissfc", "-y", "attr_set", "-p", self.namespace, "-w", self.static_workspace,
+                   "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1", "-v", "Value-E"])
+
+        with Capturing() as fo2:
+            ret = call_fiss(["fissfc", "attr_get", "-p", self.namespace, "-w", self.static_workspace,
+                             "-t", "sample_set", "-a", "set_attr_1"])
+        logging.debug('\n'.join(fo2))
+        self.assertEquals('\n'.join(fo2), "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-E")
+        self.assertEquals(0, ret)
+
 def main():
     nose.main()
 

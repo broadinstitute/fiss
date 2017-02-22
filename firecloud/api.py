@@ -379,6 +379,29 @@ def get_entities_query(namespace, workspace, etype, page=1,
         api_root, namespace, workspace, etype)
     return requests.get(uri, headers=headers, params=params)
 
+def update_entity(namespace, workspace, etype, ename,
+                  updates, api_root=PROD_API_ROOT):
+    """ Update entity attributes in a workspace.
+
+    Args:
+        namespace (str): Google projct for th eworkspace
+        workspace (str): Workspace name
+        etype     (str): Entity type
+        ename     (str): Entity name
+        updates   (list(dict)): List of updates to entity from _attr_set, e.g.
+        api_root  (str): FireCloud API url, if not production
+
+    Swagger:
+        https://api.firecloud.org/#!/Entities/update_entity
+    """
+    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
+        api_root, namespace, workspace, etype, ename
+    )
+
+    return requests.patch(uri, headers=headers, json=updates)
+
+
 
 ###############################
 ### 1.2 Method Configurations

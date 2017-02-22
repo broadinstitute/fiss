@@ -467,8 +467,23 @@ def attr_set(args):
                                         [update], api_root=args.api_url)
         r = fapi._check_response_code(r, 200)
     else:
-        #TODO: Implement this for entities
-        raise NotImplementedError("attr_set not implemented for entities")
+        if not args.entity:
+            print_("Error: please provide an entity to run on")
+            return 1
+
+        prompt = "Set {0}={1} for {2}:{3} in {4}/{5}?\n[Y\\n]: ".format(
+            args.attribute, args.value, args.entity_type, args.entity,
+            args.project, args.workspace
+        )
+
+        if not args.yes and not _confirm_prompt("", prompt):
+            return
+
+        update = fapi._attr_set(args.attribute, args.value)
+        r = fapi.update_entity(args.project, args.workspace, args.entity_type,
+                               args.entity, [update], api_root=args.api_url)
+        fapi._check_response_code(r, 200)
+
     print_("Done.")
 
 
@@ -1777,6 +1792,8 @@ def main(argv=None):
             'pair', 'pair_set'
         ]
     )
+    attr_set_prsr.add_argument('-e', '--entity', help="Entity to set attribute on")
+
     attr_set_prsr.set_defaults(func=attr_set)
 
     # Copy workspace attributes
