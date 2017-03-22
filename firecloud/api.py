@@ -1041,14 +1041,14 @@ def get_workflow_outputs(namespace, workspace,
     return requests.get(uri, headers=headers)
 
 
-def get_submission_queue(namespace, workspace, api_root=PROD_API_ROOT):
+def get_submission_queue(api_root=PROD_API_ROOT):
     """ List workflow counts by queueing state.
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/workflowQueueStatus
     """
     headers = _fiss_access_headers()
-    uri = "{0}/submissions/queueStatus/".format(api_root)
+    uri = "{0}/submissions/queueStatus".format(api_root)
     return requests.get(uri, headers=headers)
 
 
