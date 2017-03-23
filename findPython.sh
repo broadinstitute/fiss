@@ -5,32 +5,26 @@
 
 InstallDir=
 
-# For convenience, give precedence to well-known directories @ Broad Institute
-BroadDirs="/local/firebrowse/latest"
-for dir in $BroadDirs ; do
-    if [ -d $dir ] ; then
-        InstallDir=$dir
-        break
-    fi
-done
-
-if [ -z "$InstallDir" ] ; then
-    Python=`type -P python`
-    if [ -n "$Python" ] ; then
-        if `python <<EOT
-import sys
-# If any python 3, or Python2 >= 2.7.9, or virtual env, then use it
-major = int(sys.version_info[0])
-minor = int(sys.version_info[1])
-patch = int(sys.version_info[2])
-if major > 2 or ((minor > 6 and patch > 9) or hasattr(sys,'real_prefix')):
-    sys.exit(0)
-sys.exit(1)
-EOT` ;                          then
+# Use any Python3 installation, or Python2 if >= 2.7
+Python=`type -P python`
+if [ -n "$Python" ] ; then
+    case `python --version 2>&1 | awk '{print $NF}'` in
+        2.7*| 3.*)
             InstallDir=`dirname $Python`
             InstallDir=`dirname $InstallDir`
+            ;;
+    esac
+fi
+
+if [ -z "$InstallDir" ] ; then
+    # Nothing found: for convenience, look for well-known dirs @ Broad Institute
+    BroadDirs="/local/firebrowse/latest /xchip/tcga/Tools/gdac/latest"
+    for dir in $BroadDirs ; do
+        if [ -d $dir ] ; then
+            InstallDir=$dir
+            break
         fi
-    fi
+    done
 fi
 
 if [ -z "$InstallDir" ] ; then
