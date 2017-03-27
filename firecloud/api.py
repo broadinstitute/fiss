@@ -1020,6 +1020,26 @@ def get_submission(namespace, workspace,
     return requests.get(uri, headers=headers)
 
 
+def get_workflow_metadata(namespace, workspace,
+                 submission_id, workflow_id, api_root=PROD_API_ROOT):
+    """Request the metadata for a workflow in a submission.
+
+    Args:
+        namespace (str): Google project for the workspace
+        workspace (str): Workspace name
+        submission_id (str): Submission's unique identifier
+        workflow_id (str): Workflow's unique identifier.
+        api_root (str): FireCloud API url, if not production
+
+    Swagger:
+        https://api.firecloud.org/#!/Submissions/workflowMetadata
+    """
+    headers = _fiss_access_headers()
+    uri = "{0}/workspaces/{1}/{2}/submissions/{3}/workflows/{4}".format(
+        api_root, namespace, workspace, submission_id, workflow_id)
+    return requests.get(uri, headers=headers)
+
+
 def get_workflow_outputs(namespace, workspace,
                          submission_id, workflow_id, api_root=PROD_API_ROOT):
     """Request the outputs for a workflow in a submission.
