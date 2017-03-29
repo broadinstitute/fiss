@@ -58,7 +58,7 @@ dockerized version of the tool available on docker hub
 ====================
 v0.15.1 - New high-level 'config_get' command; adjust the low-level methods
           create_workspace_config() and update_workspace_config() to reflect
-		  newer FC api; plus contributed fixes to submission & queue routines
+          newer FC api; plus contributed fixes to submission & queue routines
 
 v0.15.0 - New 'config_validate' and 'runnable' commands for evaluating configurations
           against the state of the data model in a workspace.
