@@ -986,7 +986,7 @@ def abort_submission(namespace, workspace,
     headers = _fiss_access_headers()
     uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(
         api_root, namespace, workspace, submission_id)
-    return http.delete(uri, headers=headers)
+    return requests.delete(uri, headers=headers)
 
 
 def get_submission(namespace, workspace,
