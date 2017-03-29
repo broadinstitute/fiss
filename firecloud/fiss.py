@@ -51,14 +51,12 @@ def space_list(args):
     for s in pretty_spaces:
         print_(s)
 
-
 @fiss_cmd
 def space_lock(args):
     """  Lock a workspace. """
     r = fapi.lock_workspace(args.project, args.workspace, args.api_url)
     fapi._check_response_code(r, 204)
     print_('Locked workspace {0}/{1}'.format(args.project, args.workspace))
-
 
 @fiss_cmd
 def space_new(args):
@@ -69,7 +67,6 @@ def space_new(args):
     print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
     print_(r.content)
 
-
 @fiss_cmd
 def space_info(args):
     """ Get metadata for a workspace. """
@@ -78,7 +75,6 @@ def space_info(args):
 
     #TODO?: pretty_print_workspace(c)
     print_(r.content)
-
 
 @fiss_cmd
 def space_delete(args):
@@ -94,14 +90,12 @@ def space_delete(args):
     fapi._check_response_code(r, 202)
     print_('Deleted workspace {0}/{1}'.format(args.project, args.workspace))
 
-
 @fiss_cmd
 def space_unlock(args):
     """ Unlock a workspace. """
     r = fapi.unlock_workspace(args.project, args.workspace, args.api_url)
     fapi._check_response_code(r, 204)
     print_('Unlocked workspace {0}/{1}'.format(args.project, args.workspace))
-
 
 @fiss_cmd
 def space_clone(args):
@@ -126,7 +120,6 @@ def space_clone(args):
     msg += "/" + args.to_workspace
     print_(msg)
 
-
 @fiss_cmd
 def entity_import(args):
     """ Upload an entity loadfile. """
@@ -148,7 +141,6 @@ def entity_import(args):
         print_('Error encountered trying to upload entities, quitting....')
         return 1
 
-
 @fiss_cmd
 def entity_types(args):
     """ List entity types in a workspace. """
@@ -157,7 +149,6 @@ def entity_types(args):
     fapi._check_response_code(r, 200)
     for etype in r.json():
         print_(etype)
-
 
 @fiss_cmd
 def entity_list(args):
@@ -187,7 +178,6 @@ def participant_list(args):
     for entity in r.json():
         print_(entity['name'])
 
-
 @fiss_cmd
 def sample_list(args):
     """ List samples in a workspace. """
@@ -196,7 +186,6 @@ def sample_list(args):
     fapi._check_response_code(r, 200)
     for entity in r.json():
         print_(entity['name'])
-
 
 @fiss_cmd
 def sset_list(args):
@@ -207,7 +196,6 @@ def sset_list(args):
 
     for entity in r.json():
         print_(entity['name'])
-
 
 @fiss_cmd
 def entity_delete(args):
@@ -225,24 +213,20 @@ def entity_delete(args):
     fapi._check_response_code(r, 204)
     print_("Succesfully deleted " + args.type + " " + args.entity)
 
-
 @fiss_cmd
 def participant_delete(args):
     args.entity_type = "participant"
     return entity_delete(args)
-
 
 @fiss_cmd
 def sample_delete(args):
     args.entity_type = "sample"
     return entity_delete(args)
 
-
 @fiss_cmd
 def sset_delete(args):
     args.entity_type = "sample_set"
     return entity_delete(args)
-
 
 @fiss_cmd
 def space_acl(args):
@@ -252,7 +236,6 @@ def space_acl(args):
     acl = r.json()['acl']
     for user in sorted(acl):
         print_('{0}\t{1}'.format(user, acl[user]['accessLevel']))
-
 
 @fiss_cmd
 def space_set_acl(args):
@@ -272,7 +255,6 @@ def space_set_acl(args):
             print_(u['email'])
         return 1
 
-
 @fiss_cmd
 def flow_new(args):
     """ Submit a new workflow to the methods repository. """
@@ -280,7 +262,6 @@ def flow_new(args):
                                       args.wdl, args.doc, args.api_url)
     fapi._check_response_code(r, 201)
     print_("Successfully pushed {0}/{1}".format(args.namespace, args.method))
-
 
 @fiss_cmd
 def flow_delete(args):
@@ -296,7 +277,6 @@ def flow_delete(args):
     fapi._check_response_code(r, 200)
     print_("Successfully redacted workflow.")
 
-
 @fiss_cmd
 def flow_acl(args):
     """ Get Access Control List for a workflow """
@@ -307,7 +287,6 @@ def flow_acl(args):
         user = d['user']
         role = d['role']
         print_('{0}\t{1}'.format(user, role))
-
 
 @fiss_cmd
 def flow_set_acl(args):
@@ -334,7 +313,6 @@ def flow_set_acl(args):
     fapi._check_response_code(r, 200)
     print_("Updated permissions for {0}/{1}:{2}".format(args.namespace, args.method, snap_id))
 
-
 @fiss_cmd
 def flow_list(args):
     """ List workflows in the methods repository """
@@ -354,7 +332,6 @@ def flow_list(args):
     results = sorted(results, key=lambda s: s.lower())
     for r in results:
         print_(r)
-
 
 @fiss_cmd
 def config_list(args):
@@ -387,7 +364,6 @@ def config_list(args):
     for r in results:
         print_(r)
 
-
 @fiss_cmd
 def config_acl(args):
     """ Get Access Control List for a method configuration. """
@@ -399,6 +375,12 @@ def config_acl(args):
         role = d['role']
         print_('{0}\t{1}'.format(user, role))
 
+@fiss_cmd
+def config_get(args):
+    """ Retrieve a method config from a workspace, send stdout """
+    r = fapi.get_workspace_config(args.project, args.workspace,  args.namespace, args.config, args.api_url)
+    fapi._check_response_code(r, 200)
+    print_(r.text)
 
 @fiss_cmd
 def attr_get(args):
@@ -449,7 +431,6 @@ def attr_get(args):
             if not args.attributes or k in args.attributes:
                 print_(k + "\t" + workspace_attrs[k])
 
-
 @fiss_cmd
 def attr_set(args):
     """ Set attributes on a workspace or entities """
@@ -485,7 +466,6 @@ def attr_set(args):
         fapi._check_response_code(r, 200)
 
     print_("Done.")
-
 
 @fiss_cmd
 def attr_delete(args):
@@ -583,7 +563,6 @@ def attr_delete(args):
 
     print_("Done.")
 
-
 @fiss_cmd
 def attr_copy(args):
     """ Copy workspace attributes between workspaces. """
@@ -629,8 +608,6 @@ def attr_copy(args):
                                     updates, api_root=args.api_url)
     fapi._check_response_code(r, 200)
     print_("Done.")
-
-
 
 @fiss_cmd
 def attr_fill_null(args):
@@ -750,14 +727,12 @@ def attr_fill_null(args):
         print_("attr_fill_null requires an entity type")
         return 1
 
-
 @fiss_cmd
 def ping(args):
     """ Ping FireCloud Server """
     r = fapi.ping(args.api_url)
     fapi._check_response_code(r, 200)
     print_(r.content)
-
 
 @fiss_cmd
 def mop(args):
@@ -873,7 +848,6 @@ def mop(args):
     if args.verbose:
         print_(result.rstrip())
 
-
 @fiss_cmd
 def flow_submit(args):
     """Submit a workflow on the given entity"""
@@ -888,7 +862,6 @@ def flow_submit(args):
     # Give submission id in response
     sub_id = r.json()['submissionId']
     print_("Submission successful. Submission_id: " + sub_id )
-
 
 @fiss_cmd
 def sset_loop(args):
@@ -923,7 +896,6 @@ def sset_loop(args):
 
         if not args.keep_going and code:
             return code
-
 
 @fiss_cmd
 def monitor(args):
@@ -965,12 +937,10 @@ def supervise(args):
                                 workflow, sample_sets,
                                 recovery_file, api_url)
 
-
 @fiss_cmd
 def supervise_recover(args):
     recovery_file = args.recovery_file
     return supervisor.recover_and_supervise(recovery_file)
-
 
 @fiss_cmd
 def space_search(args):
@@ -1017,7 +987,6 @@ def space_search(args):
         pretty_spaces = sorted(pretty_spaces, key=lambda s: s.lower())
         for s in pretty_spaces:
             print_(s)
-
 
 @fiss_cmd
 def entity_copy(args):
@@ -1104,7 +1073,6 @@ def config_validate(args):
     if ii + io + ma + mwa:
         return 1
 
-
 def _validate_helper(args, config_d, workspace_d, entity_d=None):
     """ Return FISSFC validation information on config for a certain entity """
         # 4 ways to have invalid config:
@@ -1153,7 +1121,6 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None):
             # Anything else is a literal
 
     return invalid_inputs, invalid_outputs, missing_attrs, missing_wksp_attrs
-
 
 @fiss_cmd
 def runnable(args):
@@ -1284,11 +1251,9 @@ def runnable(args):
         return 1
 
 
-
 #################################################
 # Utilities
 #################################################
-
 
 def _confirm_prompt(message, prompt="\nAre you sure? [Y\\n]: ",
                     affirmations=("Y", "Yes", "yes", "y")):
@@ -1423,9 +1388,11 @@ def main(argv=None):
     # If argv is none, use sys.argv
     argv = argv if argv else sys.argv
 
-    #Set defaults using CLI default values
+    # Set defaults using CLI default values
     default_api_url = fapi.PROD_API_ROOT
     default_project = ''
+    default_workspace = ''
+    default_method_ns = ''
 
     # Load any plugins, in case we need to override defaults
     manager = PluginManager()
@@ -1434,26 +1401,32 @@ def main(argv=None):
 
     # Using the plugins, load defaults
     for pluginInfo in manager.getAllPlugins():
-        #API_URL
         default_api_url = getattr(pluginInfo.plugin_object,
                                   'API_URL',
                                    default_api_url)
-        # Default Google project
         default_project = getattr(pluginInfo.plugin_object,
                                   'DEFAULT_PROJECT',
                                   default_project)
+        proj_required = not bool(default_project)
 
-    default_project_list = [default_project] if default_project != '' else []
+        default_method_ns = getattr(pluginInfo.plugin_object,
+                                  'DEFAULT_METHOD_NAMESPACE',
+                                  default_method_ns)
+        meth_ns_required = not bool(default_method_ns)
 
-    #Initialize core parser
-    #TODO: Add longer description
+        default_workspace = getattr(pluginInfo.plugin_object,
+                                  'DEFAULT_WORKSPACE',
+                                  default_workspace)
+        workspace_required = not bool(default_workspace)
+
+    # Initialize core parser (TODO: Add longer description)
     u  = 'fissfc [OPTIONS] CMD [arg ...]\n'
     u += '       fissfc [ --help | -v | --version ]'
     parser = argparse.ArgumentParser(
                                      description='FISS: The FireCloud CLI')
 
     # Core Flags
-    url_help = 'Fireclould api url. Your default is ' + default_api_url
+    url_help = 'Firecloud api url. Your default is ' + default_api_url
     parser.add_argument('-u', '--url', dest='api_url',
                         default=default_api_url,
                         help=url_help)
@@ -1469,18 +1442,16 @@ def main(argv=None):
 
     # Many commands share arguments, and we can make parent parsers to make it
     # easier to reuse arguments. Commands that operate on workspaces
-    # all take a google project and a workspace name
+    # all take a (google) project and a workspace name
 
     workspace_parent = argparse.ArgumentParser(add_help=False)
-    workspace_parent.add_argument('-w', '--workspace',
-                                  required=True, help='Workspace name')
+    workspace_parent.add_argument('-w', '--workspace', help='Workspace name',
+                    default=default_workspace, required=workspace_required)
 
-    # project is required if there is no default_project
-    proj_required = not bool(default_project)
-    proj_help =  'Google Project (workspace namespace). Required '
+    proj_help =  'Project (workspace namespace). Required '
     proj_help += 'if no DEFAULT_PROJECT is stored in a plugin'
     workspace_parent.add_argument('-p', '--project', default=default_project,
-                                  help=proj_help, required=proj_required)
+                        help=proj_help, required=proj_required)
 
     dest_space_parent = argparse.ArgumentParser(add_help=False)
     dest_space_parent.add_argument("-P", "--to-project",
@@ -1514,15 +1485,16 @@ def main(argv=None):
     meth_parent = argparse.ArgumentParser(add_help=False)
     meth_parent.add_argument('-m', '--method', required=True,
                              help='Workflow/Method name')
-    meth_parent.add_argument('-n', '--namespace', required=True,
-                             help='Method namespace')
+    meth_parent.add_argument('-n', '--namespace', help='Method namespace',
+                    default=default_method_ns, required=meth_ns_required)
 
     # Commands that work with method configurations
     conf_parent = argparse.ArgumentParser(add_help=False)
     conf_parent.add_argument('-c', '--config', required=True,
-                             help='Method configuration name')
-    conf_parent.add_argument('-n', '--namespace', required=True,
-                             help='Method configuration namespace')
+                             help='Method config name')
+    conf_parent.add_argument('-n', '--namespace',
+                help='Method config namespace',
+                default=default_method_ns, required=meth_ns_required)
 
     # Commands that need a snapshot_id
     snapshot_parent = argparse.ArgumentParser(add_help=False)
@@ -1728,20 +1700,33 @@ def main(argv=None):
     cfg_list_parser = subparsers.add_parser(
         'config_list', description='List available configurations'
     )
-    cfg_list_parser.add_argument('-w', '--workspace', help='Workspace name')
-    proj_help =  'Google Project (workspace namespace).'
+    cfg_list_parser.add_argument('-w', '--workspace', help='Workspace name',
+                default=default_workspace, required=workspace_required)
+    proj_help =  'Project (workspace namespace).'
     cfg_list_parser.add_argument('-p', '--project', default=default_project,
-                                 help=proj_help)
+                                 help=proj_help, required=proj_required)
     cfg_list_parser.set_defaults(func=config_list)
 
-    #Config ACLs
+    # Retrieve a method config (initially from a workspace)
+    subp = subparsers.add_parser(
+        'config_get', description='Retrieve method configuration (definition)',
+        parents=[conf_parent]
+    )
+    subp.add_argument('-w', '--workspace', help='Workspace name',
+                    default=default_workspace, required=workspace_required)
+    subp.add_argument('-p', '--project', default=default_project,
+                                 help='Project (workspace namespace)',
+                                 required=proj_required)
+    subp.set_defaults(func=config_get)
+
+    # Config ACLs
     cfgacl_parser = subparsers.add_parser(
         'config_acl', description='Show users and roles for a configuration',
         parents=[conf_parent, snapshot_parent]
     )
     cfgacl_parser.set_defaults(func=config_acl)
 
-    #Set ACL
+    # Set ACL
     # cacl_parser = subparsers.add_parser('config_set_acl',
     #                           description='Set roles for config')
     # cacl_parser.add_argument('namespace', help='Method namespace')
