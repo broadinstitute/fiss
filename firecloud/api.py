@@ -66,7 +66,7 @@ def get_entities_with_type(namespace, workspace,
     """List entities in a workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -83,7 +83,7 @@ def list_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
     """List the entity types present in a workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -101,7 +101,7 @@ def upload_entities(namespace, workspace,
     """Upload entities from tab-delimited string.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         entity_data (str): TSV string describing entites
         api_root (str): FireCloud API url, if not production
@@ -134,7 +134,7 @@ def upload_entities_tsv(namespace, workspace,
             participant_27           35       N
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         entities_tsv (file): FireCloud loadfile, see format above
         api_root (str): FireCloud API url, if not production
@@ -149,10 +149,10 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
     """Copy entities between workspaces
 
     Args:
-        from_namespace (str): Source workspace's google project (namespace)
-        from_workspace (str): Source workspace's name
-        to_namespace (str): Target workspace's google project
-        to_workspace (str): Target workspace's name
+        from_namespace (str): project (namespace) to which source workspace belongs
+        from_workspace (str): Source workspace name
+        to_namespace (str): project (namespace) to which target workspace belongs
+        to_workspace (str): Target workspace name
         etype (str): Entity type
         enames (list(str)): List of entity names to copy
         api_root(str): FireCloud API url, if not production
@@ -182,7 +182,7 @@ def get_entities(namespace, workspace, etype, api_root=PROD_API_ROOT):
     Response content will be in JSON format.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
         api_root (str): FireCloud API url, if not production
@@ -202,7 +202,7 @@ def get_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
     Identical to get_entities(), but the response is a TSV.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
         api_root (str): FireCloud API url, if not production
@@ -222,7 +222,7 @@ def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     Gets entity metadata and attributes.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
         ename (str): The entity's unique id
@@ -244,7 +244,7 @@ def delete_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
         ename (str): The entity's unique id
@@ -266,7 +266,7 @@ def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str): participant_id
         api_root (str): FireCloud API url, if not production
@@ -282,7 +282,7 @@ def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str): participant_set_id
         api_root (str): FireCloud API url, if not production
@@ -298,7 +298,7 @@ def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str): sample_id
         api_root (str): FireCloud API url, if not production
@@ -313,7 +313,7 @@ def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str): sample_set_id
         api_root (str): FireCloud API url, if not production
@@ -328,7 +328,7 @@ def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str): pair_id
         api_root (str): FireCloud API url, if not production
@@ -343,7 +343,7 @@ def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str): pair_set_id
         api_root (str): FireCloud API url, if not production
@@ -357,7 +357,7 @@ def get_entities_query(namespace, workspace, etype, page=1,
     """Paginated version of get_entities_with_type.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -384,7 +384,7 @@ def update_entity(namespace, workspace, etype, ename,
     """ Update entity attributes in a workspace.
 
     Args:
-        namespace (str): Google projct for th eworkspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype     (str): Entity type
         ename     (str): Entity name
@@ -401,8 +401,6 @@ def update_entity(namespace, workspace, etype, ename,
 
     return requests.patch(uri, headers=headers, json=updates)
 
-
-
 ###############################
 ### 1.2 Method Configurations
 ###############################
@@ -410,7 +408,7 @@ def list_workspace_configs(namespace, workspace, api_root=PROD_API_ROOT):
     """List method configurations in workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -423,40 +421,40 @@ def list_workspace_configs(namespace, workspace, api_root=PROD_API_ROOT):
                                                         namespace, workspace)
     return requests.get(uri, headers=headers)
 
-
-def create_workspace_config(namespace, workspace, mnamespace, method,
-                  root_etype, api_root=PROD_API_ROOT):
+def create_workspace_config(namespace, workspace, body, api_root=PROD_API_ROOT):
     """Create method configuration in workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        mnamespace (str): Method namespace
-        method (str): Method name
-        root_etype (str): Root entity type
+        body (json) : a filled-in JSON object for the new method config
+                      (e.g. see return value of get_workspace_config)
         api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/postWorkspaceMethodConfig
         DUPLICATE: https://api.firecloud.org/#!/Workspaces/postWorkspaceMethodConfig
     """
+
     headers = _fiss_access_headers({"Content-type":  "application/json"})
-    json_body = {
-        "namespace"      : mnamespace,
-        "name"           : method,
-        "rootEntityType" : root_etype
-    }
+    #json_body = {
+    #    "namespace"      : mnamespace,
+    #    "name"           : method,
+    #    "rootEntityType" : root_etype,
+    #    "inputs" : {},
+    #    "outputs" : {},
+    #    "prerequisites" : {}
+    #}
     uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root,
                                                         namespace, workspace)
-    return requests.post(uri, headers=headers, json=json_body)
-
+    return requests.post(uri, headers=headers, json=body)
 
 def delete_workspace_config(namespace, workspace, cnamespace,
                   config, api_root=PROD_API_ROOT):
     """Delete method configuration in workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         mnamespace (str): Method namespace
         method (str): Method name
@@ -470,13 +468,12 @@ def delete_workspace_config(namespace, workspace, cnamespace,
         api_root, namespace, workspace, cnamespace, config)
     return requests.delete(uri, headers=headers)
 
-
 def get_workspace_config(namespace, workspace, cnamespace,
                config, api_root=PROD_API_ROOT):
     """Get method configuration in workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         cnamespace (str): Config namespace
         config (str): Config name
@@ -491,38 +488,33 @@ def get_workspace_config(namespace, workspace, cnamespace,
         api_root, namespace, workspace, cnamespace, config)
     return requests.get(uri, headers=headers)
 
-
 def update_workspace_config(namespace, workspace, cnamespace,
-                            configname, config_updates,
-                            api_root=PROD_API_ROOT):
+                            configname, body, api_root=PROD_API_ROOT):
     """Update method configuration in workspace.
 
     Args:
-        namespace (str): Google project for the workspace
-        workspace (str): Workspace name
+        namespace  (str): project to which workspace belongs
+        workspace  (str): Workspace name
         cnamespace (str): Configuration namespace
-        config (str): Configuration name
-        new_namespace (str): Updated config namespace
-        new_name (str): Updated config name
-        root_etype (str): New root entity type
-        api_root (str): FireCloud API url, if not production
+        configname (str): Configuration name
+        body      (json): new body (definition) of the method config
+        api_root   (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/updateWorkspaceMethodConfig
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
-    body = json.dumps(config_updates)
+    body = json.dumps(body)
     uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
         api_root, namespace, workspace, cnamespace, configname)
     return requests.put(uri, headers=headers, data=body)
-
 
 def validate_config(namespace, workspace, cnamespace,
                     config, api_root=PROD_API_ROOT):
     """Get syntax validation for a configuration.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         cnamespace (str): Configuration namespace
         config (str): Configuration name
@@ -536,13 +528,12 @@ def validate_config(namespace, workspace, cnamespace,
         api_root, namespace, workspace, cnamespace, config)
     return requests.get(uri, headers=headers)
 
-
 def rename_workspace_config(namespace, workspace, cnamespace,
                   config, new_namespace, new_name, api_root=PROD_API_ROOT):
     """Rename a method configuration in a workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         mnamespace (str): Config namespace
         config (str): Config name
@@ -567,14 +558,13 @@ def rename_workspace_config(namespace, workspace, cnamespace,
         api_root, namespace, workspace, cnamespace, config)
     return requests.post(uri, headers=headers, json=json_body)
 
-
 def copy_config_from_repo(namespace, workspace, from_cnamespace,
                           from_config, from_snapshot_id, to_cnamespace,
                           to_config, api_root=PROD_API_ROOT):
     """Copy a method config from the methods repository to a workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         from_cnamespace (str): Source configuration namespace
         from_config (str): Source configuration name
@@ -599,14 +589,13 @@ def copy_config_from_repo(namespace, workspace, from_cnamespace,
         api_root, namespace, workspace)
     return requests.post(uri, headers=headers, json=json_body)
 
-
 def copy_config_to_repo(namespace, workspace, from_cnamespace,
                         from_config, to_cnamespace, to_config,
                         api_root=PROD_API_ROOT):
     """Copy a method config from a workspace to the methods repository.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         from_cnamespace (str): Source configuration namespace
         from_config (str): Source configuration name
@@ -628,7 +617,6 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
     uri = "{0}/workspaces/{1}/{2}/method_configs/copyToMethodRepo".format(
         api_root, namespace, workspace, cnamespace, config)
     return requests.post(uri, headers=headers, json=json_body)
-
 
 ###########################
 ### 1.3 Method Repository
@@ -933,7 +921,7 @@ def list_submissions(namespace, workspace, api_root=PROD_API_ROOT):
     """List submissions in FireCloud workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -951,7 +939,7 @@ def create_submission(wnamespace, workspace, cnamespace, config,
     """Submit job in FireCloud workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         cnamespace (str): Method configuration namespace
         config (str): Method configuration name
@@ -987,7 +975,7 @@ def abort_submission(namespace, workspace,
     """Abort running job in a workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         api_root (str): FireCloud API url, if not production
@@ -1006,7 +994,7 @@ def get_submission(namespace, workspace,
     """Request submission information.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         api_root (str): FireCloud API url, if not production
@@ -1025,7 +1013,7 @@ def get_workflow_metadata(namespace, workspace,
     """Request the metadata for a workflow in a submission.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         workflow_id (str): Workflow's unique identifier.
@@ -1045,7 +1033,7 @@ def get_workflow_outputs(namespace, workspace,
     """Request the outputs for a workflow in a submission.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         workflow_id (str): Workflow's unique identifier.
@@ -1091,7 +1079,7 @@ def create_workspace(namespace, name, protected=False,
     """Create a new FireCloud Workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         name (str): Workspace name
         protected (bool): If True, this workspace is protected by dbGaP
             credentials. This option is only available if your FireCloud
@@ -1121,7 +1109,7 @@ def delete_workspace(namespace, workspace,api_root=PROD_API_ROOT):
     Note: This action is not reversible. Be careful!
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -1137,7 +1125,7 @@ def get_workspace(namespace, workspace,api_root=PROD_API_ROOT):
     """Request FireCloud Workspace information.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -1153,7 +1141,7 @@ def get_workspace_acl(namespace, workspace,api_root=PROD_API_ROOT):
     """Request FireCloud access aontrol list for workspace.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -1170,7 +1158,7 @@ def update_workspace_acl(namespace, workspace,
     """Update workspace access control list.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
         acl_updates (list(dict)): Acl updates as dicts with two keys:
@@ -1194,9 +1182,9 @@ def clone_workspace(from_namespace, from_workspace,
     easy sharing of data, such as TCGA data, without duplication.
 
     Args:
-        from_namespace (str): Source workspace's google project (namespace)
+        from_namespace (str):  project (namespace) to which source workspace belongs
         from_workspace (str): Source workspace's name
-        to_namespace (str): Target workspace's google project
+        to_namespace (str):  project to which target workspace belongs
         to_workspace (str): Target workspace's name
         api_root(str): FireCloud API url, if not production
 
@@ -1221,7 +1209,7 @@ def lock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     in the workspace. Can be undone with unlock_workspace()
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -1239,7 +1227,7 @@ def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     Enables modifications to a workspace. See lock_workspace()
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
 
@@ -1251,13 +1239,12 @@ def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
                                                  namespace, workspace)
     return requests.put(uri, headers=headers)
 
-
 def update_workspace_attributes(namespace, workspace,
                                 attrs, api_root=PROD_API_ROOT):
     """Update or remove workspace attributes.
 
     Args:
-        namespace (str): Google project for the workspace
+        namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         api_root (str): FireCloud API url, if not production
         attrs (list(dict)): List of update operations for workspace attributes.
