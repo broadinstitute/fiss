@@ -58,10 +58,10 @@ dockerized version of the tool available on docker hub
 ====================
 v0.15.2 -  Introduce __get wrapper for requests.get(), to lessen headers
            boilerplate in the code and make it possible for --verbose flag
-		   to be applied to ALL of the low-level API (e.g. to display the
-		   URI of REST calls) at once, without having to pass verbosity flag
-		   up and down call stack; this is done via new set_verbosity()
-		   and get_verbosity() methods
+           to be applied to ALL of the low-level API (e.g. to display the
+           URI of REST calls) at once, without having to pass verbosity flag
+           up and down call stack; this is done via new set_verbosity()
+           and get_verbosity() methods
 
 v0.15.1 - New high-level 'config_get' command; adjust the low-level methods
           create_workspace_config() and update_workspace_config() to reflect
