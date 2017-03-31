@@ -16,9 +16,10 @@ from oauth2client.client import GoogleCredentials
 from firecloud.errors import FireCloudServerError
 from firecloud.__about__ import __version__
 
-
 PROD_API_ROOT = "https://api.firecloud.org/api"
 FISS_USER_AGENT = "FISS/" + __version__
+__verbosity = 0
+
 #################################################
 # Utilities
 #################################################
@@ -38,6 +39,14 @@ def _fiss_access_headers(headers=None):
     if headers:
         fiss_headers.update(headers)
     return fiss_headers
+
+def __get(uri, headers=None):
+    if not headers:
+        headers = _fiss_access_headers()
+    r = requests.get(uri, headers=headers)
+    if __verbosity:
+        print_('FISSFC query: %s' % r.url, file=sys.stderr)
+    return r
 
 def _check_response_code(response, codes):
     """
@@ -416,10 +425,9 @@ def list_workspace_configs(namespace, workspace, api_root=PROD_API_ROOT):
         https://api.firecloud.org/#!/Method_Configurations/listWorkspaceMethodConfigs
         DUPLICATE: https://api.firecloud.org/#!/Workspaces/listWorkspaceMethodConfigs
     """
-    headers = _fiss_access_headers()
     uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root,
                                                         namespace, workspace)
-    return requests.get(uri, headers=headers)
+    return __get(uri)
 
 def create_workspace_config(namespace, workspace, body, api_root=PROD_API_ROOT):
     """Create method configuration in workspace.
@@ -902,17 +910,13 @@ def get_status(api_root=PROD_API_ROOT):
     uri = "{0}/status".format(api_root)
     return requests.get(uri, headers=headers)
 
-
 def ping(api_root=PROD_API_ROOT):
-    """Ping API.
+    """Ping FireCloud API.
 
     Swagger:
         https://api.firecloud.org/#!/Status/ping
     """
-    headers = _fiss_access_headers()
-    uri = "{0}/status/ping".format(api_root)
-    return requests.get(uri, headers=headers)
-
+    return __get("{0}/status/ping".format(api_root))
 
 ######################
 ### 1.6 Submissions
@@ -1298,3 +1302,15 @@ def _attr_lrem(attr, value):
         "attributeName"      : attr,
         "addUpdateAttribute" : value
     }
+
+def set_verbosity(verbosity):
+    global __verbosity
+    previous_value = __verbosity
+    try:
+        __verbosity = int(verbosity)
+    except Exception:
+        pass                            # simply keep previous value
+    return previous_value
+
+def get_verbosity():
+    return __verbosity
