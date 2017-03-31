@@ -23,7 +23,7 @@ test:
 	rm -rf build dist *.egg-info
 
 test_fiss:
-	$(PYTHON) setup.py nosetests --verbosity=3 -w firecloud/tests/fiss_cli_tests.py
+	$(PYTHON) setup.py nosetests --verbosity=3 -w firecloud/tests/highlevel_tests.py
 
 install:
 	$(PIP) install --upgrade .
