@@ -1383,7 +1383,6 @@ def _batch_load(project, workspace, headerline, entity_data,
 # Main, entrypoint for fissfc
 ################################################
 
-
 def main(argv=None):
     # If argv is none, use sys.argv
     argv = argv if argv else sys.argv
@@ -1432,13 +1431,13 @@ def main(argv=None):
                         help=url_help)
 
     parser.add_argument("-v", "--version",
-                        action='version', version=__version__)
+                action='version', version=__version__)
 
-    parser.add_argument('-V', '--verbose',
-                            action='store_true', help='Increase verbosity')
+    parser.add_argument('-V', '--verbose', action='store_true',
+                help='Turn on verbosity (e.g. show URL of REST calls)')
 
     parser.add_argument("-y", "--yes", action='store_true',
-                            help="Assume yes for any prompts")
+                help="Assume yes for any prompts")
 
     # Many commands share arguments, and we can make parent parsers to make it
     # easier to reuse arguments. Commands that operate on workspaces
@@ -1995,9 +1994,10 @@ def main(argv=None):
             except AttributeError:
                 pass
     else:
-        ##Otherwise parse args and call correct subcommand
-        # Chop off argv[0]
+        # Otherwise parse args & call correct subcommand (skipping argv[0])
         args = parser.parse_args(argv[1:])
+        if args.verbose:
+            fapi.set_verbosity(1)
 
         exit_code = args.func(args)
         if not exit_code:
