@@ -257,7 +257,7 @@ def space_set_acl(args):
 
 @fiss_cmd
 def flow_new(args):
-    """ Submit a new workflow to the methods repository. """
+    """ Submit a new workflow (or update) to the methods repository. """
     r = fapi.update_repository_method(args.namespace, args.method, args.synopsis,
                                       args.wdl, args.doc, args.api_url)
     fapi._check_response_code(r, 201)
@@ -1390,8 +1390,11 @@ def main(argv=None):
     # Set defaults using CLI default values
     default_api_url = fapi.PROD_API_ROOT
     default_project = ''
-    default_workspace = ''
+    proj_required = False
     default_method_ns = ''
+    meth_ns_required = False
+    default_workspace = ''
+    workspace_required = False
 
     # Load any plugins, in case we need to override defaults
     manager = PluginManager()
