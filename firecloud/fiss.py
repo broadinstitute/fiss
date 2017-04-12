@@ -1390,8 +1390,11 @@ def main(argv=None):
     # Set defaults using CLI default values
     default_api_url = fapi.PROD_API_ROOT
     default_project = ''
-    default_workspace = ''
+    proj_required = False
     default_method_ns = ''
+    meth_ns_required = False
+    default_workspace = ''
+    workspace_required = False
 
     # Load any plugins, in case we need to override defaults
     manager = PluginManager()
