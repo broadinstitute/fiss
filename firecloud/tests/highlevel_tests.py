@@ -5,13 +5,9 @@ import time
 import json
 import logging
 import os
-
 from getpass import getuser
-
-
 import nose
 from six import print_
-
 from firecloud.fiss import main as call_fiss
 from firecloud import api as fapi
 
@@ -29,7 +25,6 @@ class Capturing(list):
         self.extend(self._stringio.getvalue().splitlines())
         del self._stringio    # free up some memory
         sys.stdout = self._stdout
-
 
 class TestFISS(unittest.TestCase):
     """Unit test the firecloud.api module.
@@ -61,11 +56,12 @@ class TestFISS(unittest.TestCase):
 
         logging.debug("Running tests using namespace: " + cls.namespace)
 
-        # Set up a static workspace that will exist for the duration
-        # of the tests. Individual workspaces will be created as temp,
-        # but are responsible for tearing themselves down
+        # Set up a static workspace that will exist for the duration of the
+        # tests. Individual workspaces will be created as temp, but are
+        # responsible for tearing themselves down.  And, just in case a
+        # previous test failed, we attempt to delete before creating
         cls.static_workspace = cls.user + '_FISS_CLI_UNITTEST'
-
+        fapi.delete_workspace(cls.namespace, cls.static_workspace)
         r = fapi.create_workspace(cls.namespace, cls.static_workspace)
         fapi._check_response_code(r, 201)
         sw = r.json()
