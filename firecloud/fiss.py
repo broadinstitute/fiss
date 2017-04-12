@@ -257,7 +257,7 @@ def space_set_acl(args):
 
 @fiss_cmd
 def flow_new(args):
-    """ Submit a new workflow to the methods repository. """
+    """ Submit a new workflow (or update) to the methods repository. """
     r = fapi.update_repository_method(args.namespace, args.method, args.synopsis,
                                       args.wdl, args.doc, args.api_url)
     fapi._check_response_code(r, 201)
@@ -1406,17 +1406,18 @@ def main(argv=None):
         default_project = getattr(pluginInfo.plugin_object,
                                   'DEFAULT_PROJECT',
                                   default_project)
-        proj_required = not bool(default_project)
 
         default_method_ns = getattr(pluginInfo.plugin_object,
                                   'DEFAULT_METHOD_NAMESPACE',
                                   default_method_ns)
-        meth_ns_required = not bool(default_method_ns)
 
         default_workspace = getattr(pluginInfo.plugin_object,
                                   'DEFAULT_WORKSPACE',
                                   default_workspace)
-        workspace_required = not bool(default_workspace)
+
+    proj_required = not bool(default_project)
+    meth_ns_required = not bool(default_method_ns)
+    workspace_required = not bool(default_workspace)
 
     # Initialize core parser (TODO: Add longer description)
     u  = 'fissfc [OPTIONS] CMD [arg ...]\n'
