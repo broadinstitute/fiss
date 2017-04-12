@@ -7,6 +7,8 @@ the README at https://pypi.python.org/pypi/firecloud.
 """
 import json
 import sys
+import io
+from collections import Iterable
 
 from six import print_
 from six.moves.urllib.parse import urlencode
@@ -148,9 +150,14 @@ def upload_entities_tsv(namespace, workspace,
         entities_tsv (file): FireCloud loadfile, see format above
         api_root (str): FireCloud API url, if not production
     """
-    with open(entities_tsv, "r") as tsv:
-        entity_data = tsv.read()
-        return upload_entities(namespace, workspace, entity_data, api_root)
+    if isinstance(entities_tsv, str):
+        with open(entities_tsv, "r") as tsv:
+            entity_data = tsv.read()
+    elif isinstance(entities_tsv, io.StringIO):
+        entity_data = entities_tsv.getvalue()
+    else:
+        raise ValueError('Unsupported input type.')
+    return upload_entities(namespace, workspace, entity_data, api_root)
 
 
 def copy_entities(from_namespace, from_workspace, to_namespace,
@@ -752,7 +759,7 @@ def update_repository_method(namespace, method, synopsis,
         api_root (str): FireCloud API url, if not production
 
     Swagger:
-        UNDOCUMENTED
+        https://api.firecloud.org/#!/Method_Repository/post_api_methods
 
     """
     with open(wdl, 'r') as wf:
@@ -939,7 +946,7 @@ def list_submissions(namespace, workspace, api_root=PROD_API_ROOT):
 
 
 def create_submission(wnamespace, workspace, cnamespace, config,
-                      entity, etype, expression=None, api_root=PROD_API_ROOT):
+                      entity, etype, expression=None, use_callcache=True, api_root=PROD_API_ROOT):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -953,6 +960,7 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         etype (str): Entity type of root_entity
         expression (str): Instead of using entity as the root entity,
             evaluate the root entity from this expression.
+        use_callcache (bool): use call cache if applicable (default: true)
         api_root (str): FireCloud API url, if not production
 
     Swagger:
@@ -965,7 +973,8 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         "methodConfigurationNamespace" : cnamespace,
         "methodConfigurationName" : config,
          "entityType" : etype,
-         "entityName" : entity
+         "entityName" : entity,
+         "useCallCache" : use_callcache
     }
 
     if expression:
