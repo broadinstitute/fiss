@@ -253,7 +253,34 @@ def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     return requests.get(uri, headers=headers)
 
 
-def delete_entities(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
+def delete_entities(namespace, workspace, json_body, api_root=PROD_API_ROOT):
+    """Delete entities in a workspace.
+
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        json_body:
+        [
+          {
+            "entityType": "string",
+            "entityName": "string"
+          }
+        ]
+        api_root (str): FireCloud API url, if not production
+
+    Swagger:
+        https://api.firecloud.org/#!/Entities/deleteEntities
+    """
+
+    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    uri = "{0}/workspaces/{1}/{2}/entities/delete".format(
+        api_root, namespace, workspace)
+    return requests.post(uri, headers=headers, json=json_body)
+
+
+def delete_entity_type(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     """Delete entities in a workspace.
 
     Note: This action is not reversible. Be careful!
@@ -281,96 +308,94 @@ def delete_entities(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     return requests.post(uri, headers=headers, json=json_body)
 
 
-# def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
-#     """Delete participant in a workspace.
-#
-#     Convenience wrapper for api.delete_entity().
-#     Note: This action is not reversible. Be careful!
-#
-#     Args:
-#         namespace (str): project to which workspace belongs
-#         workspace (str): Workspace name
-#         name (str): participant_id
-#         api_root (str): FireCloud API url, if not production
-#     """
-#     return delete_entity(namespace, workspace, "participant",
-#                          name, api_root)
-#
-#
-# def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
-#     """Delete participant set in a workspace.
-#
-#     Convenience wrapper for api.delete_entity().
-#     Note: This action is not reversible. Be careful!
-#
-#     Args:
-#         namespace (str): project to which workspace belongs
-#         workspace (str): Workspace name
-#         name (str): participant_set_id
-#         api_root (str): FireCloud API url, if not production
-#     """
-#     return delete_entity(namespace, workspace, "participant_set",
-#                          name, api_root)
-#
-#
-# def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
-#     """Delete sample in a workspace.
-#
-#     Convenience wrapper for api.delete_entity().
-#     Note: This action is not reversible. Be careful!
-#
-#     Args:
-#         namespace (str): project to which workspace belongs
-#         workspace (str): Workspace name
-#         name (str): sample_id
-#         api_root (str): FireCloud API url, if not production
-#     """
-#     return delete_entity(namespace, workspace, "sample", name, api_root)
-#
-#
-# def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
-#     """Delete sample set in a workspace.
-#
-#     Convenience wrapper for api.delete_entity().
-#     Note: This action is not reversible. Be careful!
-#
-#     Args:
-#         namespace (str): project to which workspace belongs
-#         workspace (str): Workspace name
-#         name (str): sample_set_id
-#         api_root (str): FireCloud API url, if not production
-#     """
-#     return delete_entity(namespace, workspace, "sample_set", name, api_root)
-#
-#
-# def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
-#     """Delete pair in a workspace.
-#
-#     Convenience wrapper for api.delete_entity().
-#     Note: This action is not reversible. Be careful!
-#
-#     Args:
-#         namespace (str): project to which workspace belongs
-#         workspace (str): Workspace name
-#         name (str): pair_id
-#         api_root (str): FireCloud API url, if not production
-#     """
-#     return delete_entity(namespace, workspace, "pair", name, api_root)
-#
-#
-# def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
-#     """Delete pair set in a workspace.
-#
-#     Convenience wrapper for api.delete_entity().
-#     Note: This action is not reversible. Be careful!
-#
-#     Args:
-#         namespace (str): project to which workspace belongs
-#         workspace (str): Workspace name
-#         name (str): pair_set_id
-#         api_root (str): FireCloud API url, if not production
-#     """
-#     return delete_entity(namespace, workspace, "pair_set", name, api_root)
+def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
+    """Delete participant in a workspace.
+
+    Convenience wrapper for api.delete_entity().
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        name (str, or iterable of str): participant_id(s)
+        api_root (str): FireCloud API url, if not production
+    """
+    return delete_entity_type(namespace, workspace, "participant", name, api_root)
+
+
+def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
+    """Delete participant set in a workspace.
+
+    Convenience wrapper for api.delete_entity().
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        name (str, or iterable of str): participant_set_id(s)
+        api_root (str): FireCloud API url, if not production
+    """
+    return delete_entity_type(namespace, workspace, "participant_set", name, api_root)
+
+
+def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
+    """Delete sample in a workspace.
+
+    Convenience wrapper for api.delete_entity().
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        name (str, or iterable of str): sample_id(s)
+        api_root (str): FireCloud API url, if not production
+    """
+    return delete_entity_type(namespace, workspace, "sample", name)
+
+
+def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
+    """Delete sample set in a workspace.
+
+    Convenience wrapper for api.delete_entity().
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        name (str, or iterable of str): sample_set_id(s)
+        api_root (str): FireCloud API url, if not production
+    """
+    return delete_entity_type(namespace, workspace, "sample_set", name, api_root)
+
+
+def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
+    """Delete pair in a workspace.
+
+    Convenience wrapper for api.delete_entity().
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        name (str, or iterable of str): pair_id(s)
+        api_root (str): FireCloud API url, if not production
+    """
+    return delete_entity_type(namespace, workspace, "pair", name, api_root)
+
+
+def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
+    """Delete pair set in a workspace.
+
+    Convenience wrapper for api.delete_entity().
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        name (str, or iterable of str): pair_set_id(s)
+        api_root (str): FireCloud API url, if not production
+    """
+    return delete_entity_type(namespace, workspace, "pair_set", name, api_root)
 
 
 def get_entities_query(namespace, workspace, etype, page=1,
