@@ -14,6 +14,5 @@ class FireCloudServerError(RuntimeError):
     def __init__(self, code, message):
         self.code = code
         self.message = message
-        emsg = str(code) + ": " + str(self.message)
-        RuntimeError.__init__(self, emsg)
+        RuntimeError.__init__(self, message)
 
