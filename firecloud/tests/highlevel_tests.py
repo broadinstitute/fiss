@@ -35,8 +35,15 @@ class TestFISS(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up workspaces to run tests against conditions."""
+
+        print_("\nStarting high-level CLI tests ...\n", file=sys.stderr)
         # Username of person running the tests
         cls.user = getuser()
+
+        fiss_verbosity = os.environ.get("FISS_TEST_VERBOSITY", None)
+        if fiss_verbosity == None:
+            fiss_verbosity = 0
+        fapi.set_verbosity(fiss_verbosity)
 
         # get a list of available namespaces
 
@@ -61,7 +68,7 @@ class TestFISS(unittest.TestCase):
         # responsible for tearing themselves down.  And, just in case a
         # previous test failed, we attempt to delete before creating
         cls.static_workspace = cls.user + '_FISS_CLI_UNITTEST'
-        fapi.delete_workspace(cls.namespace, cls.static_workspace)
+        r = fapi.delete_workspace(cls.namespace, cls.static_workspace)
         r = fapi.create_workspace(cls.namespace, cls.static_workspace)
         fapi._check_response_code(r, 201)
         sw = r.json()
@@ -137,16 +144,16 @@ class TestFISS(unittest.TestCase):
 
     def test_space_lock_unlock(self):
         """ Test fissfc space_lock + space_unlock """
-        lock_args = ["fissfc", "space_lock", "-p", self.namespace, "-w", self.static_workspace]
 
+        args = ["fissfc", "space_lock", "-p", self.namespace, "-w", self.static_workspace]
         with Capturing() as lock_output:
-            ret = call_fiss(lock_args)
+            ret = call_fiss(args)
         logging.debug(''.join(lock_output))
         self.assertEqual(0, ret)
 
-        unlock_args = ["fissfc", "space_unlock", "-p", self.namespace, "-w", self.static_workspace]
+        args[1] = "space_unlock"
         with Capturing() as unlock_output:
-            ret = call_fiss(unlock_args)
+            ret = call_fiss(args)
         logging.debug(''.join(unlock_output))
         self.assertEqual(0, ret)
 
