@@ -65,7 +65,8 @@ def space_new(args):
                                  args.protected, dict(), args.api_url)
     fapi._check_response_code(r, 201)
     print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
-    print_(r.content)
+    if fapi.get_verbosity():
+        print_(r.content)
 
 @fiss_cmd
 def space_info(args):
@@ -2000,10 +2001,18 @@ def main(argv=None):
         if args.verbose:
             fapi.set_verbosity(1)
 
-        exit_code = args.func(args)
-        if not exit_code:
-            exit_code = 0
-        return exit_code
+        try:
+            status = args.func(args)
+            if status == None:
+                status = 0
+        except FireCloudServerError as e:
+            status = e.code
+            if args.verbose:
+                print(e.message),
+            else:
+                e = json.loads(e.message)
+                print("Error %d (%s): %s" % (status, e["source"], e["message"]))
+        return status
 
 if __name__ == '__main__':
     sys.exit(main())
