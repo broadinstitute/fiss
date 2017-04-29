@@ -2,12 +2,10 @@
 
 import unittest
 import time
-
 import nose
+import sys
 from six import print_
-
 import firecloud.api as fapi
-
 
 class TestFirecloudAPI(unittest.TestCase):
     """Unit test the firecloud.api module.
@@ -19,6 +17,8 @@ class TestFirecloudAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test conditions."""
+
+        print_("\nStarting low-level api tests ...\n", file=sys.stderr)
         cls.timestamp = time.strftime('%Y_%m_%d__%H_%M_%S', time.localtime())
 
         # get a list of available namespaces
