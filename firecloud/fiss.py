@@ -52,6 +52,28 @@ def space_list(args):
         print_(s)
 
 @fiss_cmd
+def space_exists(args):
+    """ Determine if the named space exists in the given project (namespace)"""
+    # Note that the status returned by this method intentionally matches UNIX
+    # exit status semantics (where 0 = good), so scripts can be written like 
+    #   if fiss space_exists blah ; then
+    #      ...
+    #   fi
+    try:
+        r = fapi.get_workspace(args.project, args.workspace, args.api_url)
+        fapi._check_response_code(r, 200)
+        missing = 0
+    except FireCloudServerError as e:
+        if e.code == 404:
+            missing = 1
+        else:
+            raise
+    if not args.quiet:
+        result = "DOES NOT" if missing else "DOES"
+        print_('Space <%s> %s exist in project <%s>' % (args.workspace, result, args.project))
+    return missing
+
+@fiss_cmd
 def space_lock(args):
     """  Lock a workspace. """
     r = fapi.lock_workspace(args.project, args.workspace, args.api_url)
@@ -158,7 +180,6 @@ def entity_list(args):
     fapi._check_response_code(r, 200)
     for entity in r.json():
         print_('{0}\t{1}'.format(entity['entityType'], entity['name']))
-
 
 # REMOVED: This now returns a *.zip* file containing two tsvs, which is far
 # less useful for FISS users...
@@ -1122,7 +1143,6 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None):
             # Anything else is a literal
 
     return invalid_inputs, invalid_outputs, missing_attrs, missing_wksp_attrs
-
 @fiss_cmd
 def runnable(args):
     """ Show me what can be run in a given workspace """
@@ -1251,7 +1271,6 @@ def runnable(args):
         print_("runnable requires a namespace+configuration or entity type")
         return 1
 
-
 #################################################
 # Utilities
 #################################################
@@ -1314,7 +1333,6 @@ def eprint(*args, **kwargs):
     """ Print a message to stderr """
     print_(*args, file=sys.stderr, **kwargs)
 
-
 def __cmd_to_func(cmd):
     """ Returns the function object in this module matching cmd. """
     fiss_module = sys.modules[__name__]
@@ -1347,8 +1365,6 @@ def _valid_headerline(l):
         return tsplit[1].replace('set_', '') == headers[1]
     else:
         return False
-
-
 
 def _batch_load(project, workspace, headerline, entity_data,
                 chunk_size=500, api_url=fapi.PROD_API_ROOT, verbose=False):
@@ -1423,8 +1439,7 @@ def main(argv=None):
     # Initialize core parser (TODO: Add longer description)
     u  = 'fissfc [OPTIONS] CMD [arg ...]\n'
     u += '       fissfc [ --help | -v | --version ]'
-    parser = argparse.ArgumentParser(
-                                     description='FISS: The FireCloud CLI')
+    parser = argparse.ArgumentParser(description='FISS: The FireCloud CLI')
 
     # Core Flags
     url_help = 'Firecloud api url. Your default is ' + default_api_url
@@ -1511,39 +1526,46 @@ def main(argv=None):
     subparsers = parser.add_subparsers(help=argparse.SUPPRESS)
 
     # Create Workspace
-    snew_parser = subparsers.add_parser('space_new', parents=[workspace_parent],
+    subp = subparsers.add_parser('space_new', parents=[workspace_parent],
                                         description='Create new workspace')
     phelp = 'Create a protected (dbGaP-controlled) workspace.'
     phelp += 'You must have linked NIH credentials for this option.'
-    snew_parser.add_argument('--protected', action='store_true', help=phelp)
-    snew_parser.set_defaults(func=space_new)
+    subp.add_argument('--protected', action='store_true', help=phelp)
+    subp.set_defaults(func=space_new)
+
+    # Determine existence of workspace
+    subp = subparsers.add_parser('space_exists', parents=[workspace_parent],
+        description='Determine if given workspace exists in given project')
+    phelp = 'Do not print message, only return numeric status'
+    subp.add_argument('-q', '--quiet', action='store_true', help=phelp)
+    subp.set_defaults(func=space_exists)
 
     #Delete workspace
-    spdel_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'space_delete', parents=[workspace_parent],
         description='Delete workspace'
     )
-    spdel_parser.set_defaults(func=space_delete)
+    subp.set_defaults(func=space_delete)
 
     # Get workspace information
-    si_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'space_info', description='Show workspace information',
         parents=[workspace_parent]
     )
-    si_parser.set_defaults(func=space_info)
+    subp.set_defaults(func=space_info)
 
     # List workspaces
-    space_list_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'space_list', description='List available workspaces'
     )
-    space_list_parser.set_defaults(func=space_list)
+    subp.set_defaults(func=space_list)
 
-    #Lock workspace
-    space_lock_parser = subparsers.add_parser(
+    # Lock workspace
+    subp = subparsers.add_parser(
         'space_lock', description='Lock a workspace',
         parents=[workspace_parent]
     )
-    space_lock_parser.set_defaults(func=space_lock)
+    subp.set_defaults(func=space_lock)
 
     # Unlock Workspace
     space_unlock_parser = subparsers.add_parser(
@@ -1552,40 +1574,39 @@ def main(argv=None):
     )
     space_unlock_parser.set_defaults(func=space_unlock)
 
-    #Clone workspace
+    # Clone workspace
     clone_desc = 'Clone a workspace. The destination namespace or name must be '
     clone_desc += 'different from the workspace being cloned'
-    clone_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'space_clone', description=clone_desc,
         parents=[workspace_parent, dest_space_parent]
     )
+    subp.set_defaults(func=space_clone)
 
-    clone_parser.set_defaults(func=space_clone)
-
-    #Import data into a workspace
-    import_parser = subparsers.add_parser(
+    # Import data into a workspace
+    subp = subparsers.add_parser(
         'entity_import', description='Import data into a workspace',
         parents=[workspace_parent]
     )
-    import_parser.add_argument('-f','--tsvfile', required=True,
+    subp.add_argument('-f','--tsvfile', required=True,
                                help='Tab-delimited loadfile')
-    import_parser.add_argument('-C', '--chunk-size', default=500, type=int,
+    subp.add_argument('-C', '--chunk-size', default=500, type=int,
                                help='Maximum entities to import per api call')
-    import_parser.set_defaults(func=entity_import)
+    subp.set_defaults(func=entity_import)
 
     # List of entity types in a workspace
-    et_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'entity_types', parents=[workspace_parent],
         description='List entity types in a workspace'
     )
-    et_parser.set_defaults(func=entity_types)
+    subp.set_defaults(func=entity_types)
 
-    #List of entities in a workspace
-    el_parser = subparsers.add_parser(
+    # List of entities in a workspace
+    subp = subparsers.add_parser(
         'entity_list', description='List entity types in a workspace',
         parents=[workspace_parent]
     )
-    el_parser.set_defaults(func=entity_list)
+    subp.set_defaults(func=entity_list)
 
     # List entities in tsv format
     # REMOVED: see entity_tsv()
@@ -1596,32 +1617,32 @@ def main(argv=None):
     # etsv_parser.set_defaults(func=entity_tsv)
 
     # List of participants
-    pl_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'participant_list', description='List participants in a workspace',
         parents=[workspace_parent]
     )
-    pl_parser.set_defaults(func=participant_list)
+    subp.set_defaults(func=participant_list)
 
     # List of samples
-    sl_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'sample_list', description='List samples in a workspace',
         parents=[workspace_parent]
     )
-    sl_parser.set_defaults(func=sample_list)
+    subp.set_defaults(func=sample_list)
 
     # List of sample sets
-    ssetl_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'sset_list', description='List sample sets in a workspace',
         parents=[workspace_parent]
     )
-    ssetl_parser.set_defaults(func=sset_list)
+    subp.set_defaults(func=sset_list)
 
     # Delete entity in a workspace
-    edel_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'entity_delete', description='Delete entity in a workspace',
         parents=[workspace_parent, etype_parent, entity_parent]
     )
-    edel_parser.set_defaults(func=entity_delete)
+    subp.set_defaults(func=entity_delete)
 
     partdel_parser = subparsers.add_parser(
         'participant_delete', description='Delete participant in a workspace',
@@ -1719,6 +1740,10 @@ def main(argv=None):
                                  help='Project (workspace namespace)',
                                  required=proj_required)
     subp.set_defaults(func=config_get)
+
+    # FIXME: continue subp = ... meme below, instead of uniquely naming each
+    #        subparse; better yet, most of this can be greatly collapsed and
+    #        pushed into a separate function and/or auto-generated
 
     # Config ACLs
     cfgacl_parser = subparsers.add_parser(
@@ -1966,11 +1991,11 @@ def main(argv=None):
     for pluginInfo in manager.getAllPlugins():
         pluginInfo.plugin_object.register_commands(subparsers)
 
-    ##Special cases, print help with no arguments
+    # Special cases, print help with no arguments
     if len(argv) == 1:
             parser.print_help()
     elif argv[1]=='-l':
-        #Print commands in a more readable way
+        # Print commands in a more readable way
         choices=[]
         for a in parser._actions:
             if isinstance(a, argparse._SubParsersAction):
@@ -1985,7 +2010,7 @@ def main(argv=None):
             if search in c:
                 print_('\t' + c)
     elif argv[1] == '-F':
-        ## Show source for remaining args
+        # Show source for remaining args
         for fname in argv[2:]:
             # Get module name
             fiss_module = sys.modules[__name__]
