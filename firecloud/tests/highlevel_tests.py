@@ -176,6 +176,18 @@ class TestFISS(unittest.TestCase):
         self.assertIn(self.static_workspace, ''.join(sl))
         self.assertEquals(0, ret)
 
+    def test_space_exists(self):
+        """Test space_exists"""
+        args = ["fissfc", "space_exists",
+                  "-p", self.namespace,
+                  "-w", self.static_workspace
+                ]
+        with Capturing() as output:
+            ret = call_fiss(args)
+
+        self.assertIn(self.static_workspace, ''.join(output))
+        self.assertEquals(0, ret)
+
     def test_entity_import(self):
         """Test entity_import """
         eia = ["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
