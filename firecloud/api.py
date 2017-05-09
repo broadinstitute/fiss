@@ -667,7 +667,7 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
         "sourceName"             : from_config
     }
     uri = "{0}/workspaces/{1}/{2}/method_configs/copyToMethodRepo".format(
-                            api_root, namespace, workspace, cnamespace, config)
+                            api_root, namespace, workspace)
     return __post(uri, json=body)
 
 ###########################
