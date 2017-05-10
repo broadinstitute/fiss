@@ -21,8 +21,8 @@ class Config(object):
 
         """
         r = fapi.get_repository_configuration(
-            namespace, config, snapshot_id, api_url)
-        fapi._check_response(r, c, [200])
+            namespace, name, snapshot_id, api_url)
+        fapi._check_response(r, [200])
         self.namespace = namespace
         self.name = name
         self.snapshot_id = snapshot_id
