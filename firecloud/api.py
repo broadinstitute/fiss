@@ -271,7 +271,7 @@ def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     """
     uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
                         api_root, namespace, workspace, etype, ename)
-    return _get(uri, headers=headers)
+    return __get(uri, headers=headers)
 
 def delete_entities(namespace, workspace, json_body, api_root=PROD_API_ROOT):
     """Delete entities in a workspace.
@@ -1089,7 +1089,7 @@ def list_workspaces(api_root=PROD_API_ROOT):
     """
     return __get(api_root+ "/workspaces")
 
-def create_workspace(namespace, name, protected=False,
+def create_workspace(namespace, name, authorizationDomain = "",
                      attributes=None, api_root=PROD_API_ROOT):
     """Create a new FireCloud Workspace.
 
@@ -1108,12 +1108,15 @@ def create_workspace(namespace, name, protected=False,
     uri = "{0}/workspaces".format(api_root)
     if not attributes:
         attributes = dict()
+    
     body = {
         "namespace": namespace,
         "name": name,
-        "attributes": attributes,
-        "isProtected": protected
+        "attributes": attributes        
     }
+    if authorizationDomain:
+        body["authorizationDomain"] = {"membersGroupName": authorizationDomain}
+
     return __post(uri, json=body)
 
 def delete_workspace(namespace, workspace,api_root=PROD_API_ROOT):
