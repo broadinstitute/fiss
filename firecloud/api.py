@@ -812,7 +812,7 @@ def update_repository_method(namespace, method, synopsis,
 
 def delete_repository_method(namespace, name, snapshot_id,
                              api_root=PROD_API_ROOT):
-    """Redact a version of a workflow.
+    """Redacts a method and all of its associated configurations.
 
     The method should exist in the methods repository.
 
@@ -823,10 +823,27 @@ def delete_repository_method(namespace, name, snapshot_id,
         api_root (str): FireCloud API url, if not production
 
     Swagger:
-        UNDOCUMENTED
+        https://api.firecloud.org/#!/Method_Repository/delete_api_methods_namespace_name_snapshotId
     """
-    uri = "{0}/methods/{1}/{2}/{3}".format(api_root, namespace,
-                                           name, snapshot_id)
+    uri = "{0}/methods/{1}/{2}/{3}".format(api_root, namespace, name, snapshot_id)
+    return __delete(uri)
+
+def delete_repository_config(namespace, name, snapshot_id,
+                             api_root=PROD_API_ROOT):
+    """Redacts a configuration and all of its associated configurations.
+
+    The configuration should exist in the methods repository.
+
+    Args:
+        namespace (str): configuration namespace
+        configuration (str): configuration name
+        snapshot_id (int): snapshot_id of the configuration
+        api_root (str): FireCloud API url, if not production
+
+    Swagger:
+        https://api.firecloud.org/#!/Method_Repository/delete_api_configurations_namespace_name_snapshotId
+    """
+    uri = "{0}/configurations/{1}/{2}/{3}".format(api_root, namespace, name, snapshot_id)
     return __delete(uri)
 
 def get_repository_method_acl(namespace, method,
