@@ -73,4 +73,4 @@ class Entity(object):
     def create_loadfile(entities, f):
         """Create payload and save to file."""
         with open(f, 'w') as out:
-            out.write(create_payload(entities))
+            out.write(Entity.create_payload(entities))

@@ -1,5 +1,15 @@
 
-PYTHON_HOME=$(shell ./findPython.sh)
+
+# Makefile.inc: common definitions for use throughout the set of Makefiles
+# in the FissFC build system.  GNU make 3.81 or later is required.
+
+SHELL=/bin/bash
+__FILE__=$(lastword $(MAKEFILE_LIST))
+__PATH__=$(abspath $(dir $(__FILE__)))
+ROOT=$(__PATH__)
+PYTHON_HOME=$(shell $(ROOT)/util/findPython.sh)
+PYLINT=$(ROOT)/util/pylint_wrap.sh
+
 ifeq ($(MAKELEVEL),0)
 $(info Using Python from $(PYTHON_HOME))
 endif
@@ -25,7 +35,11 @@ help:
 	@echo  "4. publish              Submit to PyPI"
 	@echo
 
-test: invoke_tests
+test: lintify invoke_tests
+
+lintify:
+	@echo Running lint to detect potential code problems earlier than at runtime
+	@$(PYLINT) *.py firecloud/*.py
 
 test_cli:
 	@$(MAKE) invoke_tests TESTS=$(HIGHLEVEL_TESTS)
@@ -62,4 +76,4 @@ image:
 clean:
 	rm -rf build dist *.egg-info *~ */*~ *.pyc */*.pyc
 
-.PHONY: help test test_cli test_one install release publish clean
+.PHONY: help test test_cli test_one install release publish clean lintify

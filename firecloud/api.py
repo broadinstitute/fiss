@@ -271,7 +271,8 @@ def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
     """
     uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
                         api_root, namespace, workspace, etype, ename)
-    return __get(uri, headers=headers)
+    return __get(uri)
+
 
 def delete_entities(namespace, workspace, json_body, api_root=PROD_API_ROOT):
     """Delete entities in a workspace.
@@ -667,7 +668,7 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
         "sourceName"             : from_config
     }
     uri = "{0}/workspaces/{1}/{2}/method_configs/copyToMethodRepo".format(
-                            api_root, namespace, workspace, cnamespace, config)
+                            api_root, namespace, workspace)
     return __post(uri, json=body)
 
 ###########################

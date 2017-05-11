@@ -29,5 +29,5 @@ class Submission(object):
         r, c = fapi.create_submission(wnamespace, workspace, cnamespace,
                                       config, entity_id, expression,
                                       api_url)
-    fapi._check_response_code(r, 201)
+        fapi._check_response_code(r, 201)
         #return Submission(wnamespace, workspace, ??)
