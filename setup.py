@@ -27,6 +27,7 @@ setup(
         'requests',
         'six',
         'yapsy',
+        'nose',
         'pylint==1.7.1'
     ],
     classifiers = [

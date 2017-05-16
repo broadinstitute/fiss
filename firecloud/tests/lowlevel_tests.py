@@ -233,10 +233,11 @@ class TestFirecloudAPI(unittest.TestCase):
         """Test get_submission()."""
         pass
 
-    @unittest.skip("Not Implemented")
     def test_get_submission_queue(self):
         """Test get_submission_queue()."""
-        pass
+        r =  fapi.get_submission_queue()
+        print_(r.status_code, r.content)
+        self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
     def test_get_workflow_outputs(self):
