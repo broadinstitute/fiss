@@ -1,20 +1,23 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 import unittest
-import time
 import json
 import logging
 import os
 from getpass import getuser
 import nose
-from six import print_
-from firecloud.fiss import main as call_fiss
+from firecloud.fiss import main as fiss_main
+from firecloud.fccore import fc_config_get
 from firecloud import api as fapi
 
 # Context manager to capture stdout when calling another function
 # Source: http://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
 from cStringIO import StringIO
 import sys
+
+def call_fiss(*args):
+    return fiss_main(["fissfc"] + list(args))
 
 class Capturing(list):
     def __enter__(self):
@@ -34,210 +37,177 @@ class TestFISS(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        """Set up workspaces to run tests against conditions."""
+        '''Set up FireCloud etc to run tests'''
 
-        print_("\nStarting high-level CLI tests ...\n", file=sys.stderr)
-        # Username of person running the tests
-        cls.user = getuser()
+        print("\nStarting high-level CLI tests ...\n", file=sys.stderr)
 
         fiss_verbosity = os.environ.get("FISS_TEST_VERBOSITY", None)
         if fiss_verbosity == None:
             fiss_verbosity = 0
         fapi.set_verbosity(fiss_verbosity)
 
-        # get a list of available namespaces
+        cls.project = fc_config_get("project")
+        if not cls.project:
+            raise ValueError("Your configuration must define a FireCloud project")
 
-        r = fapi.list_billing_projects()
-        projs = [d['projectName'] for d in r.json()]
-
-        # prefer projects names with 'test' in the name, if present
-        test_projs = sorted([p for p in projs if 'test' in p])
-
-        if len(test_projs) > 0:
-            cls.namespace = test_projs[0]
-        elif len(projs) > 0:
-            cls.namespace = projs[0]
-        else:
-            raise ValueError("ERROR: You do not have access to any firecloud"
-                             " billing accounts, aborting tests")
-
-        logging.debug("Running tests using namespace: " + cls.namespace)
-
-        # Set up a static workspace that will exist for the duration of the
-        # tests. Individual workspaces will be created as temp, but are
-        # responsible for tearing themselves down.  And, just in case a
-        # previous test failed, we attempt to delete before creating
-        cls.static_workspace = cls.user + '_FISS_CLI_UNITTEST'
-        r = fapi.delete_workspace(cls.namespace, cls.static_workspace)
-        r = fapi.create_workspace(cls.namespace, cls.static_workspace)
+        # Set up a temp workspace for duration of tests. And in case a previous
+        # test failed, we attempt to unlock & delete before creating anew
+        cls.workspace = getuser() + '_FISS_TEST'
+        r = fapi.unlock_workspace(cls.project, cls.workspace)
+        r = fapi.delete_workspace(cls.project, cls.workspace)
+        r = fapi.create_workspace(cls.project, cls.workspace)
         fapi._check_response_code(r, 201)
-        sw = r.json()
-        cls.sw = sw
 
     @classmethod
     def tearDownClass(cls):
-        """Tear down test conditions."""
-        # Delete all workspaces with _FISS_CLI_UNITTEST in the name
-        workspaces = fapi.list_workspaces().json()
-
-        test_spaces = [w['workspace']['name'] for w in workspaces if '_FISS_CLI_UNITTEST' in w['workspace']['name']]
-        for ts in test_spaces:
-            logging.debug("Deleting workspace: " + ts)
-            fapi.delete_workspace(cls.namespace, ts)
+        print("\nFinishing high-level CLI tests ...\n", file=sys.stderr)
+        r = fapi.delete_workspace(cls.project, cls.workspace)
 
     def test_ping(self):
-        """Test fissfc ping"""
-        ret = call_fiss(["fissfc", "ping"])
-        self.assertEqual(0, ret)
+        self.assertEqual(0, call_fiss("ping"))
 
     def test_space_info(self):
-        """Test fissfc space_info"""
-        fargs = [ "fissfc", "space_info",
-                  "-p", self.namespace,
-                  "-w", self.static_workspace
-                ]
         with Capturing() as fiss_output:
-            ret = call_fiss(fargs)
+            ret = call_fiss("space_info","-p",self.project,"-w",self.workspace)
         logging.debug(fiss_output)
         space_info = json.loads(''.join(fiss_output))
-        self.assertEqual(space_info['workspace']['name'], self.static_workspace)
+        self.assertEqual(space_info['workspace']['name'], self.workspace)
         self.assertEqual(0, ret)
 
     def test_dash_l(self):
-        """Test fissfc -l"""
-        with Capturing() as fiss_output:
-            ret = call_fiss(["fissfc", "-l"])
-        fiss_output = ''.join(fiss_output)
-        logging.debug(fiss_output)
-        self.assertIn("space_info", fiss_output)
+        with Capturing() as output:
+            ret = call_fiss('-l')
+        output = ''.join(output)
+        logging.debug(output)
+        self.assertIn("space_info", output)
 
-        # Also test -l <pattern>
-        with Capturing() as fiss_output2:
-            ret = call_fiss(["fissfc", "-l", "config"])
-        fo2 = ''.join(fiss_output2)
-        logging.debug(fo2)
-        self.assertIn("config_validate", fo2)
-        self.assertNotIn("space_info", fo2)
+        with Capturing() as output:
+            ret = call_fiss("-l", "config")
+        output = ''.join(output)
+        logging.debug(output)
+        self.assertIn("config_validate", output)
+        self.assertNotIn("space_info", output)
 
     def test_dash_F(self):
-        """Test fissfc -F"""
-        with Capturing() as fiss_output:
-            call_fiss(["fissfc", "-F", "space_info"])
-        fo = ''.join(fiss_output)
-        logging.debug(fo)
-        self.assertIn('def space_info(args)', fo)
+        with Capturing() as output:
+            call_fiss("-F", "space_info")
+        output = ''.join(output)
+        logging.debug(output)
+        self.assertIn('def space_info(args)', output)
 
     def test_space_new_delete(self):
-        """ Test fissfc space_new + space_delete """
-        new_args = ["fissfc", "space_new", "-p", self.namespace, "-w", self.static_workspace + "_snd"]
-
-        with Capturing() as new_output:
-            ret = call_fiss(new_args)
-        logging.debug(''.join(new_output))
+        space = self.workspace + "_snd"
+        ret = call_fiss("space_new", "-p", self.project, "-w", space)
         self.assertEqual(0, ret)
-
-        del_args = ["fissfc", "-y", "space_delete", "-p", self.namespace, "-w", self.static_workspace + "_snd"]
-        with Capturing() as del_output:
-            ret = call_fiss(del_args)
-        logging.debug(''.join(del_output))
+        ret = call_fiss("-y", "space_delete", "-p", self.project,"-w",space)
         self.assertEqual(0, ret)
 
     def test_space_lock_unlock(self):
-        """ Test fissfc space_lock + space_unlock """
-
-        args = ["fissfc", "space_lock", "-p", self.namespace, "-w", self.static_workspace]
-        with Capturing() as lock_output:
-            ret = call_fiss(args)
-        logging.debug(''.join(lock_output))
+        args = ("-p", self.project, "-w", self.workspace)
+        with Capturing() as output:
+            ret = call_fiss('space_lock', *args)
+        logging.debug(''.join(output))
         self.assertEqual(0, ret)
 
-        args[1] = "space_unlock"
-        with Capturing() as unlock_output:
-            ret = call_fiss(args)
-        logging.debug(''.join(unlock_output))
+        # Verify LOCKED worked, by trying to delete
+        r = fapi.delete_workspace(self.project, self.workspace)
+        fapi._check_response_code(r, 403)
+
+        with Capturing() as output:
+            ret = call_fiss('space_unlock', *args)
+        logging.debug(''.join(output))
         self.assertEqual(0, ret)
+
+        # Verify UNLOCKED, again by trying to delete
+        r = fapi.delete_workspace(self.project, self.workspace)
+        fapi._check_response_code(r, 202)
+
+        # Lastly, recreate space in case this test was run in series with others
+        r = fapi.create_workspace(self.project, self.workspace)
+        fapi._check_response_code(r, 201)
 
     def test_space_search(self):
-        """Test space_search """
-        ss_args = ["fissfc", "space_search", "-b", self.sw['bucketName']]
-        with Capturing() as search_output:
-            ret = call_fiss(ss_args)
+        # First retrieve information about the space
+        r = fapi.get_workspace(self.project, self.workspace)
+        fapi._check_response_code(r, 200)
+        metadata = r.json()["workspace"]
 
-        # We should get the static bucket back when searching using its bucket name
-        self.assertIn(self.sw['name'], ''.join(search_output))
+        # Now use part of that info (bucket id) to find the space (name)
+        with Capturing() as output:
+            ret = call_fiss("space_search", "-b", metadata['bucketName'])
         self.assertEqual(0, ret)
+        self.assertIn(metadata['name'], ''.join(output))
 
     def test_space_list(self):
-        """Test space_list """
-        sl_args = ["fissfc", "space_list"]
-        with Capturing() as sl:
-            ret = call_fiss(sl_args)
-
-        self.assertIn(self.static_workspace, ''.join(sl))
+        with Capturing() as output:
+            ret = call_fiss("space_list")
+        self.assertIn(self.workspace,''.join(output))
         self.assertEquals(0, ret)
 
     def test_space_exists(self):
-        """Test space_exists"""
-        args = ["fissfc", "space_exists",
-                  "-p", self.namespace,
-                  "-w", self.static_workspace
-                ]
+        ret = call_fiss("space_exists", "-p", self.project, "-w", self.workspace)
+        self.assertEquals(True, ret)
+
+    def test_entity_import_and_list(self):
+        args = ("entity_import", "-p", self.project, "-w", self.workspace,
+               "-f", os.path.join("firecloud", "tests", "participants.tsv"))
+        ret = call_fiss(*args)
+        self.assertEquals(0, ret)
+
+        # Verify import by spot-checking length and content of
+        args = ("participant_list", "-p", self.project, "-w", self.workspace)
         with Capturing() as output:
-            ret = call_fiss(args)
-
-        self.assertIn(self.static_workspace, ''.join(output))
+            ret = call_fiss(*args)
         self.assertEquals(0, ret)
-
-    def test_entity_import(self):
-        """Test entity_import """
-        eia = ["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
-               "-f", os.path.join("firecloud", "tests", "participants.tsv")]
-        ret = call_fiss(eia)
-        self.assertEquals(0, ret)
+        self.assertEquals(2000, len(output))
+        self.assertEquals(True, 'P-0' in output)
+        self.assertEquals(True, 'P-999' in output)
+        self.assertEquals(True, 'P-1999' in output)
 
     def test_attr_workspace(self):
-        """Test attr_get/set on workspace """
-        call_fiss(["fissfc", "-y", "attr_set", "-p", self.namespace, "-w", self.static_workspace,
-                   "-a", "workspace_attr", "-v", "test_value"])
+        call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
+                   "-a", "workspace_attr", "-v", "test_value")
 
-        with Capturing() as fo:
-            ret = call_fiss(["fissfc", "attr_get", "-p", self.namespace, "-w", self.static_workspace,
-                             "-a", "workspace_attr"])
-        logging.debug(''.join(fo))
-        self.assertEquals(''.join(fo), "workspace_attr\ttest_value")
+        with Capturing() as output:
+            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+                             "-a", "workspace_attr")
         self.assertEquals(0, ret)
+        output = ''.join(output)
+        logging.debug(output)
+        self.assertEquals(output, "workspace_attr\ttest_value")
 
     def test_attr_ops(self):
-        """ Test attr_ops on entities"""
         # Upload the 4 test data files
-        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
-                   "-f", os.path.join("firecloud", "tests", "participants.tsv")])
-        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
-                   "-f", os.path.join("firecloud", "tests", "samples.tsv")])
-        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
-                   "-f", os.path.join("firecloud", "tests", "sset_membership.tsv")])
-        call_fiss(["fissfc", "entity_import", "-p", self.namespace, "-w", self.static_workspace,
-                   "-f", os.path.join("firecloud", "tests", "sset.tsv")])
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "participants.tsv"))
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "samples.tsv"))
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "sset_membership.tsv"))
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "sset.tsv"))
 
         # Now call attr_get
-        with Capturing() as fo:
-            ret = call_fiss(["fissfc", "attr_get", "-p", self.namespace, "-w", self.static_workspace,
-                            "-t", "sample_set", "-a", "set_attr_1"])
-        logging.debug('\n'.join(fo))
+        with Capturing() as output:
+            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+                            "-t", "sample_set", "-a", "set_attr_1")
 
-        self.assertEquals('\n'.join(fo), "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
         self.assertEquals(0, ret)
+        output = '\n'.join(output)
+        logging.debug(output)
+        self.assertEquals(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
 
         # Now call attr_set on a sample_set, followed by attr_get
-        call_fiss(["fissfc", "-y", "attr_set", "-p", self.namespace, "-w", self.static_workspace,
-                   "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1", "-v", "Value-E"])
+        call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
+                   "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1", "-v", "Value-E")
 
-        with Capturing() as fo2:
-            ret = call_fiss(["fissfc", "attr_get", "-p", self.namespace, "-w", self.static_workspace,
-                             "-t", "sample_set", "-a", "set_attr_1"])
-        logging.debug('\n'.join(fo2))
-        self.assertEquals('\n'.join(fo2), "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-E")
+        with Capturing() as output:
+            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+                             "-t", "sample_set", "-a", "set_attr_1")
         self.assertEquals(0, ret)
+        output = '\n'.join(output)
+        logging.debug(output)
+        self.assertEquals(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-E")
 
 def main():
     nose.main()

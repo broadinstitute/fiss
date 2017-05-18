@@ -1,5 +1,4 @@
 
-
 # Makefile.inc: common definitions for use throughout the set of Makefiles
 # in the FissFC build system.  GNU make 3.81 or later is required.
 
@@ -56,7 +55,8 @@ invoke_tests:
 	$(TESTS) \
 	2>&1 | egrep -v "egg|nose|Using Python"
 
-install:
+LINTIFY=lintify
+install: $(LINTIFY)
 	$(PIP) install --upgrade .
 
 reinstall:
