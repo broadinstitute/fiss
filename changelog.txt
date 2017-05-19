@@ -1,0 +1,162 @@
+=======================================================================
+Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
+=======================================================================
+
+v0.15.2 -  Introduce __get wrapper for requests.get(), to lessen headers
+           boilerplate in the code and make it possible for --verbose flag
+           to be applied to ALL of the low-level API (e.g. to display the
+           URI of REST calls) at once, without having to pass verbosity flag
+           up and down call stack
+
+v0.15.1 - New high-level 'config_get' command; adjust the low-level methods
+          create_workspace_config() and update_workspace_config() to reflect
+          newer FC api; plus contributed fixes to submission & queue routines
+
+v0.15.0 - New 'config_validate' and 'runnable' commands for evaluating configurations
+          against the state of the data model in a workspace.
+
+v0.14.1 - Bugfixes and validation for supervisor mode. Make flow_set_acl smarter,
+          and make the snapshot_id argument be optional, defaulting to the latest.
+
+v0.14.0 - proj_list command for listing available billing projects. Rename
+          recover_supervisor to supervise_recover, for conceptual symmetry.
+
+v0.13.2 - Fix getting workspace attributes when not using the attributes flag.
+
+v0.13.1 - More helpful error checking for loadfile format during entity_import.
+
+v0.13.0 - Some fixes to match API changes in FireCloud Orchestration and
+          several new commands:
+
+          supervise -- a robust mechanism of submitting related
+            workflows similar to Firehose workflows. Workflows described in DOT
+            can be submitted and monitored in one command, and fissfc will
+            monitor the entire workflow until completion.
+
+          recover_supervisor -- supervise saves workflow execution state after
+            each API call, so that the monitor can be restarted with this
+            command in case of a FISS crash.
+
+          attr_set -- set attributes in a workspace.
+
+          attr_delete -- delete attributes in a workspace.
+
+          attr_copy -- copy attributes from one workspace to another.
+
+          entity_copy -- copy entities from one workspace to another. Note that
+            referential constraints currently limit the ability to overwrite
+            entities in the target workspace.
+
+v0.12.0 - Large refactor of argument handling for FISS. Almost all arguments
+          are now passed using flags instead of positional arguments, enabling
+          the argument namespace to be shared by command iterators. This allows
+          sset_loop (a new looping command) to call multiple FISS commands
+          without having to reparse arguments.
+
+          New FISS command for submitting workflows, 'flow_submit'.
+
+v0.11.0 - New endpoint for paginated entity queries, also used by attr_get
+          to more reliably return attributes on large workspaces.
+
+          Also added new FISS command `attr_fill_null`, which will assign null
+          sentinel files to entities which do not have a valid attribute. This,
+          in a sense, "fills in" the sparse matrix of data for a given list of
+          attributes.
+
+v0.10.1 - Fix Py3 compatibility issues.
+
+v0.10.0 - Remove `fiss` entrypoint, to not overwrite fiss 1.0 installs. New fiss
+          "mop" command, to clean files that are not referenced in a workspace
+          attribute from the underlying google bucket.
+
+v0.9.6 - Fix expected response code for entity_import
+
+v0.9.5 - Fix urllib compatibility issue in upload_entities
+
+v0.9.4 - Add ability to change inputs and other configuration details in a
+         workspace configuration
+
+v0.9.3 - Improved documentation. Fixed url for method configurations in a workspace.
+
+v0.9.2 - Remove file-based check for getting application default credentials,
+         improving support for Jupyter-based sessions.
+
+v0.9.1 - Fix expected return code for flow_new.
+
+v0.9.0 - Replace Httplib2 with Requests, which resolves the SSL handshake issue
+         for python3. Added six to required packages, making FireCloud fully
+         compatible with python 2 & 3. Add links to FireCloud's swagger
+         documentation.
+
+v0.8.1 - Improved test coverage. Enhanced interactive classes. Fixed error logic
+         to match new server response.
+
+v0.8.0 - firecloud.api now boasts 100% coverage of existing (useful) API endpoints.
+
+         Several api endpoints for manipulating NIH credentials and profile info
+         will deliberately remain unimplemented unless a good reason arises. Any
+         discrepancies are noted in the api module's docstring; see
+         help(firecloud.api) for a lengthy overview.
+
+         New Method and Configuration objects.
+         >>> m = Method("broad-firecloud-gdac", "gistic2", 1)
+
+
+v0.7.4 - FISS functions can now display their source code with the -F option.
+
+v0.7.3 - Improved documentation, with docstrings for every public function.
+         This enables python's builtin help system to be used from the REPL.
+         To see all the available firecloud api calls:
+         % python
+         >>> import firecloud
+         >>> help(firecloud.api)
+
+v0.7.2 - Fix some commands that broke with the API changes
+
+v0.7.1 - Add workspace functions for importing entities and creating entity sets.
+
+v0.7.0 - Renamed package "firecloud", replacing "fissfc"
+            - firecloud_cli.py renamed fiss.py
+            - firecloud_api.py renamed api.py
+         Added workspace class for more flexible python interactivity. Example:
+           >>> w = Workspace.new("broad-firecloud-testing", "my_workspace")
+           >>> w.bucket()
+           "fc-92e4ic0a-60fb-454a-8ue0-d0efea803421"
+           >>> w.lock()
+         Added better error messaging for unexpected FireCloud Errors
+
+v0.6.2 - Add '--protected' option for workspace creation.
+
+v0.6.1 - Firecloud production API is now https://api.firecloud.org/api
+
+v0.6.0 - Refactored the argument structure for inferring a default project.
+         Instead of passing the namespace as an optional input to a
+         subcommand, the project can be overriden explicitly with the -p
+         top-level flag. This cleans up the syntax for many commands, and
+         makes the help clearer.
+
+         Add --all option to space_list
+         attr_get:
+             * attributes now given a a list of positional arguments,
+                  instead of comma-separated
+             * entity type limited to firecloud supported entities
+         Fixed help messages for many commands
+
+
+v0.5.0 - Add python 3 support, so that fissfc should be installable to
+         either version. A TLS issue may still prevent fissfc from
+         working on some versions of python.
+
+v0.4.1 - Add attr_get subcommand, as a replacement for fiss annot_get.
+         Clarify error message.
+
+v0.4.0 - Implement default value for google project into most subcommands
+
+v0.3.2 - Add check in firecloud_api for  the existence of gcloud credentials
+
+v0.3.1 - Add confirmation prompt for delete commands, and a
+         Flag to override them.
+
+v0.3.0 - Added support for Yapsy plugins.
+
+v0.0.1 - Initial Release
