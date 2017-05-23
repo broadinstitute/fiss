@@ -13,8 +13,11 @@ from firecloud import api as fapi
 
 # Context manager to capture stdout when calling another function
 # Source: http://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
-from cStringIO import StringIO
+# from cStringIO import StringIO
+# replace cStringIO with StringIO for python3 compatibility
+from io import StringIO
 import sys
+import ast
 
 class Capturing(list):
     def __enter__(self):
@@ -22,7 +25,10 @@ class Capturing(list):
         sys.stdout = self._stringio = StringIO()
         return self
     def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
+        if sys.version_info[0] < 3:
+            self.extend(self._stringio.getvalue().splitlines())
+        else:
+            self.extend(ast.literal_eval(self._stringio.getvalue()).decode().splitlines())
         del self._stringio    # free up some memory
         sys.stdout = self._stdout
 

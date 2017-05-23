@@ -84,7 +84,7 @@ def space_lock(args):
 def space_new(args):
     """ Create a new workspace. """
     r = fapi.create_workspace(args.project, args.workspace,
-                                 args.protected, dict(), args.api_url)
+                                 args.authdomain, dict(), args.api_url)
     fapi._check_response_code(r, 201)
     print_('Created workspace {0}/{1}'.format(args.project, args.workspace))
     if fapi.get_verbosity():
@@ -1528,9 +1528,9 @@ def main(argv=None):
     # Create Workspace
     subp = subparsers.add_parser('space_new', parents=[workspace_parent],
                                         description='Create new workspace')
-    phelp = 'Create a protected (dbGaP-controlled) workspace.'
-    phelp += 'You must have linked NIH credentials for this option.'
-    subp.add_argument('--protected', action='store_true', help=phelp)
+    phelp = 'Limit access to the workspace to a specific authorization domain. '
+    phelp += 'For dbGaP-controlled access (domain name: dbGapAuthorizedUsers) you must have linked NIH credentials to your account.'
+    subp.add_argument('--authdomain', default="", help=phelp)
     subp.set_defaults(func=space_new)
 
     # Determine existence of workspace
