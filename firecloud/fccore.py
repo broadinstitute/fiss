@@ -19,6 +19,8 @@ import sys
 import os
 import configparser
 from firecloud import __about__
+from io import IOBase
+
 
 class attrdict(dict):
     """ dict whose members can be accessed as attributes, and default value is
@@ -83,7 +85,7 @@ def fc_config_parse(config=None, *files):
 
     fileNames = list()
     for f in files:
-        if isinstance(f, file):
+        if isinstance(f, IOBase):
             f = f.name
         fileNames.append(f)
 
