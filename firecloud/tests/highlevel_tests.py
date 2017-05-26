@@ -4,7 +4,7 @@ from __future__ import print_function
 import unittest
 import json
 import logging
-import os
+import os, re
 from getpass import getuser
 import nose
 from firecloud.fiss import main as fiss_main
@@ -13,11 +13,26 @@ from firecloud import api as fapi
 
 # Context manager to capture stdout when calling another function
 # Source: http://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
-from cStringIO import StringIO
+# from cStringIO import StringIO
+# replace cStringIO with StringIO for python3 compatibility
+from io import StringIO
 import sys
 
 def call_fiss(*args):
     return fiss_main(["fissfc"] + list(args))
+
+def workspace_extract(response):
+    p = re.compile(r'.*workspaceId.*?"name": "(.*?)".*')
+    if isinstance(response, list):
+        if sys.version_info > (3,):
+            m = [m.group(1) for resp in response for m in [p.search(resp)] if m]
+        else:
+            rsp = ''.join(response)
+            m = [m.group(1) for m in [p.search(rsp)] if m]
+        return m.pop() if m else ""
+    else:
+        m = p.search(response)
+    return m.group(1) if m else ""
 
 class Capturing(list):
     def __enter__(self):
@@ -70,8 +85,8 @@ class TestFISS(unittest.TestCase):
         with Capturing() as fiss_output:
             ret = call_fiss("space_info","-p",self.project,"-w",self.workspace)
         logging.debug(fiss_output)
-        space_info = json.loads(''.join(fiss_output))
-        self.assertEqual(space_info['workspace']['name'], self.workspace)
+        space_info = workspace_extract(fiss_output)
+        self.assertEqual(space_info, self.workspace)
         self.assertEqual(0, ret)
 
     def test_dash_l(self):
@@ -131,7 +146,6 @@ class TestFISS(unittest.TestCase):
         r = fapi.get_workspace(self.project, self.workspace)
         fapi._check_response_code(r, 200)
         metadata = r.json()["workspace"]
-
         # Now use part of that info (bucket id) to find the space (name)
         with Capturing() as output:
             ret = call_fiss("space_search", "-b", metadata['bucketName'])

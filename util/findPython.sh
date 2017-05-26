@@ -1,34 +1,40 @@
 #!/bin/bash
 
-# findPython.sh: help determine installation location for this package,
-#                by identifying existing candidate Python installations
+# config.sh: Help determine installation location for gdctools package,
+#            by identifying existing Python installations as candidates.
 
 InstallDir=
 
-# Use any Python3 installation, or Python2 if >= 2.7
-Python=`type -P python`
-if [ -n "$Python" ] ; then
-    case `python --version 2>&1 | awk '{print $NF}'` in
-        2.7*| 3.*)
-            InstallDir=`dirname $Python`
-            InstallDir=`dirname $InstallDir`
-            ;;
-    esac
+if [ -n "$1" ] ; then
+    PythonExe=$1
+    shift
+else
+    PythonExe=python
+fi
+
+# For convenience, give precedence to well-known directories @ Broad Institute
+BroadDirs="/local/firebrowse/latest /xchip/tcga/Tools/gdac/latest"
+for dir in $BroadDirs ; do
+    if [ -d $dir ] ; then
+        InstallDir=$dir
+        break
+    fi
+done
+
+if [ -z "$InstallDir" ] ; then
+    if [ -n "$VIRTUAL_ENV" ] ; then
+      InstallDir=$VIRTUAL_ENV
+    else
+      Python=`type -P $PythonExe`
+      if [ -n "$Python" ]; then
+        InstallDir=`dirname $Python`
+        InstallDir=`dirname $InstallDir`
+      fi
+    fi
 fi
 
 if [ -z "$InstallDir" ] ; then
-    # Nothing found: for convenience, look for well-known dirs @ Broad Institute
-    BroadDirs="/local/firebrowse/latest /xchip/tcga/Tools/gdac/latest"
-    for dir in $BroadDirs ; do
-        if [ -d $dir ] ; then
-            InstallDir=$dir
-            break
-        fi
-    done
-fi
-
-if [ -z "$InstallDir" ] ; then
-    echo "Error: could not find an appropriate python installation to use" >&2
+    echo "Error: could not find a $PythonExe installation to use" >&2
     exit 1
 fi
 
