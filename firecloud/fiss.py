@@ -14,7 +14,7 @@ import argparse
 import subprocess
 import re
 
-from six import iteritems, string_types, itervalues
+from six import iteritems, string_types, itervalues, u
 from six.moves import input
 
 from firecloud import api as fapi
@@ -274,8 +274,8 @@ def space_set_acl(args):
         print("Successfully updated {0} role(s)".format(len(acl_updates)))
     else:
         print("Unable to assign role to the following users (usernames not found):")
-        for u in update_info['usersNotFound']:
-            print(u['email'])
+        for u_info in update_info['usersNotFound']:
+            print(u_info['email'])
         return 1
 
 @fiss_cmd
@@ -445,7 +445,7 @@ def attr_get(args):
             attr_list = sorted(attr_list)
 
         header = args.entity_type + "_id\t" + "\t".join(attr_list)
-        print(header)
+        print(u(header))
 
         for entity_dict in entities:
             name = entity_dict['name']
@@ -1422,7 +1422,7 @@ __PatternsToFilter = [
     #  [regex_to_match, replacement_template, match_groups_to_fill_in_template]
     ['^(.+)SlickWorkspaceContext\(Workspace\(([^,]+),([^,]*).*$', '%s%s::%s', (1,2,3) ],
 ]
-for i in xrange(len(__PatternsToFilter)):
+for i in range(len(__PatternsToFilter)):
     __PatternsToFilter[i][0] = re.compile(__PatternsToFilter[i][0])
 
 def __pretty_print_fc_exception(e):
@@ -1441,11 +1441,11 @@ def unroll_value(value):
     retval = value if isinstance(value, int) else 0
     if isinstance(value, dict):
         for k, v in sorted(value.items()):
-            print("{0}\t{1}".format(k,v))
+            print(u("{0}\t{1}".format(k,v)))
     elif isinstance(value, list):
-        map(print, value)
+        list(map(print, value))
     elif not isinstance(value, int):
-        print("{0}".format(value))
+        print(u("{0}".format(value)))
     return retval
 
 #################################################
@@ -1462,8 +1462,8 @@ def main(argv=None):
     workspace_required = not bool(fcconfig.workspace)
 
     # Initialize core parser (TODO: Add longer description)
-    u  = 'fissfc [OPTIONS] CMD [arg ...]\n'
-    u += '       fissfc [ --help | -v | --version ]'
+    descrip  = 'fissfc [OPTIONS] CMD [arg ...]\n'
+    descrip += '       fissfc [ --help | -v | --version ]'
     parser = argparse.ArgumentParser(description='FISS: The FireCloud CLI')
 
     # Core Flags
@@ -2037,7 +2037,7 @@ def main(argv=None):
 
     # Special cases, print help with no arguments
     if len(argv) == 1:
-            parser.printhelp()
+            parser.print_help()
     elif argv[1]=='-l':
         # Print commands in a more readable way
         choices=[]
@@ -2052,7 +2052,7 @@ def main(argv=None):
             search = argv[2]
         for c in sorted(choices):
             if search in c:
-                print('\t' + c)
+                print(u('\t{0}'.format(c)))
     elif argv[1] == '-F':
         # Show source for remaining args
         for fname in argv[2:]:
@@ -2061,7 +2061,7 @@ def main(argv=None):
             try:
                 func = getattr(fiss_module, fname)
                 source_lines = ''.join(getsourcelines(func)[0])
-                print(source_lines)
+                print(u(source_lines))
             except AttributeError:
                 pass
     else:
