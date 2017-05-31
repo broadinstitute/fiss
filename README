@@ -2,7 +2,7 @@
 1. Description
 =======================================================================
 
-FISS -- (Fi)reCloud (S)ervice (Selector)
+FISS -- (Fi)reCloud (S)ervice (S)elector
 
 FISS is a programmatic interface to FireCloud (FC), providing a set of low- and
 high-level Python bindings to the FireCloud API, as well as UNIX bindings for
