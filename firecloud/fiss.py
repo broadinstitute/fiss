@@ -1462,9 +1462,9 @@ def main(argv=None):
     workspace_required = not bool(fcconfig.workspace)
 
     # Initialize core parser (TODO: Add longer description)
-    descrip  = 'fissfc [OPTIONS] CMD [arg ...]\n'
-    descrip += '       fissfc [ --help | -v | --version ]'
-    parser = argparse.ArgumentParser(description='FISS: The FireCloud CLI')
+    usage  = 'fissfc [OPTIONS] CMD [arg ...]\n'
+    usage += '       fissfc [ --help | -v | --version ]'
+    parser = argparse.ArgumentParser(usage=usage, description='FISS: The FireCloud CLI')
 
     # Core Flags
     url_help = 'Firecloud api url. Your default is ' + fcconfig.api_url
@@ -1480,6 +1480,11 @@ def main(argv=None):
 
     parser.add_argument("-y", "--yes", action='store_true',
                 help="Assume yes for any prompts")
+
+    parser.add_argument("-l", "--list", dest="l", action='store_false',
+                        help="list availble commands")
+    parser.add_argument("-F", "--function", dest="F", action='store_false',
+                        help="describe arguments for commands")
 
     # Many commands share arguments, and we can make parent parsers to make it
     # easier to reuse arguments. Commands that operate on workspaces
