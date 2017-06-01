@@ -1551,7 +1551,8 @@ def main(argv=None):
                             help='List of attributes')
 
     ## Create one subparser for each fiss equivalent
-    subparsers = parser.add_subparsers(help=argparse.SUPPRESS)
+    subparsers = parser.add_subparsers(prog='fissfc [OPTIONS]',
+                                       help=argparse.SUPPRESS)
 
     # Create Workspace
     subp = subparsers.add_parser('space_new', parents=[workspace_parent],
