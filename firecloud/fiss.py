@@ -374,11 +374,11 @@ def config_list(args):
     methods = r.json()
     results = []
     for m in methods:
-         ns = m['namespace']
-         n = m['name']
-         # Use the get syntax here since workspace configs have no snapshot_id
-         sn_id = m.get('snapshotId', "")
-         results.append('{0}\t{1}\t{2}'.format(ns,n,sn_id))
+        ns = m['namespace']
+        n = m['name']
+        # Use the get syntax here since workspace configs have no snapshot_id
+        sn_id = m.get('snapshotId', "")
+        results.append('{0}\t{1}\t{2}'.format(ns,n,sn_id))
 
     #Sort for easier viewing, ignore case
     results = sorted(results, key=lambda s: s.lower())
@@ -1462,15 +1462,17 @@ def main(argv=None):
     workspace_required = not bool(fcconfig.workspace)
 
     # Initialize core parser (TODO: Add longer description)
-    descrip  = 'fissfc [OPTIONS] CMD [arg ...]\n'
-    descrip += '       fissfc [ --help | -v | --version ]'
-    parser = argparse.ArgumentParser(description='FISS: The FireCloud CLI')
+    usage  = 'fissfc [OPTIONS] [CMD [-h | arg ...]]'
+    epilog = 'positional arguments:\n' + \
+             '  CMD [-h | arg ...]    Command and arguments to run.'
+    parser = argparse.ArgumentParser(description='FISS: The FireCloud CLI',
+                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     usage=usage, epilog=epilog)
 
     # Core Flags
-    url_help = 'Firecloud api url. Your default is ' + fcconfig.api_url
     parser.add_argument('-u', '--url', dest='api_url',
                         default=fcconfig.api_url,
-                        help=url_help)
+                        help='Firecloud api url. Your default is %(default)s')
 
     parser.add_argument("-v", "--version",
                 action='version', version=__version__)
@@ -1480,6 +1482,10 @@ def main(argv=None):
 
     parser.add_argument("-y", "--yes", action='store_true',
                 help="Assume yes for any prompts")
+    parser.add_argument("-l", "--list", nargs='?', metavar="CMD",
+                        help="list or search available commands and exit")
+    parser.add_argument("-F", "--function", nargs='+', metavar="CMD",
+                        help="Show the code for the given command(s) and exit")
 
     # Many commands share arguments, and we can make parent parsers to make it
     # easier to reuse arguments. Commands that operate on workspaces
@@ -1516,11 +1522,7 @@ def main(argv=None):
     # Commands that require an entity name
     entity_parent = argparse.ArgumentParser(add_help=False)
     entity_parent.add_argument(
-        '-e', '--entity', required=True,
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ], help="FireCloud entity name"
+        '-e', '--entity', required=True, help="FireCloud entity name"
     )
 
     # Commands that work with methods
@@ -1549,7 +1551,8 @@ def main(argv=None):
                             help='List of attributes')
 
     ## Create one subparser for each fiss equivalent
-    subparsers = parser.add_subparsers(help=argparse.SUPPRESS)
+    subparsers = parser.add_subparsers(prog='fissfc [OPTIONS]',
+                                       help=argparse.SUPPRESS)
 
     # Create Workspace
     subp = subparsers.add_parser('space_new', parents=[workspace_parent],
@@ -1951,11 +1954,12 @@ def main(argv=None):
                              help='Methods namespace')
     sup_parser.add_argument('-s', '--sample-sets', nargs='+',
                             help='Sample sets to run workflow on')
-    jhelp = "File to save monitor data. This file can be passed to "
-    jhelp = "fissfc supervise_recover in case the supervisor crashes"
+    jhelp = "File to save monitor data. This file can be passed to " + \
+            "fissfc supervise_recover in case the supervisor crashes " + \
+            "(Default: %(default)s)"
     recovery = os.path.expanduser('~/.fiss/monitor_data.json')
     sup_parser.add_argument('-j', '--json-checkpoint', default=recovery,
-                            help='Name of file to save monitor data')
+                            help=jhelp)
     sup_parser.set_defaults(func=supervise)
 
     # Recover an old supervisor
@@ -2038,7 +2042,7 @@ def main(argv=None):
     # Special cases, print help with no arguments
     if len(argv) == 1:
             parser.print_help()
-    elif argv[1]=='-l':
+    elif argv[1] in ('-l', '--list'):
         # Print commands in a more readable way
         choices=[]
         for a in parser._actions:
@@ -2053,7 +2057,7 @@ def main(argv=None):
         for c in sorted(choices):
             if search in c:
                 print(u('\t{0}'.format(c)))
-    elif argv[1] == '-F':
+    elif argv[1] in ('-F', '--function'):
         # Show source for remaining args
         for fname in argv[2:]:
             # Get module name
