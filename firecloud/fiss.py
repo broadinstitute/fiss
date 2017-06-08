@@ -937,28 +937,39 @@ def config_cmd(args):
 @fiss_cmd
 def flow_start(args):
     '''Start running a workflow, on given entity in given space'''
-    print("Starting {0} on {1} in {2}/{3}".format(
-        args.config, args.entity, args.project, args.workspace
-    ))
+
+    # Try to use call caching (job avoidance)?  Flexibly accept range of answers
+    cache = getattr(args, "cache", True)
+    cache = cache is True or (cache.lower() in ["y", "true", "yes", "t", "1"])
+
+    if not args.namespace:
+        args.namespace = fcconfig.method_ns
+    if not args.namespace:
+        raise RuntimeError("namespace not provided, or configured by default")
+
     r = fapi.create_submission(args.project, args.workspace,
                                args.namespace, args.config,
                                args.entity, args.entity_type, args.expression,
-                               use_callcache=args.cache,
+                               use_callcache=cache,
                                api_root=args.api_url)
     fapi._check_response_code(r, 201)
     id = r.json()['submissionId']
-    print("Started {0}: id={1}".format(args.config, id))
+
+    # FIXME: this should not print (but rather return a value) ... but at
+    # present the sset_loop() implementation won't handle that well
+    print("Started {0}/{1} in {2}/{3}: id={4}".format(
+        args.namespace, args.config, args.project, args.workspace, id))
 
 @fiss_cmd
 def sset_loop(args):
     """ Loop over sample sets in a workspace, performing a func """
-    # Ensure the action is a valid fiss_cmd
+    # Ensure that the requested action is a valid fiss_cmd
     fiss_func = __cmd_to_func(args.action)
     if not fiss_func:
         eprint("ERROR: invalid FISS cmd '" + args.action + "'")
         return 1
 
-    #First get the sample sets
+    # First get the sample sets
     r = fapi.get_entities(args.project, args.workspace,
                           "sample_set", args.api_url)
     fapi._check_response_code(r, 200)
@@ -977,7 +988,7 @@ def sset_loop(args):
         try:
             code = fiss_func(args)
         except Exception as e:
-            eprint("Error: " + str(e))
+            __pretty_print_fc_exception(e)
             code = -1
 
         if not args.keep_going and code:
@@ -1454,16 +1465,26 @@ for i in range(len(__PatternsToFilter)):
     __PatternsToFilter[i][0] = re.compile(__PatternsToFilter[i][0])
 
 def __pretty_print_fc_exception(e):
-    code = e.code
-    e = json.loads(e.message)
-    source = e["source"]
-    msg = e["message"]
-    for pattern in __PatternsToFilter:
-        match = pattern[0].match(msg)
-        if match:
-            msg = pattern[1] % (match.group(*(pattern[2])))
-            break
-    print("Error %d (%s): %s" % (code, source, msg))
+    # Look for integer error code, but fallback to the exception's classname
+    preface = 'Error '
+    code = getattr(e, "code", type(e).__name__)
+    try:
+        # Attempt to unpack error message as JSON
+        e = json.loads(e.message)
+        source = ' (' + e["source"] + ')'
+        msg = e["message"]
+        for pattern in __PatternsToFilter:
+            match = pattern[0].match(msg)
+            if match:
+                msg = pattern[1] % (match.group(*(pattern[2])))
+                break
+    except Exception as je:
+        # Could not unpack error message as JSON, fallback to original message
+        if isinstance(code, str):
+            preface = ''
+        source  = ''
+        msg = e.message
+    print("{0}{1}{2}: {3}".format(preface, code, source, msg))
 
 def unroll_value(value):
     retval = value if isinstance(value, int) else 0
@@ -1959,7 +1980,7 @@ def main(argv=None):
     expr_help += " match the method configuration. Example: 'this.samples'"
     subp.add_argument('-x', '--expression', help=expr_help, default='')
     subp.add_argument('-C', '--cache', default=True,
-        help='use previously cached results, if possible [%(default)s]')
+        help='boolean: use previously cached results if possible [%(default)s]')
     subp.set_defaults(func=flow_start)
 
     # Loop over sample sets, performing a command
@@ -2120,14 +2141,11 @@ def main(argv=None):
             result = args.func(args)
             if result == None:
                 result = 0
-        except FireCloudServerError as e:
-            result = e.code
+        except Exception as e:
+            result = getattr(e, "code", type(e).__name__)
             if args.verbose:
                 eprint(e.message),
             __pretty_print_fc_exception(e)
-        except RuntimeError as e:
-            eprint(e.message)
-            return 1
 
         return unroll_value(result)
 
