@@ -405,22 +405,50 @@ def config_get(args):
     return r.text
 
 @fiss_cmd
+def config_delete(args):
+    """ Remove a method config from a workspace """
+    r = fapi.delete_workspace_config(args.project, args.workspace,  args.namespace, args.config, args.api_url)
+    fapi._check_response_code(r, [200,204])
+    return r.text if r.text else None
+
+@fiss_cmd
 def config_copy(args):
-    """ Copy a method config from one workspace to another """
-    copy = fapi.get_workspace_config(args.project, args.fromspace,
+    """ Copy a method config to new name/space/namespace/project (or all 4)"""
+    if not (args.tospace or args.toname or args.toproject or args.tonamespace):
+        raise RuntimeError('A new config name OR workspace OR project OR '\
+                            'namespace must be given (or all)')
+
+    copy = fapi.get_workspace_config(args.fromproject, args.fromspace,
                             args.namespace, args.config, args.api_url)
     fapi._check_response_code(copy, 200)
 
+    copy = copy.json()
+    if not args.toname:
+        args.toname = args.config
+
+    if not args.tonamespace:
+        args.tonamespace = args.namespace
+
+    if not args.toproject:
+        args.toproject = args.fromproject
+
+    if not args.tospace:
+        args.tospace = args.fromspace
+
+    copy['name'] = args.toname
+    copy['namespace'] = args.tonamespace
+
     # If existing one already exists, delete first
-    r = fapi.get_workspace_config(args.project, args.tospace,
-                            args.namespace, args.config, args.api_url)
+    r = fapi.get_workspace_config(args.toproject, args.tospace,
+                            args.tonamespace, args.toname, args.api_url)
     if r.status_code == 200:
-        r = fapi.delete_workspace_config(args.project, args.tospace,
-                            args.namespace, args.config, args.api_url)
+        r = fapi.delete_workspace_config(args.toproject, args.tospace,
+                            args.tonamespace, args.toname, args.api_url)
         fapi._check_response_code(r, 204)
 
-    r = fapi.create_workspace_config(args.project, args.tospace,
-                            copy.json(), args.api_url)
+    # Finally, instantiate the copy
+    r = fapi.create_workspace_config(args.toproject, args.tospace,
+                                            copy, args.api_url)
     fapi._check_response_code(r, 201)
 
     return 0
@@ -1747,38 +1775,52 @@ def main(argv=None):
     )
     flow_list_parser.set_defaults(func=flow_list)
 
-    # List available configurations
-    cfg_list_parser = subparsers.add_parser(
-        'config_list', description='List available configurations'
-    )
-    cfg_list_parser.add_argument('-w', '--workspace', help='Workspace name',
+    # Configuration: list
+    subp = subparsers.add_parser(
+        'config_list', description='List available configurations')
+    subp.add_argument('-w', '--workspace', help='Workspace name',
                 default=fcconfig.workspace, required=workspace_required)
     proj_help =  'Project (workspace namespace).'
-    cfg_list_parser.add_argument('-p', '--project', default=fcconfig.project,
+    subp.add_argument('-p', '--project', default=fcconfig.project,
                                  help=proj_help, required=proj_required)
-    cfg_list_parser.set_defaults(func=config_list)
+    subp.set_defaults(func=config_list)
 
+    # Configuration: delete
+    subp = subparsers.add_parser(
+        'config_delete', description='Delete a workspace configuration',
+        parents=[conf_parent])
+    subp.add_argument('-w', '--workspace', help='Workspace name',
+                default=fcconfig.workspace, required=workspace_required)
+    proj_help =  'Project (workspace namespace).'
+    subp.add_argument('-p', '--project', default=fcconfig.project,
+                                 help=proj_help, required=proj_required)
+    subp.set_defaults(func=config_delete)
+
+    # Configuration: retrieve (get)
     subp = subparsers.add_parser(
         'config_get', description='Retrieve method configuration (definition)',
-        parents=[conf_parent]
-    )
+        parents=[conf_parent])
     subp.add_argument('-w', '--workspace', help='Workspace name',
                     default=fcconfig.workspace, required=workspace_required)
     subp.add_argument('-p', '--project', default=fcconfig.project,
-                                 help='Project (workspace namespace)',
-                                 required=proj_required)
+        help='Project (workspace namespace)', required=proj_required)
     subp.set_defaults(func=config_get)
 
-    subp = subparsers.add_parser('config_copy',
-            description='Copy a method config from one workspace to another',
-            parents=[conf_parent]
+    # Configuration: copy
+    subp = subparsers.add_parser('config_copy',description=
+        'Copy a method config to a new name/space/namespace/project, '\
+        'at least one of which MUST be specified.',
+        parents=[conf_parent]
     )
-    subp.add_argument('-p', '--project', default=fcconfig.project,
+    subp.add_argument('-p', '--fromproject', default=fcconfig.project,
                                  help='Project (workspace namespace)',
                                  required=proj_required)
     subp.add_argument('-f', '--fromspace', help='from workspace',
                     default=fcconfig.workspace, required=workspace_required)
-    subp.add_argument('-t', '--tospace', help='to workspace', required=True)
+    subp.add_argument('-C', '--toname', help='name of the copied config')
+    subp.add_argument('-T', '--tospace', help='destination workspace')
+    subp.add_argument("-N", "--tonamespace", help="destination namespace")
+    subp.add_argument("-P", "--toproject", help="destination project")
     subp.set_defaults(func=config_copy)
 
     # FIXME: continue subp = ... meme below, instead of uniquely naming each
@@ -2081,8 +2123,11 @@ def main(argv=None):
         except FireCloudServerError as e:
             result = e.code
             if args.verbose:
-                print(e.message),
+                eprint(e.message),
             __pretty_print_fc_exception(e)
+        except RuntimeError as e:
+            eprint(e.message)
+            return 1
 
         return unroll_value(result)
 
