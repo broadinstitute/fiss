@@ -14,8 +14,8 @@ $(info Using Python from $(PYTHON_HOME))
 endif
 DEST=$(PYTHON_HOME)
 BIN_DIR=$(DEST)/bin                 # Python virtual environment here
-PYTHON=$(DEST)/bin/python
-PIP=$(DEST)/bin/pip
+PYTHON=$(DEST)/bin/python$(PYTHON_VER)
+PIP=$(DEST)/bin/pip$(PYTHON_VER)
 VERBOSITY_NOSE=3
 VERBOSITY_FISS=0
 HIGHLEVEL_TESTS=--tests=firecloud/tests/highlevel_tests.py
@@ -35,6 +35,9 @@ help:
 	@echo
 
 test: lintify invoke_tests
+
+test3:
+	$(MAKE) -e PYTHON_VER=3 test
 
 lintify:
 	@echo Running lint to detect potential code problems earlier than at runtime
