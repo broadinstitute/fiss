@@ -2,6 +2,16 @@
 Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 
+v0.16.0 -  Major refactoring: yapsy plugin system removed, replaced with
+           ConfigParser module, which employs simpler and clearer INI-style
+           config files (similar to GIT config); to enable high level API
+           (HL) to be called from other Python scripts (not just UNIX cli),
+           discontinue using print statements to convey results of HL calls,
+           in favor of returning objects (which the CLI repl will simply
+           print at exit; put root api_url into config state, to greatly
+           simplify high- and low-level API code by eliminating need for
+           each CMD and API func to accept a root_url param
+
 v0.15.2 -  Introduce __get wrapper for requests.get(), to lessen headers
            boilerplate in the code and make it possible for --verbose flag
            to be applied to ALL of the low-level API (e.g. to display the
