@@ -5,7 +5,7 @@
 '''
 Copyright (c) 2017 The Broad Institute, Inc.  All rights are reserved.
 
-confIg.py: this file is part of FISSFC.  See the <root>/COPYRIGHT
+fccore.py: this file is part of FISSFC.  See the <root>/COPYRIGHT
 file for the SOFTWARE COPYRIGHT and WARRANTY NOTICE.
 
 @author: Michael S. Noble
@@ -20,7 +20,6 @@ import os
 import configparser
 from firecloud import __about__
 from io import IOBase
-
 
 class attrdict(dict):
     """ dict whose members can be accessed as attributes, and default value is
@@ -49,26 +48,40 @@ class attrdict(dict):
         else:
             self.__setitem__(item, value)
 
-__host = os.uname()[1].split('.')[0]
-__fcconfig = attrdict({
-    'api_url'    : 'https://api.firecloud.org/api',
-    'user_agent' : "FISS/" + __about__.__version__,
-    'debug'      : False,
-    'page_size'  : 1000,
-    'project'    : '',
-    'workspace'  : '',
-    'method_ns'  : '',
-})
-
 def fc_config_get(name):
     return __fcconfig[name]     # Returns default value if name is undefined
 
 def fc_config_get_all():
-    return attrdict(__fcconfig)
+    return __fcconfig
 
 def fc_config_set(name, value):
     # FIXME: should validate critical variables, e.g. that type is not changed
     __fcconfig[name] = value
+
+def __set_verbosity(verbosity):
+    previous_value = __fcconfig.verbosity
+    try:
+        __fcconfig.verbosity = int(verbosity)
+    except Exception:
+        print("\t\t__set_verbosity: caught exception type(verbosity)={0}".format(type(verbosity)),file=sys.stderr)
+        pass                            # simply keep previous value
+    return previous_value
+
+def __get_verbosity():
+    return __fcconfig.verbosity
+
+__fcconfig = attrdict({
+    'root_url'       : 'https://api.firecloud.org/api/',
+    'user_agent'    : "FISS/" + __about__.__version__,
+    'debug'         : False,
+    'verbosity'     : 0,
+    'page_size'     : 1000,
+    'project'       : '',
+    'workspace'     : '',
+    'method_ns'     : '',
+    'get_verbosity' : __get_verbosity,
+    'set_verbosity' : __set_verbosity
+})
 
 def fc_config_parse(config=None, *files):
     '''
@@ -109,4 +122,5 @@ def fc_config_parse(config=None, *files):
             if not config[option]:
                 config[section][option] = cfgparser.get(section, option)
 
+    config.verbosity = int(config.verbosity)
     return config
