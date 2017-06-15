@@ -1508,8 +1508,7 @@ def main(argv=None):
                                      usage=usage, epilog=epilog)
     # Core Flags
     parser.add_argument('-u', '--url', dest='api_url', default=None,
-            help='Firecloud API root URL, ending with / '\
-                 '[default: %s]' % fcconfig.root_url)
+            help='Firecloud API root URL [default: %s]' % fcconfig.root_url)
 
     parser.add_argument("-v", "--version", action='version',version=__version__)
 
