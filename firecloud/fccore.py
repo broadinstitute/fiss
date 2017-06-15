@@ -123,4 +123,7 @@ def fc_config_parse(config=None, *files):
                 config[section][option] = cfgparser.get(section, option)
 
     config.verbosity = int(config.verbosity)
+    if not config.root_url.endswith('/'):
+        config.root_url += '/'
+
     return config
