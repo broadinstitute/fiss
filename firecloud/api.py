@@ -5,22 +5,22 @@ For more details see https://software.broadinstitute.org/firecloud/
 To see how the python bindings map to the RESTful endpoints view
 the README at https://pypi.python.org/pypi/firecloud.
 """
+
+from __future__ import print_function
 import json
 import sys
 import io
 from collections import Iterable
 
-from six import print_
 from six.moves.urllib.parse import urlencode
 import requests
 from oauth2client.client import GoogleCredentials
 
 from firecloud.errors import FireCloudServerError
+from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
 
-PROD_API_ROOT = "https://api.firecloud.org/api"
 FISS_USER_AGENT = "FISS/" + __version__
-__verbosity = 0
 
 #################################################
 # Utilities
@@ -42,44 +42,44 @@ def _fiss_access_headers(headers=None):
         fiss_headers.update(headers)
     return fiss_headers
 
-def __get(uri, headers=None, **kwargs):
+def __get(methcall, headers=None, **kwargs):
     if not headers:
         headers = _fiss_access_headers()
-    r = requests.get(uri, headers=headers, **kwargs)
-    if __verbosity:
-        print_('FISSFC call: %s' % r.url, file=sys.stderr)
+    r = requests.get(fcconfig.root_url + methcall, headers=headers, **kwargs)
+    if fcconfig.verbosity > 1:
+        print('FISSFC call: %s' % r.url, file=sys.stderr)
     return r
 
-def __post(uri, headers=None, **kwargs):
+def __post(methcall, headers=None, **kwargs):
     if not headers:
         headers = _fiss_access_headers({"Content-type":  "application/json"})
-    r = requests.post(uri, headers=headers, **kwargs)
-    if __verbosity:
+    r = requests.post(fcconfig.root_url + methcall, headers=headers, **kwargs)
+    if fcconfig.verbosity > 1:
         info = r.url
         json = kwargs.get("json", None)
         if json:
             info += " \n(json=%s) " % json
-        print_('FISSFC call: POST %s' % info, file=sys.stderr)
+        print('FISSFC call: POST %s' % info, file=sys.stderr)
     return r
 
-def __put(uri, headers=None, **kwargs):
+def __put(methcall, headers=None, **kwargs):
     if not headers:
         headers = _fiss_access_headers()
-    r = requests.put(uri, headers=headers, **kwargs)
-    if __verbosity:
+    r = requests.put(fcconfig.root_url + methcall, headers=headers, **kwargs)
+    if fcconfig.verbosity > 1:
         info = r.url
         json = kwargs.get("json", None)
         if json:
             info += " \n(json=%s) " % json
-        print_('FISSFC call: POST %s' % info, file=sys.stderr)
+        print('FISSFC call: POST %s' % info, file=sys.stderr)
     return r
 
-def __delete(uri, headers=None):
+def __delete(methcall, headers=None):
     if not headers:
         headers = _fiss_access_headers()
-    r = requests.delete(uri, headers=headers)
-    if __verbosity:
-        print_('FISSFC call: DELETE %s' % r.url, file=sys.stderr)
+    r = requests.delete(fcconfig.root_url + methcall, headers=headers)
+    if fcconfig.verbosity > 1:
+        print('FISSFC call: DELETE %s' % r.url, file=sys.stderr)
     return r
 
 def _check_response_code(response, codes):
@@ -105,47 +105,40 @@ def _check_response_code(response, codes):
 ### 1.1 Entities
 ##################
 
-def get_entities_with_type(namespace, workspace,
-                           api_root=PROD_API_ROOT):
+def get_entities_with_type(namespace, workspace):
     """List entities in a workspace.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/getEntitiesWithType
     """
-    uri = "{0}/workspaces/{1}/{2}/entities_with_type".format(api_root,
-                                                    namespace, workspace)
+    uri = "workspaces/{0}/{1}/entities_with_type".format(namespace, workspace)
     return __get(uri)
 
-def list_entity_types(namespace, workspace, api_root=PROD_API_ROOT):
+def list_entity_types(namespace, workspace):
     """List the entity types present in a workspace.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/getEntityTypes
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
-    uri = "{0}/workspaces/{1}/{2}/entities".format(
-                                api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/entities".format(namespace, workspace)
     return __get(uri, headers=headers)
 
-def upload_entities(namespace, workspace,
-                    entity_data, api_root=PROD_API_ROOT):
+def upload_entities(namespace, workspace, entity_data):
     """Upload entities from tab-delimited string.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         entity_data (str): TSV string describing entites
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/importEntities
@@ -154,13 +147,10 @@ def upload_entities(namespace, workspace,
     headers = _fiss_access_headers({
         'Content-type':  "application/x-www-form-urlencoded"
     })
-    uri = "{0}/workspaces/{1}/{2}/importEntities".format(api_root,
-                                                         namespace,
-                                                         workspace)
+    uri = "workspaces/{0}/{1}/importEntities".format(namespace, workspace)
     return __post(uri, headers=headers, data=body)
 
-def upload_entities_tsv(namespace, workspace,
-                        entities_tsv, api_root=PROD_API_ROOT):
+def upload_entities_tsv(namespace, workspace, entities_tsv):
     """Upload entities from a tsv loadfile.
 
     File-based wrapper for api.upload_entities().
@@ -177,7 +167,6 @@ def upload_entities_tsv(namespace, workspace,
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         entities_tsv (file): FireCloud loadfile, see format above
-        api_root (str): FireCloud API url, if not production
     """
     if isinstance(entities_tsv, str):
         with open(entities_tsv, "r") as tsv:
@@ -186,10 +175,10 @@ def upload_entities_tsv(namespace, workspace,
         entity_data = entities_tsv.getvalue()
     else:
         raise ValueError('Unsupported input type.')
-    return upload_entities(namespace, workspace, entity_data, api_root)
+    return upload_entities(namespace, workspace, entity_data)
 
 def copy_entities(from_namespace, from_workspace, to_namespace,
-                  to_workspace, etype, enames, api_root=PROD_API_ROOT):
+                  to_workspace, etype, enames):
     """Copy entities between workspaces
 
     Args:
@@ -199,14 +188,12 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
         to_workspace (str): Target workspace name
         etype (str): Entity type
         enames (list(str)): List of entity names to copy
-        api_root(str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/copyEntities
     """
 
-    uri = "{0}/workspaces/{1}/{2}/entities/copy".format(
-                        api_root, to_namespace, to_workspace)
+    uri = "workspaces/{0}/{1}/entities/copy".format(to_namespace, to_workspace)
     body = {
         "sourceWorkspace": {
             "namespace": from_namespace,
@@ -218,7 +205,7 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
 
     return __post(uri, json=body)
 
-def get_entities(namespace, workspace, etype, api_root=PROD_API_ROOT):
+def get_entities(namespace, workspace, etype):
     """List entities of given type in a workspace.
 
     Response content will be in JSON format.
@@ -227,16 +214,14 @@ def get_entities(namespace, workspace, etype, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/getEntities
     """
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}".format(
-                            api_root, namespace, workspace, etype)
+    uri = "workspaces/{0}/{1}/entities/{2}".format(namespace, workspace, etype)
     return __get(uri)
 
-def get_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
+def get_entities_tsv(namespace, workspace, etype):
     """List entities of given type in a workspace as a TSV.
 
     Identical to get_entities(), but the response is a TSV.
@@ -245,16 +230,15 @@ def get_entities_tsv(namespace, workspace, etype, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/browserDownloadEntitiesTSV
     """
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}/tsv".format(
-                            api_root, namespace, workspace, etype)
+    uri = "workspaces/{0}/{1}/entities/{2}/tsv".format(namespace,
+                                                workspace, etype)
     return __get(uri)
 
-def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
+def get_entity(namespace, workspace, etype, ename):
     """Request entity information.
 
     Gets entity metadata and attributes.
@@ -264,17 +248,15 @@ def get_entity(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
         workspace (str): Workspace name
         etype (str): Entity type
         ename (str): The entity's unique id
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/getEntity
     """
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
-                        api_root, namespace, workspace, etype, ename)
+    uri = "workspaces/{0}/{1}/entities/{2}/{3}".format(namespace,
+                                            workspace, etype, ename)
     return __get(uri)
 
-
-def delete_entities(namespace, workspace, json_body, api_root=PROD_API_ROOT):
+def delete_entities(namespace, workspace, json_body):
     """Delete entities in a workspace.
 
     Note: This action is not reversible. Be careful!
@@ -289,17 +271,15 @@ def delete_entities(namespace, workspace, json_body, api_root=PROD_API_ROOT):
             "entityName": "string"
           }
         ]
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/deleteEntities
     """
 
-    uri = "{0}/workspaces/{1}/{2}/entities/delete".format(
-                                api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/entities/delete".format(namespace, workspace)
     return __post(uri, json=json_body)
 
-def delete_entity_type(namespace, workspace, etype, ename, api_root=PROD_API_ROOT):
+def delete_entity_type(namespace, workspace, etype, ename):
     """Delete entities in a workspace.
 
     Note: This action is not reversible. Be careful!
@@ -309,14 +289,12 @@ def delete_entity_type(namespace, workspace, etype, ename, api_root=PROD_API_ROO
         workspace (str): Workspace name
         etype (str): Entity type
         ename (str, or iterable of str): unique entity id(s)
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/deleteEntities
     """
 
-    uri = "{0}/workspaces/{1}/{2}/entities/delete".format(
-                                        api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/entities/delete".format(namespace, workspace)
     if isinstance(ename, str):
         body = [{"entityType":etype, "entityName":ename}]
     elif isinstance(ename, Iterable):
@@ -324,7 +302,7 @@ def delete_entity_type(namespace, workspace, etype, ename, api_root=PROD_API_ROO
     
     return __post(uri, json=body)
 
-def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
+def delete_participant(namespace, workspace, name):
     """Delete participant in a workspace.
 
     Convenience wrapper for api.delete_entity().
@@ -334,11 +312,10 @@ def delete_participant(namespace, workspace, name, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str, or iterable of str): participant_id(s)
-        api_root (str): FireCloud API url, if not production
     """
-    return delete_entity_type(namespace, workspace, "participant", name, api_root)
+    return delete_entity_type(namespace, workspace, "participant", name)
 
-def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
+def delete_participant_set(namespace, workspace, name):
     """Delete participant set in a workspace.
 
     Convenience wrapper for api.delete_entity().
@@ -348,11 +325,10 @@ def delete_participant_set(namespace, workspace, name, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str, or iterable of str): participant_set_id(s)
-        api_root (str): FireCloud API url, if not production
     """
-    return delete_entity_type(namespace, workspace, "participant_set", name, api_root)
+    return delete_entity_type(namespace, workspace, "participant_set", name)
 
-def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
+def delete_sample(namespace, workspace, name):
     """Delete sample in a workspace.
 
     Convenience wrapper for api.delete_entity().
@@ -362,11 +338,10 @@ def delete_sample(namespace, workspace, name, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str, or iterable of str): sample_id(s)
-        api_root (str): FireCloud API url, if not production
     """
     return delete_entity_type(namespace, workspace, "sample", name)
 
-def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
+def delete_sample_set(namespace, workspace, name):
     """Delete sample set in a workspace.
 
     Convenience wrapper for api.delete_entity().
@@ -376,11 +351,10 @@ def delete_sample_set(namespace, workspace, name, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str, or iterable of str): sample_set_id(s)
-        api_root (str): FireCloud API url, if not production
     """
-    return delete_entity_type(namespace, workspace, "sample_set", name, api_root)
+    return delete_entity_type(namespace, workspace, "sample_set", name)
 
-def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
+def delete_pair(namespace, workspace, name):
     """Delete pair in a workspace.
 
     Convenience wrapper for api.delete_entity().
@@ -390,11 +364,10 @@ def delete_pair(namespace, workspace, name, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str, or iterable of str): pair_id(s)
-        api_root (str): FireCloud API url, if not production
     """
-    return delete_entity_type(namespace, workspace, "pair", name, api_root)
+    return delete_entity_type(namespace, workspace, "pair", name)
 
-def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
+def delete_pair_set(namespace, workspace, name):
     """Delete pair set in a workspace.
 
     Convenience wrapper for api.delete_entity().
@@ -404,19 +377,17 @@ def delete_pair_set(namespace, workspace, name, api_root=PROD_API_ROOT):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         name (str, or iterable of str): pair_set_id(s)
-        api_root (str): FireCloud API url, if not production
     """
-    return delete_entity_type(namespace, workspace, "pair_set", name, api_root)
+    return delete_entity_type(namespace, workspace, "pair_set", name)
 
 def get_entities_query(namespace, workspace, etype, page=1,
                        page_size=100, sort_direction="asc",
-                       filter_terms=None, api_root=PROD_API_ROOT):
+                       filter_terms=None):
     """Paginated version of get_entities_with_type.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/entityQuery
@@ -432,12 +403,10 @@ def get_entities_query(namespace, workspace, etype, page=1,
     if filter_terms:
         params['filterTerms'] = filter_terms
 
-    uri = "{0}/workspaces/{1}/{2}/entityQuery/{3}".format(
-                            api_root, namespace, workspace, etype)
+    uri = "workspaces/{0}/{1}/entityQuery/{2}".format(namespace,workspace,etype)
     return __get(uri, params=params)
 
-def update_entity(namespace, workspace, etype, ename,
-                  updates, api_root=PROD_API_ROOT):
+def update_entity(namespace, workspace, etype, ename, updates):
     """ Update entity attributes in a workspace.
 
     Args:
@@ -446,39 +415,36 @@ def update_entity(namespace, workspace, etype, ename,
         etype     (str): Entity type
         ename     (str): Entity name
         updates   (list(dict)): List of updates to entity from _attr_set, e.g.
-        api_root  (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Entities/update_entity
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
-    uri = "{0}/workspaces/{1}/{2}/entities/{3}/{4}".format(
-        api_root, namespace, workspace, etype, ename
-    )
+    uri = "{0}workspaces/{1}/{2}/entities/{3}/{4}".format(fcconfig.root_url,
+                                            namespace, workspace, etype, ename)
 
+    # FIXME: create __patch method, akin to __get, __delete etc
     return requests.patch(uri, headers=headers, json=updates)
 
 ###############################
 ### 1.2 Method Configurations
 ###############################
 
-def list_workspace_configs(namespace, workspace, api_root=PROD_API_ROOT):
+def list_workspace_configs(namespace, workspace):
     """List method configurations in workspace.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/listWorkspaceMethodConfigs
         DUPLICATE: https://api.firecloud.org/#!/Workspaces/listWorkspaceMethodConfigs
     """
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root,
-                                                        namespace, workspace)
+    uri = "workspaces/{0}/{1}/methodconfigs".format(namespace, workspace)
     return __get(uri)
 
-def create_workspace_config(namespace, workspace, body, api_root=PROD_API_ROOT):
+def create_workspace_config(namespace, workspace, body):
     """Create method configuration in workspace.
 
     Args:
@@ -486,7 +452,6 @@ def create_workspace_config(namespace, workspace, body, api_root=PROD_API_ROOT):
         workspace (str): Workspace name
         body (json) : a filled-in JSON object for the new method config
                       (e.g. see return value of get_workspace_config)
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/postWorkspaceMethodConfig
@@ -501,12 +466,10 @@ def create_workspace_config(namespace, workspace, body, api_root=PROD_API_ROOT):
     #    "outputs" : {},
     #    "prerequisites" : {}
     #}
-    uri = "{0}/workspaces/{1}/{2}/methodconfigs".format(api_root,
-                                                        namespace, workspace)
+    uri = "workspaces/{0}/{1}/methodconfigs".format(namespace, workspace)
     return __post(uri, json=body)
 
-def delete_workspace_config(namespace, workspace, cnamespace,
-                  config, api_root=PROD_API_ROOT):
+def delete_workspace_config(namespace, workspace, cnamespace, config):
     """Delete method configuration in workspace.
 
     Args:
@@ -514,17 +477,15 @@ def delete_workspace_config(namespace, workspace, cnamespace,
         workspace (str): Workspace name
         mnamespace (str): Method namespace
         method (str): Method name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/deleteWorkspaceMethodConfig
     """
-    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
-                    api_root, namespace, workspace, cnamespace, config)
+    uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
+                                            workspace, cnamespace, config)
     return __delete(uri)
 
-def get_workspace_config(namespace, workspace, cnamespace,
-               config, api_root=PROD_API_ROOT):
+def get_workspace_config(namespace, workspace, cnamespace, config):
     """Get method configuration in workspace.
 
     Args:
@@ -532,18 +493,16 @@ def get_workspace_config(namespace, workspace, cnamespace,
         workspace (str): Workspace name
         cnamespace (str): Config namespace
         config (str): Config name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/getWorkspaceMethodConfig
     """
 
-    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
-                        api_root, namespace, workspace, cnamespace, config)
+    uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
+                                            workspace, cnamespace, config)
     return __get(uri)
 
-def update_workspace_config(namespace, workspace, cnamespace,
-                            configname, body, api_root=PROD_API_ROOT):
+def update_workspace_config(namespace, workspace, cnamespace, configname, body):
     """Update method configuration in workspace.
 
     Args:
@@ -552,19 +511,17 @@ def update_workspace_config(namespace, workspace, cnamespace,
         cnamespace (str): Configuration namespace
         configname (str): Configuration name
         body      (json): new body (definition) of the method config
-        api_root   (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/updateWorkspaceMethodConfig
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
     body = json.dumps(body)
-    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}".format(
-                        api_root, namespace, workspace, cnamespace, configname)
+    uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
+                                        workspace, cnamespace, configname)
     return __put(uri, headers=headers, data=body)
 
-def validate_config(namespace, workspace, cnamespace,
-                    config, api_root=PROD_API_ROOT):
+def validate_config(namespace, workspace, cnamespace, config):
     """Get syntax validation for a configuration.
 
     Args:
@@ -572,17 +529,16 @@ def validate_config(namespace, workspace, cnamespace,
         workspace (str): Workspace name
         cnamespace (str): Configuration namespace
         config (str): Configuration name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/validate_method_configuration
     """
-    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}/validate".format(
-                        api_root, namespace, workspace, cnamespace, config)
+    uri = "workspaces/{0}/{1}/method_configs/{2}/{3}/validate".format(namespace,
+                                                    workspace, cnamespace, config)
     return __get(uri)
 
-def rename_workspace_config(namespace, workspace, cnamespace,
-                  config, new_namespace, new_name, api_root=PROD_API_ROOT):
+def rename_workspace_config(namespace, workspace, cnamespace, config,
+                                            new_namespace, new_name):
     """Rename a method configuration in a workspace.
 
     Args:
@@ -592,7 +548,6 @@ def rename_workspace_config(namespace, workspace, cnamespace,
         config (str): Config name
         new_namespace (str): Updated config namespace
         new_name (str): Updated method name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/renameWorkspaceMethodConfig
@@ -607,13 +562,13 @@ def rename_workspace_config(namespace, workspace, cnamespace,
             "name"      : workspace
         }
     }
-    uri = "{0}/workspaces/{1}/{2}/method_configs/{3}/{4}/rename".format(
-                            api_root, namespace, workspace, cnamespace, config)
+    uri = "workspaces/{0}/{1}/method_configs/{2}/{3}/rename".format(namespace,
+                                                workspace, cnamespace, config)
     return __post(uri, json=body)
 
 def copy_config_from_repo(namespace, workspace, from_cnamespace,
                           from_config, from_snapshot_id, to_cnamespace,
-                          to_config, api_root=PROD_API_ROOT):
+                          to_config):
     """Copy a method config from the methods repository to a workspace.
 
     Args:
@@ -624,7 +579,6 @@ def copy_config_from_repo(namespace, workspace, from_cnamespace,
         from_snapshot_id (int): Source configuration snapshot_id
         to_cnamespace (str): Target configuration namespace
         to_config (str): Target configuration name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/copyFromMethodRepo
@@ -638,13 +592,12 @@ def copy_config_from_repo(namespace, workspace, from_cnamespace,
         "destinationNamespace"    : to_cnamespace,
         "destinationName"         : to_config
     }
-    uri = "{0}/workspaces/{1}/{2}/method_configs/copyFromMethodRepo".format(
-                                                api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/method_configs/copyFromMethodRepo".format(
+                                                        namespace, workspace)
     return __post(uri, json=body)
 
 def copy_config_to_repo(namespace, workspace, from_cnamespace,
-                        from_config, to_cnamespace, to_config,
-                        api_root=PROD_API_ROOT):
+                        from_config, to_cnamespace, to_config):
     """Copy a method config from a workspace to the methods repository.
 
     Args:
@@ -654,7 +607,6 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
         from_config (str): Source configuration name
         to_cnamespace (str): Target configuration namespace
         to_config (str): Target configuration name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/copyToMethodRepo
@@ -667,33 +619,31 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
         "sourceNamespace"        : from_cnamespace,
         "sourceName"             : from_config
     }
-    uri = "{0}/workspaces/{1}/{2}/method_configs/copyToMethodRepo".format(
-                            api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/method_configs/copyToMethodRepo".format(
+                                                    namespace, workspace)
     return __post(uri, json=body)
 
 ###########################
 ### 1.3 Method Repository
 ###########################
 
-def list_repository_methods(api_root=PROD_API_ROOT):
+def list_repository_methods():
     """List methods in the methods repository.
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/listMethodRepositoryMethods
     """
-    uri = "{0}/methods".format(api_root)
-    return __get(uri)
+    return __get("methods")
 
-def list_repository_configs(api_root=PROD_API_ROOT):
+def list_repository_configs():
     """List configurations in the methods repository.
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/listMethodRepositoryConfigurations
     """
-    uri = "{0}/configurations".format(api_root)
-    return __get(uri)
+    return __get("configurations")
 
-def get_config_template(namespace, method, version, api_root=PROD_API_ROOT):
+def get_config_template(namespace, method, version):
     """Get the configuration template for a method.
 
     The method should exist in the methods repository.
@@ -702,21 +652,19 @@ def get_config_template(namespace, method, version, api_root=PROD_API_ROOT):
         namespace (str): Methods namespace
         method (str): method name
         version (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/createMethodTemplate
     """
 
-    uri = "{0}/template".format(api_root)
     body = {
         "methodNamespace" : namespace,
         "methodName"      : method,
         "methodVersion"   : version
     }
-    return __post(uri, json=body)
+    return __post("template", json=body)
 
-def get_inputs_outputs(namespace, method, snapshot_id, api_root=PROD_API_ROOT):
+def get_inputs_outputs(namespace, method, snapshot_id):
     """Get a description of the inputs and outputs for a method.
 
     The method should exist in the methods repository.
@@ -725,56 +673,47 @@ def get_inputs_outputs(namespace, method, snapshot_id, api_root=PROD_API_ROOT):
         namespace (str): Methods namespace
         method (str): method name
         snapshot_id (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/getMethodIO
     """
 
-    uri = "{0}/inputsOutputs".format(api_root)
     body = {
         "methodNamespace" : namespace,
         "methodName"      : method,
         "methodVersion"   : snapshot_id
     }
-    return __post(uri, json=body)
+    return __post("inputsOutputs", json=body)
 
-def get_repository_config(namespace, config,
-                          snapshot_id, api_root=PROD_API_ROOT):
+def get_repository_config(namespace, config, snapshot_id):
     """Get a method configuration from the methods repository.
 
     Args:
         namespace (str): Methods namespace
         config (str): config name
         snapshot_id (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/getMethodRepositoryConfiguration
     """
-    uri = "{0}/configurations/{1}/{2}/{3}".format(
-                    api_root, namespace, config, snapshot_id)
+    uri = "configurations/{0}/{1}/{2}".format(namespace, config, snapshot_id)
     return __get(uri)
 
-def get_repository_method(namespace, method, snapshot_id,
-                          api_root=PROD_API_ROOT):
+def get_repository_method(namespace, method, snapshot_id):
     """Get a method definition from the method repository.
 
     Args:
         namespace (str): Methods namespace
         method (str): method name
         version (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         UNDOCUMENTED
     """
-    uri = "{0}/methods/{1}/{2}/{3}".format(
-                api_root, namespace, method, snapshot_id)
+    uri = "methods/{0}/{1}/{2}".format(namespace, method, snapshot_id)
     return __get(uri)
 
-def update_repository_method(namespace, method, synopsis,
-                             wdl, doc=None, api_root=PROD_API_ROOT):
+def update_repository_method(namespace, method, synopsis, wdl, doc=None):
     """Create/Update workflow definition.
 
     FireCloud will create a new snapshot_id for the given workflow.
@@ -785,7 +724,6 @@ def update_repository_method(namespace, method, synopsis,
         synopsis (str): short (<80 char) description of method
         wdl (file): Workflow Description Language file
         doc (file): (Optional) Additional documentation
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/post_api_methods
@@ -808,11 +746,9 @@ def update_repository_method(namespace, method, synopsis,
         "synopsis": synopsis
     }
 
-    uri = "{0}/methods".format(api_root)
-    return __post(uri, json=body)
+    return __post("methods", json=body)
 
-def delete_repository_method(namespace, name, snapshot_id,
-                             api_root=PROD_API_ROOT):
+def delete_repository_method(namespace, name, snapshot_id):
     """Redacts a method and all of its associated configurations.
 
     The method should exist in the methods repository.
@@ -821,16 +757,14 @@ def delete_repository_method(namespace, name, snapshot_id,
         namespace (str): Methods namespace
         method (str): method name
         snapshot_id (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/delete_api_methods_namespace_name_snapshotId
     """
-    uri = "{0}/methods/{1}/{2}/{3}".format(api_root, namespace, name, snapshot_id)
+    uri = "methods/{0}/{1}/{2}".format(namespace, name, snapshot_id)
     return __delete(uri)
 
-def delete_repository_config(namespace, name, snapshot_id,
-                             api_root=PROD_API_ROOT):
+def delete_repository_config(namespace, name, snapshot_id):
     """Redacts a configuration and all of its associated configurations.
 
     The configuration should exist in the methods repository.
@@ -839,16 +773,14 @@ def delete_repository_config(namespace, name, snapshot_id,
         namespace (str): configuration namespace
         configuration (str): configuration name
         snapshot_id (int): snapshot_id of the configuration
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/delete_api_configurations_namespace_name_snapshotId
     """
-    uri = "{0}/configurations/{1}/{2}/{3}".format(api_root, namespace, name, snapshot_id)
+    uri = "configurations/{0}/{1}/{2}".format(namespace, name, snapshot_id)
     return __delete(uri)
 
-def get_repository_method_acl(namespace, method,
-                              snapshot_id, api_root=PROD_API_ROOT):
+def get_repository_method_acl(namespace, method, snapshot_id):
     """Get permissions for a method.
 
     The method should exist in the methods repository.
@@ -857,17 +789,14 @@ def get_repository_method_acl(namespace, method,
         namespace (str): Methods namespace
         method (str): method name
         version (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/getMethodACL
     """
-    uri = "{0}/methods/{1}/{2}/{3}/permissions".format(
-                        api_root, namespace, method, snapshot_id)
+    uri = "methods/{0}/{1}/{2}/permissions".format(namespace,method,snapshot_id)
     return __get(uri)
 
-def update_repository_method_acl(namespace, method, snapshot_id,
-                                 acl_updates, api_root=PROD_API_ROOT):
+def update_repository_method_acl(namespace, method, snapshot_id, acl_updates):
     """Set method permissions.
 
     The method should exist in the methods repository.
@@ -877,18 +806,15 @@ def update_repository_method_acl(namespace, method, snapshot_id,
         method (str): method name
         snapshot_id (int): snapshot_id of the method
         acl_updates (list(dict)): List of access control updates
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/setMethodACL
     """
 
-    uri = "{0}/methods/{1}/{2}/{3}/permissions".format(
-                                api_root, namespace, method, snapshot_id)
+    uri = "methods/{0}/{1}/{2}/permissions".format(namespace,method,snapshot_id)
     return __post(uri, json=acl_updates)
 
-def get_repository_config_acl(namespace, config,
-                              snapshot_id, api_root=PROD_API_ROOT):
+def get_repository_config_acl(namespace, config, snapshot_id):
     """Get configuration permissions.
 
     The configuration should exist in the methods repository.
@@ -897,17 +823,15 @@ def get_repository_config_acl(namespace, config,
         namespace (str): Configuration namespace
         config (str): Configuration name
         snapshot_id (int): snapshot_id of the method
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/getConfigACL
     """
-    uri = "{0}/configurations/{1}/{2}/{3}/permissions".format(
-                        api_root, namespace, config, snapshot_id)
+    uri = "configurations/{0}/{1}/{2}/permissions".format(namespace,
+                                                    config, snapshot_id)
     return __get(uri)
 
-def update_repository_config_acl(namespace, config, snapshot_id,
-                                 acl_updates, api_root=PROD_API_ROOT):
+def update_repository_config_acl(namespace, config, snapshot_id, acl_updates):
     """Set configuration permissions.
 
     The configuration should exist in the methods repository.
@@ -917,69 +841,66 @@ def update_repository_config_acl(namespace, config, snapshot_id,
         config (str): Configuration name
         snapshot_id (int): snapshot_id of the method
         acl_updates (list(dict)): List of access control updates
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/setConfigACL
     """
 
-    uri = "{0}/configurations/{1}/{2}/{3}/permissions".format(
-                            api_root, namespace, config, snapshot_id)
+    uri = "configurations/{0}/{1}/{2}/permissions".format(namespace,
+                                                config, snapshot_id)
     return __post(uri, json=acl_updates)
 
 #################
 ### 1.4 Profile
 #################
 
-def list_billing_projects(api_root=PROD_API_ROOT):
+def list_billing_projects():
     """Get activation information for the logged-in user.
 
     Swagger:
         https://api.firecloud.org/#!/Profile/billing
     """
-    return __get("{0}/profile/billing".format(api_root))
+    return __get("profile/billing")
 
 ################
 ### 1.5 Status
 ################
 
-def get_status(api_root=PROD_API_ROOT):
+def get_status():
     """Request the status of FireCloud services.
 
     Swagger:
         https://api.firecloud.org/#!/Status/status
     """
-    return __get("{0}/status".format(api_root))
+    return __get("status")
 
-def ping(api_root=PROD_API_ROOT):
+def ping():
     """Ping FireCloud API.
 
     Swagger:
         https://api.firecloud.org/#!/Status/ping
     """
-    return __get("{0}/status/ping".format(api_root))
+    return __get("status/ping")
 
 ######################
 ### 1.6 Submissions
 ######################
 
-def list_submissions(namespace, workspace, api_root=PROD_API_ROOT):
+def list_submissions(namespace, workspace):
     """List submissions in FireCloud workspace.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/listSubmissions
     """
-    uri = "{0}/workspaces/{1}/{2}/submissions".format(
-                            api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/submissions".format(namespace, workspace)
     return __get(uri)
 
 def create_submission(wnamespace, workspace, cnamespace, config,
-                      entity, etype, expression=None, use_callcache=True, api_root=PROD_API_ROOT):
+                      entity, etype, expression=None, use_callcache=True):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -994,14 +915,12 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         expression (str): Instead of using entity as the root entity,
             evaluate the root entity from this expression.
         use_callcache (bool): use call cache if applicable (default: true)
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/createSubmission
     """
 
-    uri = "{0}/workspaces/{1}/{2}/submissions".format(
-                                api_root, wnamespace, workspace)
+    uri = "workspaces/{0}/{1}/submissions".format(wnamespace, workspace)
     body = {
         "methodConfigurationNamespace" : cnamespace,
         "methodConfigurationName" : config,
@@ -1015,42 +934,37 @@ def create_submission(wnamespace, workspace, cnamespace, config,
 
     return __post(uri, json=body)
 
-def abort_submission(namespace, workspace,
-                     submission_id, api_root=PROD_API_ROOT):
+def abort_submission(namespace, workspace, submission_id):
     """Abort running job in a workspace.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/deleteSubmission
     """
-    uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(
-                    api_root, namespace, workspace, submission_id)
+    uri = "workspaces/{0}/{1}/submissions/{2}".format(namespace,
+                                        workspace, submission_id)
     return __delete(uri)
 
-def get_submission(namespace, workspace,
-                   submission_id, api_root=PROD_API_ROOT):
+def get_submission(namespace, workspace, submission_id):
     """Request submission information.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/monitorSubmission
     """
-    uri = "{0}/workspaces/{1}/{2}/submissions/{3}".format(
-                        api_root, namespace, workspace, submission_id)
+    uri = "workspaces/{0}/{1}/submissions/{2}".format(namespace,
+                                            workspace, submission_id)
     return __get(uri)
 
-def get_workflow_metadata(namespace, workspace,
-                 submission_id, workflow_id, api_root=PROD_API_ROOT):
+def get_workflow_metadata(namespace, workspace, submission_id, workflow_id):
     """Request the metadata for a workflow in a submission.
 
     Args:
@@ -1058,17 +972,15 @@ def get_workflow_metadata(namespace, workspace,
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         workflow_id (str): Workflow's unique identifier.
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/workflowMetadata
     """
-    uri = "{0}/workspaces/{1}/{2}/submissions/{3}/workflows/{4}".format(
-                api_root, namespace, workspace, submission_id, workflow_id)
+    uri = "workspaces/{0}/{1}/submissions/{2}/workflows/{3}".format(namespace,
+                                            workspace, submission_id, workflow_id)
     return __get(uri)
 
-def get_workflow_outputs(namespace, workspace,
-                         submission_id, workflow_id, api_root=PROD_API_ROOT):
+def get_workflow_outputs(namespace, workspace, submission_id, workflow_id):
     """Request the outputs for a workflow in a submission.
 
     Args:
@@ -1076,39 +988,36 @@ def get_workflow_outputs(namespace, workspace,
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         workflow_id (str): Workflow's unique identifier.
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/workflowOutputsInSubmission
     """
-    uri = "{0}/workspaces/{1}/{2}/".format(api_root, namespace, workspace)
-    uri += "submissions/{0}/workflows/{1}/outputs".format(
-                                    submission_id, workflow_id)
+    uri = "workspaces/{0}/{1}/".format(namespace, workspace)
+    uri += "submissions/{0}/workflows/{1}/outputs".format(submission_id,
+                                                            workflow_id)
     return __get(uri)
 
-def get_submission_queue(api_root=PROD_API_ROOT):
+def get_submission_queue():
     """ List workflow counts by queueing state.
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/workflowQueueStatus
     """
-    uri = "{0}/submissions/queueStatus".format(api_root)
-    return __get(uri)
+    return __get("submissions/queueStatus")
 
 #####################
 ### 1.7 Workspaces
 #####################
 
-def list_workspaces(api_root=PROD_API_ROOT):
+def list_workspaces():
     """Request list of FireCloud workspaces.
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/listWorkspaces
     """
-    return __get(api_root+ "/workspaces")
+    return __get("workspaces")
 
-def create_workspace(namespace, name, authorizationDomain = "",
-                     attributes=None, api_root=PROD_API_ROOT):
+def create_workspace(namespace, name, authorizationDomain="", attributes=None):
     """Create a new FireCloud Workspace.
 
     Args:
@@ -1118,12 +1027,11 @@ def create_workspace(namespace, name, authorizationDomain = "",
             credentials. This option is only available if your FireCloud
             account is linked to your NIH account.
         attributes (dict): Workspace attributes as key value pairs
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/createWorkspace
     """
-    uri = "{0}/workspaces".format(api_root)
+
     if not attributes:
         attributes = dict()
     
@@ -1135,9 +1043,9 @@ def create_workspace(namespace, name, authorizationDomain = "",
     if authorizationDomain:
         body["authorizationDomain"] = {"membersGroupName": authorizationDomain}
 
-    return __post(uri, json=body)
+    return __post("workspaces", json=body)
 
-def delete_workspace(namespace, workspace,api_root=PROD_API_ROOT):
+def delete_workspace(namespace, workspace):
     """Delete FireCloud Workspace.
 
     Note: This action is not reversible. Be careful!
@@ -1145,50 +1053,45 @@ def delete_workspace(namespace, workspace,api_root=PROD_API_ROOT):
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/deleteWorkspace
     """
-    uri = "{0}/workspaces/{1}/{2}".format(api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}".format(namespace, workspace)
     return __delete(uri)
 
-def get_workspace(namespace, workspace,api_root=PROD_API_ROOT):
+def get_workspace(namespace, workspace):
     """Request FireCloud Workspace information.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/getWorkspace
     """
-    uri = "{0}/workspaces/{1}/{2}".format(api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}".format(namespace, workspace)
     return __get(uri)
 
-def get_workspace_acl(namespace, workspace,api_root=PROD_API_ROOT):
+def get_workspace_acl(namespace, workspace):
     """Request FireCloud access aontrol list for workspace.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/getWorkspaceAcl
     """
-    uri = "{0}/workspaces/{1}/{2}/acl".format(api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/acl".format(namespace, workspace)
     return __get(uri)
 
-def update_workspace_acl(namespace, workspace,
-                         acl_updates, api_root=PROD_API_ROOT):
+def update_workspace_acl(namespace, workspace, acl_updates):
     """Update workspace access control list.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
         acl_updates (list(dict)): Acl updates as dicts with two keys:
             "email" - Firecloud user email
             "accessLevel" - one of "OWNER", "READER", "WRITER", "NO ACCESS"
@@ -1197,12 +1100,13 @@ def update_workspace_acl(namespace, workspace,
     Swagger:
         https://api.firecloud.org/#!/Workspaces/updateWorkspaceACL
     """
-    uri = "{0}/workspaces/{1}/{2}/acl".format(api_root, namespace, workspace)
+    uri = "{0}workspaces/{1}/{2}/acl".format(fcconfig.root_url,
+                                                namespace, workspace)
     headers = _fiss_access_headers({"Content-type":  "application/json"})
+    # FIXME: create __patch method, akin to __get, __delete etc
     return requests.patch(uri, headers=headers, data=json.dumps(acl_updates))
 
-def clone_workspace(from_namespace, from_workspace,
-                    to_namespace, to_workspace, api_root=PROD_API_ROOT):
+def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace):
     """Clone a FireCloud workspace.
 
     A clone is a shallow copy of a FireCloud workspace, enabling
@@ -1213,7 +1117,6 @@ def clone_workspace(from_namespace, from_workspace,
         from_workspace (str): Source workspace's name
         to_namespace (str):  project to which target workspace belongs
         to_workspace (str): Target workspace's name
-        api_root(str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/cloneWorkspace
@@ -1224,12 +1127,10 @@ def clone_workspace(from_namespace, from_workspace,
         "name": to_workspace,
         "attributes": dict()
     }
-    uri = "{0}/workspaces/{1}/{2}/clone".format(api_root,
-                                               from_namespace,
-                                               from_workspace)
+    uri = "workspaces/{0}/{1}/clone".format(from_namespace, from_workspace)
     return __post(uri, json=body)
 
-def lock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
+def lock_workspace(namespace, workspace):
     """Lock FireCloud workspace, making it read-only.
 
     This prevents modifying attributes or submitting workflows
@@ -1238,15 +1139,14 @@ def lock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/lockWorkspace
     """
-    uri = "{0}/workspaces/{1}/{2}/lock".format(api_root, namespace, workspace)
+    uri = "workspaces/{0}/{1}/lock".format(namespace, workspace)
     return __put(uri)
 
-def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
+def unlock_workspace(namespace, workspace):
     """Unlock FireCloud workspace.
 
     Enables modifications to a workspace. See lock_workspace()
@@ -1254,23 +1154,19 @@ def unlock_workspace(namespace, workspace, api_root=PROD_API_ROOT):
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/unlockWorkspace
     """
-    uri = "{0}/workspaces/{1}/{2}/unlock".format(api_root,
-                                                 namespace, workspace)
+    uri = "workspaces/{0}/{1}/unlock".format(namespace, workspace)
     return __put(uri)
 
-def update_workspace_attributes(namespace, workspace,
-                                attrs, api_root=PROD_API_ROOT):
+def update_workspace_attributes(namespace, workspace, attrs):
     """Update or remove workspace attributes.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-        api_root (str): FireCloud API url, if not production
         attrs (list(dict)): List of update operations for workspace attributes.
             Use the helper dictionary construction functions to create these:
 
@@ -1283,11 +1179,11 @@ def update_workspace_attributes(namespace, workspace,
         https://api.firecloud.org/#!/Workspaces/updateAttributes
     """
     headers = _fiss_access_headers({"Content-type":  "application/json"})
-    uri = "{0}/workspaces/{1}/{2}/updateAttributes".format(
-        api_root, namespace, workspace)
-
+    uri = "{0}workspaces/{1}/{2}/updateAttributes".format(fcconfig.root_url,
+                                                        namespace, workspace)
     body = json.dumps(attrs)
 
+    # FIXME: create __patch method, akin to __get, __delete etc
     return requests.patch(uri, headers=headers, data=body)
 
 # Helper functions to create attribute update dictionaries
@@ -1322,15 +1218,3 @@ def _attr_lrem(attr, value):
         "attributeName"      : attr,
         "addUpdateAttribute" : value
     }
-
-def set_verbosity(verbosity):
-    global __verbosity
-    previous_value = __verbosity
-    try:
-        __verbosity = int(verbosity)
-    except Exception:
-        pass                            # simply keep previous value
-    return previous_value
-
-def get_verbosity():
-    return __verbosity
