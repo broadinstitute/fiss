@@ -8,7 +8,7 @@ import os, re
 from getpass import getuser
 import nose
 from firecloud.fiss import main as fiss_main
-from firecloud.fccore import fc_config_get
+from firecloud.fccore import fc_config_get_all
 from firecloud import api as fapi
 
 # Context manager to capture stdout when calling another function
@@ -59,9 +59,10 @@ class TestFISS(unittest.TestCase):
         fiss_verbosity = os.environ.get("FISS_TEST_VERBOSITY", None)
         if fiss_verbosity == None:
             fiss_verbosity = 0
-        fapi.set_verbosity(fiss_verbosity)
 
-        cls.project = fc_config_get("project")
+        fcconfig = fc_config_get_all()
+        fcconfig.set_verbosity(fiss_verbosity)
+        cls.project = fcconfig.project
         if not cls.project:
             raise ValueError("Your configuration must define a FireCloud project")
 
