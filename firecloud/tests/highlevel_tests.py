@@ -10,12 +10,7 @@ import nose
 from firecloud.fiss import main as fiss_main
 from firecloud.fccore import fc_config_get_all
 from firecloud import api as fapi
-
-# Context manager to capture stdout when calling another function
-# Source: http://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
-# from cStringIO import StringIO
-# replace cStringIO with StringIO for python3 compatibility
-from io import StringIO
+from io import StringIO             # cStringIO avoided, for Python2/3 compat
 import sys
 
 def call_fiss(*args):
@@ -44,11 +39,9 @@ class Capturing(list):
         del self._stringio    # free up some memory
         sys.stdout = self._stdout
 
-class TestFISS(unittest.TestCase):
-    """Unit test the firecloud.api module.
-
-    There should be at least one test per api call,
-    with composite tests as feasible.
+class TestFISSHighLevel(unittest.TestCase):
+    """ Exercise the high level interface of FISS, the (F)ireCloud (S)ervice (S)elector
+    There should be at least one test per api call, with composite tests as feasible
     """
     @classmethod
     def setUpClass(cls):

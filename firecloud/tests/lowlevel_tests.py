@@ -1,56 +1,49 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 import unittest
 import time
 import nose
 import sys
-from six import print_
+import os
+from getpass import getuser
 import firecloud.api as fapi
+from firecloud.fccore import fc_config_parse
 
-class TestFirecloudAPI(unittest.TestCase):
-    """Unit test the firecloud.api module.
-
-    There should be at least one test per api call,
-    with composite tests as feasible.
+class TestFISSLowLevel(unittest.TestCase):
+    """Unit test the low-level interface of FireCloud-enabled FISS. There should
+    be at least one test per low-level call, with composite tests as feasible.
     """
-    # Set up and tear down for API testing
+
     @classmethod
-    def setUpClass(cls):
-        """Set up test conditions."""
+    def setUpClass(cls, msg=""):
+        '''Set up FireCloud etc to run tests'''
 
-        print_("\nStarting low-level api tests ...\n", file=sys.stderr)
-        cls.timestamp = time.strftime('%Y_%m_%d__%H_%M_%S', time.localtime())
+        print("\nStarting low-level api tests ...\n", file=sys.stderr)
 
-        # get a list of available namespaces
+        fiss_verbosity = os.environ.get("FISS_TEST_VERBOSITY", None)
+        if fiss_verbosity == None:
+            fiss_verbosity = 0
 
-        r = fapi.list_billing_projects()
-        projs = [d['projectName'] for d in r.json()]
+        fcconfig = fc_config_parse()
+        cls.project = fcconfig.project
+        if not cls.project:
+            raise ValueError("Your configuration must define a FireCloud project")
+        fcconfig.set_verbosity(fiss_verbosity)
 
-        # prefer projects names with 'test' in the name, if present
-        test_projs = sorted([p for p in projs if 'test' in p])
-
-        if len(test_projs) > 0:
-            cls.namespace = test_projs[0]
-        elif len(projs) > 0:
-            cls.namespace = projs[0]
-        else:
-            raise ValueError("ERROR: You do not have access to any firecloud"
-                             " billing accounts, aborting tests")
-
-        print_("Running tests using namespace: " + cls.namespace)
-
-        # Set up a static workspace that will exist for the duration
-        # of the tests. Individual workspaces will be created as temp,
-        # but are responsible for tearing themselves down
-        cls.static_workspace = 'FISS_NOSE_STATIC__' + cls.timestamp
-
-        fapi.create_workspace(cls.namespace, cls.static_workspace)
+        # Set up a temp workspace for duration of tests; and in case a previous
+        # test failed, attempt to unlock & delete before creating anew.  Note
+        # that bc we execute space create/delete here, their tests are NO-OPs
+        cls.workspace = getuser() + '_FISS_TEST'
+        r = fapi.unlock_workspace(cls.project, cls.workspace)
+        r = fapi.delete_workspace(cls.project, cls.workspace)
+        r = fapi.create_workspace(cls.project, cls.workspace)
+        fapi._check_response_code(r, 201)
 
     @classmethod
     def tearDownClass(cls):
-        """Tear down test conditions."""
-        # Delete the static workspace
-        fapi.delete_workspace(cls.namespace, cls.static_workspace)
+        print("\nFinishing low-level CLI tests ...\n", file=sys.stderr)
+        r = fapi.delete_workspace(cls.project, cls.workspace)
 
     # Test individual api calls, 1 test per api call,
     # listed in alphabetical order for convenience
@@ -61,16 +54,18 @@ class TestFirecloudAPI(unittest.TestCase):
 
     def test_clone_workspace(self):
         """Test clone_workspace()."""
-        temp_space = 'FISS_NOSE_TEMP_CLONE__' + self.timestamp
-        r =  fapi.clone_workspace(self.namespace, self.static_workspace,
-                                  self.namespace, temp_space)
-        print_(r.status_code, r.content)
+        temp_space = getuser() + '_FISS_TEST_CLONE'
+        r = fapi.unlock_workspace(self.project, temp_space)
+        r = fapi.delete_workspace(self.project, temp_space)
+        r =  fapi.clone_workspace(self.project, self.workspace,
+                                  self.project, temp_space)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 201)
 
-        #TODO: Compare new workspace and old workspace
-        ##Cleanup, Delete workspace
-        r =  fapi.delete_workspace(self.namespace, temp_space)
-        print_(r.status_code, r.content)
+        # Compare new workspace and old workspace
+        # Cleanup, Delete workspace
+        r =  fapi.delete_workspace(self.project, temp_space)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 202)
 
     @unittest.skip("Not Implemented")
@@ -92,16 +87,6 @@ class TestFirecloudAPI(unittest.TestCase):
     def test_create_submission(self):
         """Test create_submission()."""
         pass
-
-    def test_create_workspace(self):
-        """Test create_workspace()."""
-        temp_space = 'FISS_NOSE_TESTCREATE__' + self.timestamp
-        r = fapi.create_workspace(self.namespace, temp_space)
-        print_(r.status_code, r.content)
-        self.assertEqual(r.status_code, 201)
-
-        #Clean up, delete workspace
-        fapi.delete_workspace(self.namespace, temp_space)
 
     @unittest.skip("Not Implemented")
     def test_create_workspace_config(self):
@@ -148,16 +133,13 @@ class TestFirecloudAPI(unittest.TestCase):
         """Test delete_sample_set()."""
         pass
 
-    def test_delete_workspace(self):
-        """Test delete_workspace()."""
-        # Try to create workspace, but ignore errors
-        # Create workspace to delete
-        temp_space = 'FISS_TESTDELETE__' + self.timestamp
-        print_(fapi.create_workspace(self.namespace, temp_space))
+    def test_create_workspace(self):
+        # NO-OP, because this feature is tested in setUpClass & elsewhere
+        pass
 
-        r = fapi.delete_workspace(self.namespace, temp_space)
-        print_(r.status_code, r.content)
-        self.assertEqual(r.status_code, 202)
+    def test_delete_workspace(self):
+        # NO-OP, because this feature is tested in setUpClass & elsewhere
+        pass
 
     @unittest.skip("Not Implemented")
     def test_delete_workspace_config(self):
@@ -171,25 +153,25 @@ class TestFirecloudAPI(unittest.TestCase):
 
     def test_get_entities(self):
         """Test get_entities()."""
-        r =  fapi.get_entities(self.namespace,
-                               self.static_workspace,
+        r =  fapi.get_entities(self.project,
+                               self.workspace,
                                "participant")
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_get_entities_tsv(self):
         """Test get_entities_tsv()."""
-        r =  fapi.get_entities_tsv(self.namespace,
-                                   self.static_workspace,
+        r =  fapi.get_entities_tsv(self.project,
+                                   self.workspace,
                                    "participant")
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_get_entities_with_type(self):
         """Test get_entities_with_type()."""
-        r =  fapi.get_entities_with_type(self.namespace,
-                                         self.static_workspace)
-        print_(r.status_code, r.content)
+        r =  fapi.get_entities_with_type(self.project,
+                                         self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
@@ -225,7 +207,7 @@ class TestFirecloudAPI(unittest.TestCase):
     def test_get_status(self):
         """Test get_status()."""
         r =  fapi.get_status()
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
@@ -245,17 +227,17 @@ class TestFirecloudAPI(unittest.TestCase):
 
     def test_get_workspace(self):
         """Test get_workspace()."""
-        r = fapi.get_workspace(self.namespace, self.static_workspace)
-        print_(r.status_code, r.content)
+        r = fapi.get_workspace(self.project, self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
         space_dict = r.json()['workspace']
-        self.assertEqual(space_dict['name'], self.static_workspace)
-        self.assertEqual(space_dict['namespace'], self.namespace)
+        self.assertEqual(space_dict['name'], self.workspace)
+        self.assertEqual(space_dict['namespace'], self.project)
 
     def test_get_workspace_acl(self):
         """Test get_workspace_acl()."""
-        r =  fapi.get_workspace_acl(self.namespace, self.static_workspace)
-        print_(r.status_code, r.content)
+        r =  fapi.get_workspace_acl(self.project, self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
@@ -266,64 +248,64 @@ class TestFirecloudAPI(unittest.TestCase):
     def test_list_billing_projects(self):
         """Test list_billing_projects()."""
         r =  fapi.list_billing_projects()
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_list_entity_types(self):
         """Test list_entity_types()."""
-        r =  fapi.list_entity_types(self.namespace,
-                                    self.static_workspace)
-        print_(r.status_code, r.content)
+        r =  fapi.list_entity_types(self.project,
+                                    self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_list_repository_configs(self):
         """Test list_repository_configs()."""
         r =  fapi.list_repository_configs()
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_list_repository_methods(self):
         """Test list_repository_methods()."""
         r =  fapi.list_repository_methods()
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_list_submissions(self):
         """Test list_submissions()."""
-        r =  fapi.list_submissions(self.namespace,
-                                   self.static_workspace)
-        print_(r.status_code, r.content)
+        r =  fapi.list_submissions(self.project,
+                                   self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
     def test_list_workspace_configs(self):
         """Test get_configs()."""
         r =  fapi.get_configs(self.test_namespace,
-                                self.static_workspace)
-        print_(r.status_code, r.content)
+                                self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_list_workspaces(self):
         """Test list_workspaces()."""
         r = fapi.list_workspaces()
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
         workspace_names = [w['workspace']['name'] for w in r.json()]
-        self.assertIn(self.static_workspace, workspace_names)
+        self.assertIn(self.workspace, workspace_names)
 
     def test_lock_workspace(self):
         """Test lock_workspace()"""
-        r =  fapi.lock_workspace(self.namespace, self.static_workspace)
-        print_(r.status_code, r.content)
+        r =  fapi.lock_workspace(self.project, self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 204)
 
         # Unlock, for other tests
-        fapi.unlock_workspace(self.namespace, self.static_workspace)
+        fapi.unlock_workspace(self.project, self.workspace)
 
     def test_ping(self):
         """Test ping()."""
         r =  fapi.ping()
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
@@ -333,8 +315,8 @@ class TestFirecloudAPI(unittest.TestCase):
 
     def test_unlock_workspace(self):
         """Test unlock_workspace()."""
-        r =  fapi.unlock_workspace(self.namespace, self.static_workspace)
-        print_(r.status_code, r.content)
+        r =  fapi.unlock_workspace(self.project, self.workspace)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 204)
 
     @unittest.skip("Not Implemented")
@@ -356,17 +338,17 @@ class TestFirecloudAPI(unittest.TestCase):
         """Test update_workspace_acl()."""
         updates = [{ "email": "abaumann.firecloud@gmail.com",
                      "accessLevel": "READER"}]
-        r =  fapi.update_workspace_acl(self.namespace, self.static_workspace,
+        r =  fapi.update_workspace_acl(self.project, self.workspace,
                                        updates)
-        print_(r.status_code, r.content)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     def test_update_workspace_attributes(self):
         """Test update_workspace_attributes()."""
         updates = [fapi._attr_set("key1", "value1")]
-        r =  fapi.update_workspace_attributes(self.namespace,
-                                              self.static_workspace, updates)
-        print_(r.status_code, r.content)
+        r =  fapi.update_workspace_attributes(self.project,
+                                              self.workspace, updates)
+        print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
