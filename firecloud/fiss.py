@@ -13,6 +13,7 @@ from inspect import getsourcelines
 import argparse
 import subprocess
 import re
+import math
 
 from six import iteritems, string_types, itervalues, u
 from six.moves import input
@@ -173,7 +174,7 @@ def entity_types(args):
     r = fapi.list_entity_types(args.project, args.workspace,
                                args.api_url)
     fapi._check_response_code(r, 200)
-    return r.json().keys()
+    return list(r.json().keys())
 
 @fiss_cmd
 def entity_list(args):
@@ -490,9 +491,22 @@ def attr_get(args):
                 # Otherwise it's a string (either empty or the value of the attribute)
                 # so no modifications are needed
                 if type(value) == dict:
-                    value = ",".join([i['entityName'] for i in value['items']])
-
-                attributes[name] = value
+                    try:
+                        #values = ",".join([i['entityName'] for i in value['items']])
+                        values = []
+                        for i in value['items']:
+                            if isinstance(i, str):
+                                values.append(i)
+                            else:
+                                values.append(i['entityName'])
+                        values = ",".join(values)
+                    except Exception as e:
+                        print(attr)
+                        print(i)
+                        __pretty_print_fc_exception(e)
+                else:
+                    values = value
+                attributes[name] = values
     else:
         # Otherwise get workspace-scoped attributes
         r = fapi.get_workspace(args.project, args.workspace, args.api_url)
@@ -503,6 +517,136 @@ def attr_get(args):
             if not args.attributes or name in args.attributes:
                 attributes[name] = "{0}".format(attrs[name])
 
+    return attributes
+
+
+class AttrPrint(attrdict):
+    #def __init__(self, *args, *kwargs):
+
+    def pprint(self):
+        print("Entity\tAttribute\tPath")
+        attr_list = sorted(self.keys())
+        for attr in attr_list:
+            attr_entities = sorted(self[attr].keys())
+            for attr_e in attr_entities:
+                #print(attr_e)
+                if isinstance(self[attr][attr_e], list):
+                    attr_element = ','.join(self[attr][attr_e])
+                else:
+                    attr_element = self[attr][attr_e]
+                #print(attr + '\t' + attr_e + '\t' + attr_element)
+                print("{0}\t{1}\t{2}".format(attr, attr_e, attr_element))
+
+
+
+#@fiss_cmd
+def attr_list(args):
+    '''Retrieve set of attribute name/value pairs from a workspace: if one or
+    more entities are specified then the attributes will be retrieved from
+    those entities, otherwise a summary of the number of attributes
+    defined, along with the corresponding entity type will be retrieved.
+    Returns a dict of name/value pairs.
+
+    API support for filter_terms appears to be restricted to the entity level
+
+    '''
+
+    attributes = AttrPrint('')
+
+    if args.entity_type:
+        entities = _entity_paginator(args.project, args.workspace,
+                                     args.entity_type,
+                                     page_size=1000, filter_terms=args.filter_terms,
+                                     sort_direction="asc", api_root=args.api_url)
+        attr_list = args.attributes
+        if not attr_list:
+            # Get a set of all available attributes, then sort them
+            attr_list = {k for e in entities for k in e['attributes'].keys()}
+            attr_list = sorted(attr_list)
+
+        exclude_attr_list = args.exclude
+        if exclude_attr_list:
+            if isinstance(exclude_attr_list, str):
+                exclude_attr_list = [exclude_attr_list]
+            attr_list = [attr_entry for attr_entry in attr_list if attr_entry not in exclude_attr_list]
+
+        if args.cohorts:
+            if isinstance(args.cohorts, str):
+                args.cohorts = [args.cohorts]
+            cohort_filter = set(args.cohorts)
+        else:
+            cohort_filter = None
+
+        header = args.entity_type + "_id\t" + "\t".join(attr_list)
+        #print(u(header))
+
+        for entity_dict in entities:
+            name = entity_dict['name']
+            if cohort_filter and name not in cohort_filter:
+                continue
+
+            etype = entity_dict['entityType']
+            attrs = entity_dict['attributes']
+            attributes[name] = {}
+            for attr in attr_list:
+                # Get attribute value
+                if attr == "participant_id" and args.entity_type == "sample":
+                    value = attrs['participant']['entityName']
+                else:
+                    value = attrs.get(attr, "")
+                # temp
+                if args.entity_type == "sample":
+                    continue
+
+                # If it's a dict, we get the entity name from the "items" section
+                # Otherwise it's a string (either empty or the value of the attribute)
+                # so no modifications are needed
+                if type(value) == dict:
+                    try:
+                        # smoketest breaks the list comp
+                        #values = ",".join([i['entityName'] for i in value['items']])
+                        values = []
+                        for i in value['items']:
+                            if isinstance(i, str):
+                                values.append(i)
+                            else:
+                                values.append(i['entityName'])
+                        values = ",".join(values)
+                    except Exception as e:
+                        print(attr)
+                        print(i)
+                        __pretty_print_fc_exception(e)
+                else:
+                    values = value
+                if value:
+                    if etype in attributes[name]:
+                        attributes[name][attr].append(values)
+                    else:
+                        attributes[name][attr] = [values]
+    else:
+        # Otherwise list the attribute types
+        r = fapi.list_entity_types(args.project, args.workspace)
+        fapi._check_response_code(r, 200)
+        attrs = r.json()
+        for name in sorted(attrs.keys()):
+            attributes[name] = {'attribute_counts': len(attrs[name]['attributeNames']),
+                                'entities_count': attrs[name]['count']}
+    ### generate custom print method
+    print("Entity\tAttribute\tPath")
+    attr_list = sorted(attributes.keys())
+    for attr in attr_list:
+        attr_entities = sorted(attributes[attr].keys())
+        for attr_e in attr_entities:
+            #print(attr_e)
+            if isinstance(attributes[attr][attr_e], list):
+                attr_element = ','.join(attributes[attr][attr_e])
+            else:
+                attr_element = attributes[attr][attr_e]
+            #print(attr + '\t' + attr_e + '\t' + attr_element)
+            print("{0}\t{1}\t{2}".format(attr, attr_e, attr_element))
+
+    #return attributes
+    #return 0
     return attributes
 
 @fiss_cmd
@@ -540,6 +684,20 @@ def attr_set(args):
         fapi._check_response_code(r, 200)
 
     return 0
+
+def fetch_files(file_list, chunk_size=500):
+    ''' Utility function to fetch a list of files.'''
+    # number of calls is limited by command line size limit
+    n = int(math.ceil(len(file_list)/chunk_size))
+    for i in range(n):
+        x = file_list[chunk_size*i:chunk_size*(i+1)]
+        cmd = 'echo -e "{}" | gsutil -m cp -I .'.format('\n'.join(x))
+        subprocess.check_call(cmd, shell=True, executable='/bin/bash')
+
+@fiss_cmd
+def attr_fetch(args):
+    '''After successful call to attr_list, fetch the resulting files'''
+
 
 @fiss_cmd
 def attr_delete(args):
@@ -1488,7 +1646,9 @@ def __pretty_print_fc_exception(e):
 
 def unroll_value(value):
     retval = value if isinstance(value, int) else 0
-    if isinstance(value, dict):
+    if hasattr(value, 'pprint') and callable(getattr(value, 'pprint')):
+        value.pprint()
+    elif isinstance(value, dict):
         for k, v in sorted(value.items()):
             print(u("{0}\t{1}".format(k,v)))
     elif isinstance(value, list):
@@ -1881,14 +2041,39 @@ def main(argv=None):
     # Duplicate entity-type here, because it is optional for attr_get
     etype_help =  'Entity type to retrieve annotations from. '
     etype_help += 'If omitted, workspace annotations will be retrieved'
+    etype_choices=[
+        'participant', 'participant_set', 'sample', 'sample_set',
+        'pair', 'pair_set'
+    ]
+
     attr_parser.add_argument(
-        '-t', '--entity-type', help=etype_help,
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ]
+        '-t', '--entity-type', help=etype_help, choices=etype_choices
     )
     attr_parser.set_defaults(func=attr_get)
+
+    #List attribute values on workspace or entities
+    attr_list_parser = subparsers.add_parser(
+        'attr_list', description='List attributes from entities in a workspace',
+        parents=[workspace_parent, attr_parent]
+    )
+
+    attr_list_parser.add_argument(
+        '-t', '--entity-type', help=etype_help, choices=etype_choices
+    )
+
+    attr_list_parser.add_argument(
+        '-x', '--filter-terms', help=""
+    )
+
+    attr_list_parser.add_argument(
+        '-v', '--exclude', help=""
+    )
+
+    attr_list_parser.add_argument(
+        '-y', '--cohorts', help=""
+    )
+
+    attr_list_parser.set_defaults(func=attr_list)
 
     # Set attribute on workspace or entities
     attr_set_prsr = subparsers.add_parser(
