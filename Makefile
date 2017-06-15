@@ -19,6 +19,7 @@ PIP=$(DEST)/bin/pip$(PYTHON_VER)
 VERBOSITY_NOSE=3
 VERBOSITY_FISS=0
 HIGHLEVEL_TESTS=--tests=firecloud/tests/highlevel_tests.py
+LOWLEVEL_TESTS=--tests=firecloud/tests/lowlevel_tests.py
 
 help:
 	@echo
@@ -43,8 +44,11 @@ lintify:
 	@echo Running lint to detect potential code problems earlier than at runtime
 	@$(PYLINT) *.py firecloud/*.py
 
-test_cli:
+test_highlevel:
 	@$(MAKE) invoke_tests TESTS=$(HIGHLEVEL_TESTS)
+
+test_lowlevel:
+	@$(MAKE) invoke_tests TESTS=$(LOWLEVEL_TESTS)
 
 WHICH=
 test_one:
