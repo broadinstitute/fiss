@@ -1,0 +1,5 @@
+requests
+nose
+pylint
+oauth2client
+six
