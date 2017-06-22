@@ -2,8 +2,8 @@
 
 from __future__ import print_function
 import unittest
-import json
 import logging
+import sys
 import os, re
 from getpass import getuser
 import nose
@@ -11,7 +11,6 @@ from firecloud.fiss import main as fiss_main
 from firecloud.fccore import fc_config_get_all
 from firecloud import api as fapi
 from io import StringIO             # cStringIO avoided, for Python2/3 compat
-import sys
 
 def call_fiss(*args):
     return fiss_main(["fissfc"] + list(args))
@@ -85,13 +84,13 @@ class TestFISSHighLevel(unittest.TestCase):
 
     def test_dash_l(self):
         with Capturing() as output:
-            ret = call_fiss('-l')
+            call_fiss('-l')
         output = ''.join(output)
         logging.debug(output)
         self.assertIn("space_info", output)
 
         with Capturing() as output:
-            ret = call_fiss("-l", "config")
+            call_fiss("-l", "config")
         output = ''.join(output)
         logging.debug(output)
         self.assertIn("config_validate", output)
@@ -150,27 +149,27 @@ class TestFISSHighLevel(unittest.TestCase):
         with Capturing() as output:
             ret = call_fiss("space_list")
         self.assertIn(self.workspace,''.join(output))
-        self.assertEquals(0, ret)
+        self.assertEqual(0, ret)
 
     def test_space_exists(self):
         ret = call_fiss("space_exists", "-p", self.project, "-w", self.workspace)
-        self.assertEquals(True, ret)
+        self.assertEqual(True, ret)
 
     def test_entity_import_and_list(self):
         args = ("entity_import", "-p", self.project, "-w", self.workspace,
                "-f", os.path.join("firecloud", "tests", "participants.tsv"))
         ret = call_fiss(*args)
-        self.assertEquals(0, ret)
+        self.assertEqual(0, ret)
 
         # Verify import by spot-checking length and content of
         args = ("participant_list", "-p", self.project, "-w", self.workspace)
         with Capturing() as output:
             ret = call_fiss(*args)
-        self.assertEquals(0, ret)
-        self.assertEquals(2000, len(output))
-        self.assertEquals(True, 'P-0' in output)
-        self.assertEquals(True, 'P-999' in output)
-        self.assertEquals(True, 'P-1999' in output)
+        self.assertEqual(0, ret)
+        self.assertEqual(2000, len(output))
+        self.assertEqual(True, 'P-0' in output)
+        self.assertEqual(True, 'P-999' in output)
+        self.assertEqual(True, 'P-1999' in output)
 
     def test_attr_workspace(self):
         call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
@@ -179,10 +178,10 @@ class TestFISSHighLevel(unittest.TestCase):
         with Capturing() as output:
             ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
                              "-a", "workspace_attr")
-        self.assertEquals(0, ret)
+        self.assertEqual(0, ret)
         output = ''.join(output)
         logging.debug(output)
-        self.assertEquals(output, "workspace_attr\ttest_value")
+        self.assertEqual(output, "workspace_attr\ttest_value")
 
     def test_attr_ops(self):
         # Upload the 4 test data files
@@ -200,10 +199,10 @@ class TestFISSHighLevel(unittest.TestCase):
             ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
                             "-t", "sample_set", "-a", "set_attr_1")
 
-        self.assertEquals(0, ret)
+        self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEquals(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
+        self.assertEqual(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
 
         # Now call attr_set on a sample_set, followed by attr_get
         call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
@@ -212,10 +211,23 @@ class TestFISSHighLevel(unittest.TestCase):
         with Capturing() as output:
             ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
                              "-t", "sample_set", "-a", "set_attr_1")
-        self.assertEquals(0, ret)
+        self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEquals(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-E")
+        self.assertEqual(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-E")
+
+    def test_api_url(self):
+        fcconfig = fc_config_get_all()
+        prev_root_url = fcconfig.root_url
+        # Call with deliberately bad URL, should fail
+        args = ("space_exists", "-p", self.project, "-w", self.workspace)
+        ret = call_fiss("-u", "https://api.firecloud.org/api/foo", *args)
+        self.assertEqual(False, ret)
+        # Now use correct URL prefix, but not terminated with trailing /, which
+        # will still succeed because trailing slash is silently appended
+        ret = call_fiss("-u", "https://api.firecloud.org/api", *args)
+        self.assertEqual(True, ret)
+        fcconfig.set_root_url(prev_root_url)
 
 def main():
     nose.main()
