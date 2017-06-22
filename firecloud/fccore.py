@@ -70,6 +70,19 @@ def __set_verbosity(verbosity):
 def __get_verbosity():
     return __fcconfig.verbosity
 
+def __set_root_url(url):
+    previous_value = __fcconfig.root_url
+    if not url:
+        return previous_value
+    try:
+        if not url.endswith('/'):
+            url += '/'
+        __fcconfig.root_url = url
+    except Exception:
+        print("\t\t__set_root_url: caught exception type(url)={0}".format(type(url)),file=sys.stderr)
+        pass                            # simply keep previous value
+    return previous_value
+
 __fcconfig = attrdict({
     'root_url'       : 'https://api.firecloud.org/api/',
     'user_agent'    : "FISS/" + __about__.__version__,
@@ -80,7 +93,8 @@ __fcconfig = attrdict({
     'workspace'     : '',
     'method_ns'     : '',
     'get_verbosity' : __get_verbosity,
-    'set_verbosity' : __set_verbosity
+    'set_verbosity' : __set_verbosity,
+    'set_root_url'  : __set_root_url
 })
 
 def fc_config_parse(config=None, *files):
