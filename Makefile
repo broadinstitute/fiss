@@ -54,7 +54,7 @@ WHICH=
 test_one:
 	@# Example: make test_one WHICH=space_lock_unlock
 	@# Example: make test_one WHICH=ping VERBOSITY_FISS=1 (shows API calls)
-	@$(MAKE) invoke_tests TESTS=$(HIGHLEVEL_TESTS):TestFISS.test_$(WHICH)
+	@$(MAKE) invoke_tests TESTS=$(HIGHLEVEL_TESTS):TestFISSHighLevel.test_$(WHICH)
 
 invoke_tests:
 	@FISS_TEST_VERBOSITY=$(VERBOSITY_FISS) \
