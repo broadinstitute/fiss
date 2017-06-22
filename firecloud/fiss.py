@@ -311,21 +311,24 @@ def flow_new(args):
     r = fapi.update_repository_method(args.namespace, args.method,
                                     args.synopsis, args.wdl, args.doc)
     fapi._check_response_code(r, 201)
-    print("Successfully pushed {0}/{1}".format(args.namespace, args.method))
+    if fcconfig.verbosity:
+        print("Method %s installed to project %s" % (args.method,args.namespace))
+    return 0
 
 @fiss_cmd
 def flow_delete(args):
-    """ Redact a workflow in the methods repository """
+    """ Remove (redact) a method from the method repository """
     message = "WARNING: this will delete workflow \n\t{0}/{1}:{2}".format(
-        args.namespace, args.method, args.snapshot_id
-    )
+                                    args.namespace, args.method, args.snapshot_id)
     if not args.yes and not _confirm_prompt(message):
-        #Don't do it!
         return
+
     r = fapi.delete_repository_method(args.namespace, args.method,
                                                     args.snapshot_id)
     fapi._check_response_code(r, 200)
-    print("Successfully redacted workflow.")
+    if fcconfig.verbosity:
+        print("Method %s removed from project %s" % (args.method,args.namespace))
+    return 0
 
 @fiss_cmd
 def flow_acl(args):
@@ -406,15 +409,18 @@ def flow_start(args):
 @fiss_cmd
 def config_list(args):
     """ List configurations in the methods repository or a workspace. """
+    verbose = fcconfig.verbosity
     if args.workspace:
-        # Get methods from a specific workspace
+        if verbose:
+            print("Retrieving method configs from space {0}".format(args.workspace))
         if not args.project:
             eprint("No project provided and no DEFAULT_PROJECT found")
             return 1
         r = fapi.list_workspace_configs(args.project, args.workspace)
         fapi._check_response_code(r, 200)
     else:
-        # Get methods from the repository
+        if verbose:
+            print("Retrieving method configs from method repository")
         r = fapi.list_repository_configs()
         fapi._check_response_code(r, 200)
 
@@ -423,15 +429,17 @@ def config_list(args):
     results = []
     for m in methods:
         ns = m['namespace']
-        n = m['name']
-        # Use the get syntax here since workspace configs have no snapshot_id
-        sn_id = m.get('snapshotId', "")
-        results.append('{0}\t{1}\t{2}'.format(ns,n,sn_id))
+        name = m['name']
+        # Ugh: configs in workspaces look different from configs in methodRepo
+        mver = m.get('methodRepoMethod', None)
+        if mver:
+            mver = mver.get('methodVersion', 'unknown')     # space config
+        else:
+            mver = m.get('snapshotId', 'unknown')           # repo  config
+        results.append('{0}\t{1}\tsnapshotId:{2}'.format(ns, name, mver))
 
-    #Sort for easier viewing, ignore case
-    results = sorted(results, key=lambda s: s.lower())
-    for r in results:
-        print(r)
+    # Sort for easier viewing, ignore case
+    return sorted(results, key=lambda s: s.lower())
 
 @fiss_cmd
 def config_acl(args):
@@ -499,6 +507,11 @@ def config_copy(args):
     # Finally, instantiate the copy
     r = fapi.create_workspace_config(args.toproject, args.tospace, copy)
     fapi._check_response_code(r, 201)
+
+    if fcconfig.verbosity:
+        print("Method %s/%s:%s copied to %s/%s:%s" % (
+                args.fromproject, args.fromspace, args.config,
+                args.toproject, args.tospace, args.toname))
 
     return 0
 
@@ -1788,7 +1801,7 @@ def main(argv=None):
     subp = subparsers.add_parser(
         'config_list', description='List available configurations')
     subp.add_argument('-w', '--workspace', help='Workspace name',
-                default=fcconfig.workspace, required=workspace_required)
+                default=fcconfig.workspace, required=False)
     proj_help =  'Project (workspace namespace).'
     subp.add_argument('-p', '--project', default=fcconfig.project,
                                  help=proj_help, required=proj_required)
@@ -1824,10 +1837,10 @@ def main(argv=None):
     subp.add_argument('-p', '--fromproject', default=fcconfig.project,
                                  help='Project (workspace namespace)',
                                  required=proj_required)
-    subp.add_argument('-f', '--fromspace', help='from workspace',
+    subp.add_argument('-s', '--fromspace', help='from workspace',
                     default=fcconfig.workspace, required=workspace_required)
     subp.add_argument('-C', '--toname', help='name of the copied config')
-    subp.add_argument('-T', '--tospace', help='destination workspace')
+    subp.add_argument('-S', '--tospace', help='destination workspace')
     subp.add_argument("-N", "--tonamespace", help="destination namespace")
     subp.add_argument("-P", "--toproject", help="destination project")
     subp.set_defaults(func=config_copy)
@@ -2122,11 +2135,12 @@ def main(argv=None):
     else:
         # Otherwise parse args & call correct subcommand (skipping argv[0])
         args = parser.parse_args(argv[1:])
+
         # Ensure CLI flags have greatest precedence (e.g. over config file)
         if args.verbose:
             fcconfig.set_verbosity(args.verbose)
         if args.api_url:
-            fcconfig.root_url = args.api_url
+            fcconfig.set_root_url(args.api_url)
 
         try:
             result = args.func(args)
