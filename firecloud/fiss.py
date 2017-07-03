@@ -555,7 +555,7 @@ def attr_get(args):
             result = {args.entity : u'\t'.join(map(valueToTxt, attrs.values()))}
             # Add "hidden" header of attribute names, for downstream convenience
             object_id = u'entity:%s_id' % args.entity_type
-            result['__header__'] = [object_id] + attrs.keys()
+            result['__header__'] = [object_id] + list(attrs.keys())
         else:
             result = attrs
     else:
@@ -1477,7 +1477,7 @@ def __pretty_print_fc_exception(e):
         print_traceback(trback)
     try:
         # Attempt to unpack error message as JSON
-        e = json.loads(e.message)
+        e = json.loads(e.args[0])
         source = ' (' + e["source"] + ')'
         msg = e["message"]
         for pattern in __PatternsToFilter:
@@ -1490,7 +1490,7 @@ def __pretty_print_fc_exception(e):
         if isinstance(code, str):
             preface = ''
         source  = ''
-        msg = e.message
+        msg = e.args[0]
 
     print("{0}{1}{2}: {3}".format(preface, code, source, msg))
     return 99
