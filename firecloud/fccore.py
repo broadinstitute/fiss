@@ -85,13 +85,14 @@ def __set_root_url(url):
 
 __fcconfig = attrdict({
     'root_url'       : 'https://api.firecloud.org/api/',
-    'user_agent'    : "FISS/" + __about__.__version__,
+    'user_agent'    : 'FISS/' + __about__.__version__,
     'debug'         : False,
     'verbosity'     : 0,
     'page_size'     : 1000,
     'project'       : '',
     'workspace'     : '',
     'method_ns'     : '',
+    'entity_type'   : 'sample_set',
     'get_verbosity' : __get_verbosity,
     'set_verbosity' : __set_verbosity,
     'set_root_url'  : __set_root_url
