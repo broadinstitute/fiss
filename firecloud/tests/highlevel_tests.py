@@ -197,12 +197,13 @@ class TestFISSHighLevel(unittest.TestCase):
         # Now call attr_get
         with Capturing() as output:
             ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
-                            "-t", "sample_set", "-a", "set_attr_1")
+                            "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1")
 
         self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEqual(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
+        #self.assertEqual(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
+        self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-A")
 
         # Now call attr_set on a sample_set, followed by attr_get
         call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
@@ -210,11 +211,11 @@ class TestFISSHighLevel(unittest.TestCase):
 
         with Capturing() as output:
             ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
-                             "-t", "sample_set", "-a", "set_attr_1")
+                             "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1")
         self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEqual(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-E")
+        self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-E")
 
     def test_api_url(self):
         fcconfig = fc_config_get_all()
