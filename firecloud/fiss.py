@@ -14,10 +14,9 @@ from traceback import print_tb as print_traceback
 import argparse
 import subprocess
 import re
-
+import collections
 from six import iteritems, string_types, itervalues, u
 from six.moves import input
-
 from firecloud import api as fapi
 from firecloud.fccore import *
 from firecloud.errors import *
@@ -414,7 +413,7 @@ def config_list(args):
         if verbose:
             print("Retrieving method configs from space {0}".format(args.workspace))
         if not args.project:
-            eprint("No project provided and no DEFAULT_PROJECT found")
+            eprint("No project provided and no default project configured")
             return 1
         r = fapi.list_workspace_configs(args.project, args.workspace)
         fapi._check_response_code(r, 200)
@@ -517,55 +516,65 @@ def config_copy(args):
 
 @fiss_cmd
 def attr_get(args):
-    '''Retrieve set of attribute name/value pairs from a workspace: if one or
-    more entities are specified then the attributes will be retrieved from
-    those entities, otherwise the attributes defined at the workspace scope
-    will be retrieved.  Returns a dict of name/value pairs.'''
+    '''Return a dict of attribute name/value pairs: if entity name & type
+    are specified then attributes will be retrieved from that entity,
+    otherwise workspace-level attributes will be returned.  By default all
+    attributes attached to the given object will be returned, but a subset
+    can be selected by specifying a list of attribute names; names which
+    refer to a non-existent attribute will be silently ignored. By default
+    a special __header__ entry is optionally added to the result. '''
 
-    attributes = attrdict('')
-    if args.entity_type:
-        entities = _entity_paginator(args.project, args.workspace,
-                                     args.entity_type,
-                                     page_size=1000, filter_terms=None,
-                                     sort_direction="asc")
-        attr_list = args.attributes
-        if not attr_list:
-            # Get a set of all available attributes, then sort them
-            attr_list = {k for e in entities for k in e['attributes'].keys()}
-            attr_list = sorted(attr_list)
-
-        header = args.entity_type + "_id\t" + "\t".join(attr_list)
-        print(u(header))
-
-        for entity_dict in entities:
-            name = entity_dict['name']
-            etype = entity_dict['entityType']
-            attrs = entity_dict['attributes']
-            for attr in attr_list:
-                # Get attribute value
-                if attr == "participant_id" and args.entity_type == "sample":
-                    value = attrs['participant']['entityName']
-                else:
-                    value = attrs.get(attr, "")
-
-                # If it's a dict, we get the entity name from the "items" section
-                # Otherwise it's a string (either empty or the value of the attribute)
-                # so no modifications are needed
-                if type(value) == dict:
-                    value = ",".join([i['entityName'] for i in value['items']])
-
-                attributes[name] = value
+    if args.entity_type and args.entity:
+        r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
+        fapi._check_response_code(r, 200)
+        attrs = r.json()['attributes']
+        # It is wrong for the members of container objects to appear as metadata
+        # (attributes) attached to the container, as it conflates fundamentally
+        # different things: annotation vs membership. This can be seen by using
+        # a suitcase model of reasoning: ATTRIBUTES are METADATA like the weight
+        # & height of the suitcase, the shipping label and all of its passport
+        # stamps; while MEMBERS are the actual CONTENTS INSIDE the suitcase.
+        # This conflation also contradicts the design & docs (which make a clear
+        # distinction between MEMBERSHIP and UPDATE loadfiles).  For this reason
+        # a change has been requested of the FireCloud dev team (via forum), and
+        # until it is implemented we will elide "list of members" attributes here
+        # (but later may provide a way for users to request such, if wanted)
+        for k in ["samples", "participants", "pairs"]:
+            attrs.pop(k, None)
     else:
-        # Otherwise get workspace-scoped attributes
         r = fapi.get_workspace(args.project, args.workspace)
         fapi._check_response_code(r, 200)
-
         attrs = r.json()['workspace']['attributes']
-        for name in sorted(attrs.keys()):
-            if not args.attributes or name in args.attributes:
-                attributes[name] = "{0}".format(attrs[name])
 
-    return attributes
+    if args.attributes:         # return a subset of attributes, if requested
+        attrs = {k:attrs[k] for k in set(attrs).intersection(args.attributes)}
+
+    # If some attributes have been collected, return in appropriate format
+    if attrs:
+        if args.entity:
+            result = {args.entity : u'\t'.join(map(valueToTxt, attrs.values()))}
+            # Add "hidden" header of attribute names, for downstream convenience
+            object_id = u'entity:%s_id' % args.entity_type
+            result['__header__'] = [object_id] + attrs.keys()
+        else:
+            result = attrs
+    else:
+        result = {}
+
+    return result
+
+@fiss_cmd
+def attr_list(args):
+    '''Retrieve names of all attributes attached to a given object, either
+       an entity (if entity type+name is provided) or workspace (if not)'''
+    args.attributes = None
+    result = attr_get(args)
+    names = result.get("__header__",[])
+    if names:
+        names = names[1:]
+    else:
+        names = result.keys()
+    return sorted(names)
 
 @fiss_cmd
 def attr_set(args):
@@ -1007,9 +1016,7 @@ def sset_loop(args):
 
     sample_sets = [entity['name'] for entity in r.json()]
 
-    # Ensure entity-type is sample_set
     args.entity_type = "sample_set"
-
     for sset in sample_sets:
         print('\n' + args.action + " " + sset + ":")
 
@@ -1344,7 +1351,7 @@ def _nonempty_project(string):
     """
     value = str(string)
     if len(value) == 0:
-        msg = "No project provided and no DEFAULT_PROJECT found"
+        msg = "No project provided and no default project configured"
         raise argparse.ArgumentTypeError(msg)
     return value
 
@@ -1488,9 +1495,13 @@ def __pretty_print_fc_exception(e):
     print("{0}{1}{2}: {3}".format(preface, code, source, msg))
     return 99
 
-def unroll_value(value):
+def printToCLI(value):
     retval = value if isinstance(value, int) else 0
     if isinstance(value, dict):
+        # See attr_get for genesis of __header__ 
+        header = value.pop("__header__", None)
+        if header:
+            print('\t'.join(header))
         for k, v in sorted(value.items()):
             print(u("{0}\t{1}".format(k,v)))
     elif isinstance(value, list):
@@ -1498,6 +1509,11 @@ def unroll_value(value):
     elif not isinstance(value, int):
         print(u("{0}".format(value)))
     return retval
+
+def valueToTxt(thing):
+    if isinstance(thing, dict):
+        thing = "{0}".format(thing['items'])
+    return thing
 
 #################################################
 # Main, entrypoint for fissfc
@@ -1511,6 +1527,7 @@ def main(argv=None):
     proj_required = not bool(fcconfig.project)
     meth_ns_required = not bool(fcconfig.method_ns)
     workspace_required = not bool(fcconfig.workspace)
+    etype_required = not bool(fcconfig.entity_type)
 
     # Initialize core parser (TODO: Add longer description)
     usage  = 'fissfc [OPTIONS] [CMD [-h | arg ...]]'
@@ -1546,7 +1563,7 @@ def main(argv=None):
                     default=fcconfig.workspace, required=workspace_required)
 
     proj_help =  'Project (workspace namespace). Required '
-    proj_help += 'if no DEFAULT_PROJECT has been configured'
+    proj_help += 'if no default project was configured'
     workspace_parent.add_argument('-p', '--project', default=fcconfig.project,
                         help=proj_help, required=proj_required)
 
@@ -1561,19 +1578,20 @@ def main(argv=None):
     acl_parent = argparse.ArgumentParser(add_help=False)
     acl_parent.add_argument('-r', '--role', help='ACL role', required=True,
                            choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
-    acl_parent.add_argument('--users', help='FireCloud usernames. Use "public" to set global permissions.', nargs='+',
-                            required=True)
+    acl_parent.add_argument('--users', nargs='+', required=True,
+        help='FireCloud usernames. Use "public" to set global permissions.')
 
     # Commands that operates on entity_types
     etype_parent = argparse.ArgumentParser(add_help=False)
-    etype_parent.add_argument('-t', '--entity-type', required=True,
-                             help="FireCloud entity type")
+    etype_parent.add_argument('-t', '--entity-type',
+        required=etype_required,
+        default=fcconfig.entity_type,
+        help="Entity type, required if no default entity_type was configured")
 
     # Commands that require an entity name
     entity_parent = argparse.ArgumentParser(add_help=False)
-    entity_parent.add_argument(
-        '-e', '--entity', required=True, help="FireCloud entity name"
-    )
+    entity_parent.add_argument('-e', '--entity', required=True,
+        help="Entity name (required)")
 
     # Commands that work with methods
     meth_parent = argparse.ArgumentParser(add_help=False)
@@ -1623,7 +1641,7 @@ def main(argv=None):
     subp = subparsers.add_parser('space_delete', description='Delete workspace')
     subp.add_argument('-w', '--workspace', help='Workspace name', required=True)
     proj_help =  'Project (workspace namespace). Required '
-    proj_help += 'if no DEFAULT_PROJECT has been configured'
+    proj_help += 'if no default project has been configured'
     subp.add_argument('-p', '--project', default=fcconfig.project,
                 help=proj_help, required=proj_required)
     subp.set_defaults(func=space_delete)
@@ -1869,69 +1887,71 @@ def main(argv=None):
     # cacl_parser.set_defaults(func=flow_set_acl)
 
     # Status
-    status_prsr = subparsers.add_parser(
-        'ping', description='Show status of FireCloud services')
-    status_prsr.set_defaults(func=ping)
+    subp = subparsers.add_parser('ping',
+        description='Show status of FireCloud services')
+    subp.set_defaults(func=ping)
 
-    #Get attribute values on workspace or entities
-    attr_parser = subparsers.add_parser(
-        'attr_get', description='Get attributes from entities in a workspace',
-        parents=[workspace_parent, attr_parent]
-    )
+    subp = subparsers.add_parser('attr_get',
+        description='Retrieve values of attribute(s) from given entity',
+        parents=[workspace_parent, attr_parent])
 
     # Duplicate entity-type here, because it is optional for attr_get
     etype_help =  'Entity type to retrieve annotations from. '
-    etype_help += 'If omitted, workspace annotations will be retrieved'
-    attr_parser.add_argument(
-        '-t', '--entity-type', help=etype_help,
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ]
-    )
-    attr_parser.set_defaults(func=attr_get)
+    etype_help += 'If omitted, workspace attributes will be retrieved'
+    etype_choices=['participant', 'participant_set', 'sample', 'sample_set',
+        'pair', 'pair_set' ]
+    subp.add_argument('-t', '--entity-type', choices=etype_choices,
+        required=etype_required,
+        default=fcconfig.entity_type,
+        help="Entity type, required if no default entity_type was configured")
+    subp.add_argument('-e','--entity',help="Entity to retrieve attributes from")
+    subp.set_defaults(func=attr_get)
 
-    # Set attribute on workspace or entities
-    attr_set_prsr = subparsers.add_parser(
-        'attr_set', description="Set attributes on a workspace",
+    subp= subparsers.add_parser('attr_set',
+        description="Set attributes on a workspace",
         parents=[workspace_parent]
     )
-    attr_set_prsr.add_argument('-a', '--attribute', required=True,
-                               metavar='attr', help='Name of attribute to set')
-    attr_set_prsr.add_argument('-v', '--value', required=True,
-                              help='Attribute value')
-    attr_set_prsr.add_argument(
-        '-t', '--entity-type', help=etype_help,
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ]
-    )
-    attr_set_prsr.add_argument('-e', '--entity', help="Entity to set attribute on")
+    subp.add_argument('-a', '--attribute', required=True,
+        metavar='attr', help='Name of attribute to set')
+    subp.add_argument('-v', '--value', required=True, help='Attribute value')
+    subp.add_argument('-t', '--entity-type', choices=etype_choices,
+        required=etype_required,
+        default=fcconfig.entity_type,
+        help="Entity type, required if no default entity_type was configured")
+    subp.add_argument('-e', '--entity', help="Entity to set attribute on")
+    subp.set_defaults(func=attr_set)
 
-    attr_set_prsr.set_defaults(func=attr_set)
+    subp = subparsers.add_parser('attr_list',
+        description='Retrieve names of attributes attached to given entity. ' \
+        'If no entity Type+Name is given, workspace-level attributes will '\
+        'be listed.',
+        parents=[workspace_parent])
+    # FIXME: this should explain that default entity is workspace
+    subp.add_argument('-e', '--entity', help="Entity name")
+    subp.add_argument('-t', '--entity-type', choices=etype_choices,
+        required=etype_required,
+        default=fcconfig.entity_type,
+        help="Entity type, required if no default entity_type was configured")
+    subp.set_defaults(func=attr_list)
 
-    # Copy workspace attributes
-    attr_copy_prsr = subparsers.add_parser(
+    # Copy attributes
+    subp = subparsers.add_parser(
         'attr_copy', description="Copy workspace attributes between workspaces",
         parents=[workspace_parent, dest_space_parent, attr_parent]
     )
-    attr_copy_prsr.set_defaults(func=attr_copy)
+    subp.set_defaults(func=attr_copy)
 
-    # delete attributes
+    # Delete attributes
     attr_del_prsr = subparsers.add_parser(
         'attr_delete', description="Delete attributes in a workspace",
         parents=[workspace_parent, attr_parent]
     )
-    attr_del_prsr.add_argument(
-        '-t', '--entity-type', choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ], help="FireCloud entity type"
-    )
-    attr_del_prsr.add_argument('-e', '--entities', nargs='*',
-                               help='FireCloud entities')
-    attr_del_prsr.set_defaults(func=attr_delete)
+    subp.add_argument('-t', '--entity-type', choices=etype_choices,
+        required=etype_required,
+        default=fcconfig.entity_type,
+        help="Entity type, required if no default entity_type was configured")
+    subp.add_argument('-e', '--entities', nargs='*', help='FireCloud entities')
+    subp.set_defaults(func=attr_delete)
 
     # Set null sentinel values
     attrf_parser = subparsers.add_parser(
@@ -1969,14 +1989,8 @@ def main(argv=None):
     # Duplicate entity type here since we want sample_set to be default
     etype_help =  'Entity type to assign null values, if attribute is missing.'
     etype_help += '\nDefault: sample_set'
-    subp.add_argument(
-        '-t', '--entity-type', help=etype_help,
-        default='sample_set',
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ]
-    )
+    subp.add_argument('-t', '--entity-type',
+        default='sample_set', choices=etype_choices)
     expr_help = "(optional) Entity expression to use when entity type doesn't"
     expr_help += " match the method configuration. Example: 'this.samples'"
     subp.add_argument('-x', '--expression', help=expr_help, default='')
@@ -2088,14 +2102,10 @@ def main(argv=None):
        '-e', '--entity',
        help="Show me what configurations can be run on this entity",
     )
-    runnable_prsr.add_argument(
-        '-t', '--entity-type',
-        choices=[
-            'participant', 'participant_set', 'sample', 'sample_set',
-            'pair', 'pair_set'
-        ],
-         help="FireCloud entity type"
-    )
+    runnable_prsr.add_argument('-t', '--entity-type', choices=etype_choices,
+        required=etype_required,
+        default=fcconfig.entity_type,
+        help="Entity type, required if no default entity_type was configured")
     runnable_prsr.set_defaults(func=runnable)
 
     # Create the .fiss directory if it doesn't exist
@@ -2149,7 +2159,7 @@ def main(argv=None):
         except Exception as e:
             result = __pretty_print_fc_exception(e)
 
-        return unroll_value(result)
+        return printToCLI(result)
 
 if __name__ == '__main__':
     sys.exit(main())
