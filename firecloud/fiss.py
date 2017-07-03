@@ -578,37 +578,34 @@ def attr_list(args):
 
 @fiss_cmd
 def attr_set(args):
-    """ Set attributes on a workspace or entities """
-    if not args.entity_type:
-        # Update workspace attributes
-        prompt = "Set {0}={1} in {2}/{3}?\n[Y\\n]: ".format(
-            args.attribute, args.value, args.project, args.workspace
-        )
+    ''' Set key=value attributes: if entity name & type are specified then
+    attributes will be set upon that entity, otherwise the attribute will
+    be set at the workspace level'''
 
-        if not args.yes and not _confirm_prompt("", prompt):
-            return 0
-
-        update = fapi._attr_set(args.attribute, args.value)
-        r = fapi.update_workspace_attributes(args.project, args.workspace,
-                                                                [update])
-        r = fapi._check_response_code(r, 200)
-    else:
-        if not args.entity:
-            print("Error: please provide an entity to run on")
-            return 1
-
+    if args.entity_type and args.entity:
         prompt = "Set {0}={1} for {2}:{3} in {4}/{5}?\n[Y\\n]: ".format(
                             args.attribute, args.value, args.entity_type,
                             args.entity, args.project, args.workspace)
 
-        if not args.yes and not _confirm_prompt("", prompt):
+        if not (args.yes or _confirm_prompt("", prompt)):
             return 0
 
         update = fapi._attr_set(args.attribute, args.value)
         r = fapi.update_entity(args.project, args.workspace, args.entity_type,
                                                         args.entity, [update])
         fapi._check_response_code(r, 200)
+    else:
+        prompt = "Set {0}={1} in {2}/{3}?\n[Y\\n]: ".format(
+            args.attribute, args.value, args.project, args.workspace
+        )
 
+        if not (args.yes or _confirm_prompt("", prompt)):
+            return 0
+
+        update = fapi._attr_set(args.attribute, args.value)
+        r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                                                [update])
+        fapi._check_response_code(r, 200)
     return 0
 
 @fiss_cmd
