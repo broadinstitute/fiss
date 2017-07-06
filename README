@@ -137,3 +137,10 @@ use a configuration file like
 	project=broad-firecloud-gdac
 	workspace=dev
 	method_ns=broadgdac
+
+To inspect your runtime configuration, simply issue the config command:
+
+	linux%    fissfc  config
+	debug   		False
+	entity_type     sample_set
+	...
