@@ -549,8 +549,8 @@ def attr_get(args):
 
             def textify(thing):
                 if isinstance(thing, dict):
-                    thing = "{0}".format(thing['items'])
-                return thing
+                    thing = thing.get("items", thing.get("entityName", "__UNKNOWN__"))
+                return "{0}".format(thing)
 
             result = {args.entity : u'\t'.join(map(textify, attrs.values()))}
             # Add "hidden" header of attribute names, for downstream convenience
