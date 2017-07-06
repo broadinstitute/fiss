@@ -2,6 +2,9 @@
 Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 
+v0.16.1 -  Completed print stmt refactoring started in 0.16.0; added entity_type
+           to config state object; added attr_list & config_delete high level
+           commands, and additional regression tests
 v0.16.0 -  Major refactoring: yapsy plugin system removed, replaced with
            ConfigParser module, which employs simpler and clearer INI-style
            config files (similar to GIT config); to enable high level API
