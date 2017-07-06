@@ -157,14 +157,13 @@ def space_clone(args):
 
 @fiss_cmd
 def space_acl(args):
-    """ Get Access Control List for a workspace """
+    ''' Retrieve access control list for a workspace'''
     r = fapi.get_workspace_acl(args.project, args.workspace)
     fapi._check_response_code(r, 200)
-    acl = r.json()['acl']
-    retval = dict()
-    for user in sorted(acl):
-        retval[user] = acl[user]['accessLevel']
-    return retval
+    result = dict()
+    for user, info in sorted(r.json()['acl'].items()):
+        result[user] = info['accessLevel']
+    return result
 
 @fiss_cmd
 def space_set_acl(args):
@@ -331,37 +330,37 @@ def flow_delete(args):
 
 @fiss_cmd
 def flow_acl(args):
-    """ Get Access Control List for a workflow """
+    ''' Retrieve access control list for given version of a repository method'''
     r = fapi.get_repository_method_acl(args.namespace, args.method,
                                                     args.snapshot_id)
     fapi._check_response_code(r, 200)
-    for d in r.json():
-        user = d['user']
-        role = d['role']
-        print('{0}\t{1}'.format(user, role))
+    acls = sorted(r.json(), key=lambda k: k['user'])
+    return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
 
 @fiss_cmd
 def flow_set_acl(args):
     """ Assign an ACL role to a list of users for a worklow. """
     acl_updates = [{"user": user, "role": args.role} for user in args.users]
 
-    snap_id = args.snapshot_id
-
-    if not snap_id:
+    id = args.snapshot_id
+    if not id:
         # get the latest snapshot_id for this method from the methods repo
         r = fapi.list_repository_methods()
         fapi._check_response_code(r, 200)
-        flow_versions = [m for m in r.json()
+        versions = [m for m in r.json()
                          if m['name'] == args.method and m['namespace'] == args.namespace]
-        if len(flow_versions) == 0:
-            print("Error: no versions of {0}/{1} found".format(args.namespace, args.method))
+        if len(versions) == 0:
+            if fcconfig.verbosity:
+                eprint("method {0}/{1} not found".format(args.namespace, args.method))
             return 1
-        latest_version = sorted(flow_versions, key=lambda m: m['snapshotId'])[-1]
-        snap_id = latest_version['snapshotId']
+        latest = sorted(versions, key=lambda m: m['snapshotId'])[-1]
+        id = latest['snapshotId']
 
-    r = fapi.update_repository_method_acl(args.namespace, args.method, snap_id, acl_updates)
+    r = fapi.update_repository_method_acl(args.namespace, args.method, id, acl_updates)
     fapi._check_response_code(r, 200)
-    print("Updated permissions for {0}/{1}:{2}".format(args.namespace, args.method, snap_id))
+    if fcconfig.verbosity:
+        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.method, id))
+    return 0
 
 @fiss_cmd
 def flow_list(args):
@@ -400,10 +399,8 @@ def flow_start(args):
     fapi._check_response_code(r, 201)
     id = r.json()['submissionId']
 
-    # FIXME: this should not print (but rather return a value) ... but at
-    # present the sset_loop() implementation won't handle that well
-    print("Started {0}/{1} in {2}/{3}: id={4}".format(
-        args.namespace, args.config, args.project, args.workspace, id))
+    return ("Started {0}/{1} in {2}/{3}: id={4}".format(
+        args.namespace, args.config, args.project, args.workspace, id)), id
 
 @fiss_cmd
 def config_list(args):
@@ -413,7 +410,7 @@ def config_list(args):
         if verbose:
             print("Retrieving method configs from space {0}".format(args.workspace))
         if not args.project:
-            eprint("No project provided and no default project configured")
+            eprint("No project given, and no default project configured")
             return 1
         r = fapi.list_workspace_configs(args.project, args.workspace)
         fapi._check_response_code(r, 200)
@@ -442,15 +439,12 @@ def config_list(args):
 
 @fiss_cmd
 def config_acl(args):
-    """ Get Access Control List for a method configuration. """
+    ''' Retrieve access control list for a method configuration'''
     r = fapi.get_repository_config_acl(args.namespace, args.config,
                                                     args.snapshot_id)
     fapi._check_response_code(r, 200)
-    for d in r.json():
-        user = d['user']
-        role = d['role']
-        print('{0}\t{1}'.format(user, role))
-    #return ['{0}\t{1}'.format(entry['user'], entry['role']) for entry in r.json() ]
+    acls = sorted(r.json(), key=lambda k: k['user'])
+    return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
 
 @fiss_cmd
 def config_get(args):
@@ -552,7 +546,13 @@ def attr_get(args):
     # If some attributes have been collected, return in appropriate format
     if attrs:
         if args.entity:
-            result = {args.entity : u'\t'.join(map(valueToTxt, attrs.values()))}
+
+            def textify(thing):
+                if isinstance(thing, dict):
+                    thing = "{0}".format(thing['items'])
+                return thing
+
+            result = {args.entity : u'\t'.join(map(textify, attrs.values()))}
             # Add "hidden" header of attribute names, for downstream convenience
             object_id = u'entity:%s_id' % args.entity_type
             result['__header__'] = [object_id] + list(attrs.keys())
@@ -610,42 +610,27 @@ def attr_set(args):
 
 @fiss_cmd
 def attr_delete(args):
-    """ Delete attributes on a workspace or entities """
+    ''' Delete key=value attributes: if entity name & type are specified then
+    attributes will be deleted from that entity, otherwise the attribute will
+    be removed from the workspace'''
 
-    if not args.entity_type:
-        message = "WARNING: this will delete the following attributes in "
-        message += "{0}/{1}\n\t".format(args.project, args.workspace)
-        message += "\n\t".join(args.attributes)
+    if args.entity_type and args.entities:
+        # Since there is no attribute deletion endpoint, we must perform 2 steps
+        # here: first we retrieve the entity_ids, and any foreign keys (e.g.
+        # participant_id for sample_id); and then construct a loadfile which
+        # specifies which entities are to have what attributes removed.  Note
+        # that FireCloud uses the magic keyword __DELETE__ to indicate that
+        # an attribute should be deleted from an entity.
 
-        if not args.yes and not _confirm_prompt(message):
-            return 0
-
-        updates = [fapi._attr_rem(a) for a in args.attributes]
-        r = fapi.update_workspace_attributes(args.project, args.workspace,
-                                                        updates)
-        fapi._check_response_code(r, 200)
-
-    else:
-        #TODO: Implement this for entIties
-        # Since there is no delete entity endpoint, we have to to two operations to delete
-        # and attribute for an entity. First we must retrieve the entity_ids,
-        # and any foreign keys (e.g. participant_id for sample_id), and then
-        # construct a loadfile that deletes those entities. FireCloud uses the
-        # magic keyword "__DELETE__" to indicate that the attribute should
-        # be deleted.
-
-        # Get entities
-
+        # Step 1: see what entities are present, and filter to those requested
         entities = _entity_paginator(args.project, args.workspace,
                                      args.entity_type,
                                      page_size=1000, filter_terms=None,
                                      sort_direction="asc")
-
-        # Now filter to just the entities requested
         if args.entities:
             entities = [e for e in entities if e['name'] in args.entities]
 
-        # Now construct a loadfile to delete these attributes
+        # Step 2: construct a loadfile to delete these attributes
         attrs = sorted(args.attributes)
         etype = args.entity_type
 
@@ -696,6 +681,18 @@ def attr_delete(args):
             # Now push the entity data back to firecloud
             r = fapi.upload_entities(args.project, args.workspace, this_data)
             fapi._check_response_code(r, 200)
+    else:
+        message = "WARNING: this will delete the following attributes in "
+        message += "{0}/{1}\n\t".format(args.project, args.workspace)
+        message += "\n\t".join(args.attributes)
+
+        if not (args.yes or _confirm_prompt(message)):
+            return 0
+
+        updates = [fapi._attr_rem(a) for a in args.attributes]
+        r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                                        updates)
+        fapi._check_response_code(r, 200)
 
     return 0
 
@@ -708,7 +705,7 @@ def attr_copy(args):
         args.to_project = args.project
     if (args.project == args.to_project
         and args.workspace == args.to_workspace):
-        eprint("Error: destination project and namespace must differ from"
+        eprint("destination project and namespace must differ from"
                " source workspace")
         return 1
 
@@ -869,8 +866,8 @@ def ping(args):
 
 @fiss_cmd
 def mop(args):
-    """ Clean up unreferenced data in a workspace """
-    # First retrieve the workspace to get the bucket information
+    ''' Clean up unreferenced data in a workspace'''
+    # First retrieve the workspace to get bucket information
     if args.verbose:
         print("Retrieving workspace information...")
     r = fapi.get_workspace(args.project, args.workspace)
@@ -900,13 +897,14 @@ def mop(args):
             bucket_files = bucket_files.decode()
 
     except subprocess.CalledProcessError as e:
-        print("Error retrieving files from bucket: " + e)
+        eprint("Error retrieving files from bucket: " + e)
         return 1
 
     bucket_files = set(bucket_files.strip().split('\n'))
     if args.verbose:
         num = len(bucket_files)
-        print("Found {0} files in bucket {1}".format(num, bucket))
+        if args.verbose:
+            print("Found {0} files in bucket {1}".format(num, bucket))
 
     # Now build a set of files that are referenced in the bucket
     # 1. Get a list of the entity types in the workspace
@@ -954,8 +952,9 @@ def mop(args):
     deleteable_files = [f for f in unreferenced_files if can_delete(f)]
 
     if len(deleteable_files) == 0:
-        print("No files to mop in " + workspace['workspace']['name'])
-        return
+        if args.verbose:
+            print("No files to mop in " + workspace['workspace']['name'])
+        return 0
 
     if args.verbose or args.dry_run:
         print("Found {0} files to delete:\n".format(len(deleteable_files))
@@ -964,8 +963,7 @@ def mop(args):
     message = "WARNING: Delete {0} files in {1} ({2})".format(
         len(deleteable_files), bucket_prefix, workspace['workspace']['name'])
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
-        #Don't do it!
-        return
+        return 0
 
     # Pipe the deleteable_files into gsutil rm to remove them
     gsrm_args = ['gsutil', '-m', 'rm', '-I']
@@ -978,36 +976,36 @@ def mop(args):
     result = gsrm_proc.communicate(input='\n'.join(deleteable_files))[0]
     if args.verbose:
         print(result.rstrip())
+    return 0
 
 @fiss_cmd
 def noop(args):
     if args.verbose:
-        proj  = args.proj if args.proj else "unspecified"
-        space = args.space if args.space else "unspecified"
+        proj  = getattr(args, "project","unspecified")
+        space = getattr(args, "workspace", "unspecified")
         print('fiss no-op command: Project=%s, Space=%s' % (proj, space))
-
-def config(*names):
-    values = attrdict()
-    if not names:
-        names = fcconfig.keys()
-    for key in names:
-        values[key] = fcconfig.get(key, "__undefined__")
-    return values
+    return 0
 
 @fiss_cmd
 def config_cmd(args):
-    return config(*args.variable)
+    values = attrdict()
+    names = args.variables
+    if not names:
+        names = list(fcconfig.keys())
+    for name in names:
+        values[name] = fcconfig.get(name, "__undefined__")
+    return values
 
 @fiss_cmd
 def sset_loop(args):
-    """ Loop over sample sets in a workspace, performing a func """
+    ''' Loop over all sample sets in a workspace, performing a func '''
     # Ensure that the requested action is a valid fiss_cmd
     fiss_func = __cmd_to_func(args.action)
     if not fiss_func:
-        eprint("ERROR: invalid FISS cmd '" + args.action + "'")
+        eprint("invalid FISS cmd '" + args.action + "'")
         return 1
 
-    # First get the sample sets
+    # First get the sample set names
     r = fapi.get_entities(args.project, args.workspace, "sample_set")
     fapi._check_response_code(r, 200)
 
@@ -1015,30 +1013,44 @@ def sset_loop(args):
 
     args.entity_type = "sample_set"
     for sset in sample_sets:
-        print('\n' + args.action + " " + sset + ":")
-
+        print('\n# {0}::{1}/{2} {3}'.format(args.project, \
+            args.workspace, sset, args.action))
         args.entity = sset
-
-        # Call the fiss_func, and stop on errors, unless using -k option
+        # Note how this code is similar to how args.func is called in
+        # main so it may make sense to try to a common method for both
         try:
-            code = fiss_func(args)
+            result = fiss_func(args)
         except Exception as e:
-            __pretty_print_fc_exception(e)
-            code = -1
+            status = __pretty_print_fc_exception(e)
+            if not args.keep_going:
+                return status
+        printToCLI(result)
 
-        if not args.keep_going and code:
-            return code
+    return 0
 
 @fiss_cmd
 def monitor(args):
-    """ View submitted jobs in a workspace. """
+    ''' Retrieve status of jobs submitted from a given workspace, as a list
+        of TSV lines sorted by descending order of job submission date'''
     r = fapi.list_submissions(args.project, args.workspace)
-    print(r.content)
-    print(len(r.json()))
+    fapi._check_response_code(r, 200)
+    statuses = sorted(r.json(), key=lambda k: k['submissionDate'], reverse=True)
+    header = '\t'.join(list(statuses[0].keys()))
+    expander = lambda v: '{0}'.format(v)
+
+    def expander(thing):
+        if isinstance(thing, dict):
+            entityType = thing.get("entityType", None)
+            if entityType:
+                return "{0}:{1}".format(entityType, thing['entityName'])
+        return "{0}".format(thing)
+
+    # FIXME: this will generally return different column order between Python 2/3
+    return [header] + ['\t'.join( map(expander, v.values())) for v in statuses]
 
 @fiss_cmd
 def supervise(args):
-    """ Run Firehose-style workflow of workflows """
+    ''' Run legacy, Firehose-style workflow of workflows'''
     project = args.project
     workspace = args.workspace
     namespace = args.namespace
@@ -1046,7 +1058,7 @@ def supervise(args):
     sample_sets = args.sample_sets
     recovery_file = args.json_checkpoint
 
-    # If no somple sets are provided, run on all sample sets
+    # If no sample sets are provided, run on all sample sets
     if not sample_sets:
         r = fapi.get_entities(args.project, args.workspace, "sample_set")
         fapi._check_response_code(r, 200)
@@ -1078,7 +1090,7 @@ def entity_copy(args):
         args.to_project = args.project
     if (args.project == args.to_project
         and args.workspace == args.to_workspace):
-        eprint("Error: destination project and namespace must differ from"
+        eprint("destination project and namespace must differ from"
                " source workspace")
         return 1
 
@@ -1103,19 +1115,21 @@ def entity_copy(args):
 
 @fiss_cmd
 def proj_list(args):
-    """ List available billing projects """
-    r = fapi.list_billing_projects()
-    fapi._check_response_code(r, 200)
-    projects = sorted(r.json(), key=lambda d: d['projectName'])
-    print("Project\tRole")
-    for p in projects:
-        print(p['projectName'] + '\t' + p['role'])
+    '''Retrieve the list of billing projects accessible to the caller/user, and
+       show the level of access granted for each (e.g. Owner, User, ...)'''
+    projects = fapi.list_billing_projects()
+    fapi._check_response_code(projects, 200)
+    projects = sorted(projects.json(), key=lambda d: d['projectName'])
+    l = map(lambda p: '{0}\t{1}'.format(p['projectName'], p['role']), projects)
+    # FIXME: add username col to output, for when iterating over multiple users
+    return ["Project\tRole"] + l
 
 @fiss_cmd
 def config_validate(args):
-    """Validate a workspace configuration. If provided an entity, also validate that
-    the entity has the necessary attributes.
-    """
+    ''' Validate a workspace configuration: if an entity was specified (i.e.
+        upon which the configuration should operate), then also validate that
+        the entity has the necessary attributes'''
+
     r = fapi.validate_config(args.project, args.workspace, args.namespace,
                                                                 args.config)
     fapi._check_response_code(r, 200)
@@ -1127,7 +1141,7 @@ def config_validate(args):
                                                  entity_type, args.entity)
         fapi._check_response_code(entity_r, [200,404])
         if entity_r.status_code == 404:
-            print("Error: No {0} named '{1}'".format(entity_type, args.entity))
+            eprint("Error: No {0} named '{1}'".format(entity_type, args.entity))
             return 2
         else:
             entity_d = entity_r.json()
@@ -1501,16 +1515,11 @@ def printToCLI(value):
             print('\t'.join(header))
         for k, v in sorted(value.items()):
             print(u("{0}\t{1}".format(k,v)))
-    elif isinstance(value, list):
+    elif isinstance(value, (list, tuple)):
         list(map(print, value))
     elif not isinstance(value, int):
         print(u("{0}".format(value)))
     return retval
-
-def valueToTxt(thing):
-    if isinstance(thing, dict):
-        thing = "{0}".format(thing['items'])
-    return thing
 
 #################################################
 # Main, entrypoint for fissfc
@@ -1939,7 +1948,7 @@ def main(argv=None):
     subp.set_defaults(func=attr_copy)
 
     # Delete attributes
-    attr_del_prsr = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'attr_delete', description="Delete attributes in a workspace",
         parents=[workspace_parent, attr_parent]
     )
@@ -1974,8 +1983,9 @@ def main(argv=None):
 
     subp = subparsers.add_parser('config',
         description='Display value(s) of one or more configuration variables')
-    subp.add_argument('variable', nargs='*',
-        help='Name of configuration variable (e.g. workspace, project)')
+    subp.add_argument('variables', nargs='*',
+        help='Name of configuration variable(s) (e.g. workspace, project). '
+             'If no name is given, all config variables will be displayed.')
     subp.set_defaults(func=config_cmd)
 
     # Submit a workflow
