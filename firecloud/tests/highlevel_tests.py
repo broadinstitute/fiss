@@ -69,7 +69,7 @@ class TestFISSHighLevel(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         print("\nFinishing high-level CLI tests ...\n", file=sys.stderr)
-        r = fapi.delete_workspace(cls.project, cls.workspace)
+        #r = fapi.delete_workspace(cls.project, cls.workspace)
 
     def test_ping(self):
         self.assertEqual(0, call_fiss("ping"))
@@ -183,8 +183,15 @@ class TestFISSHighLevel(unittest.TestCase):
         logging.debug(output)
         self.assertEqual(output, "workspace_attr\ttest_value")
 
-    def test_attr_ops(self):
-        # Upload the 4 test data files
+    def load_entities(self):
+        # To potentially save time, check if entities already exist
+        r = fapi.get_entity(self.project, self.workspace, "sample_set", "SS-NT")
+        if r.status_code == 200:
+            return
+
+        if r.status_code != 404:
+            raise RuntimeError("while determining if SS-NT sample_set exists")
+
         call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "participants.tsv"))
         call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
@@ -194,6 +201,10 @@ class TestFISSHighLevel(unittest.TestCase):
         call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "sset.tsv"))
 
+    def test_attr_get_set(self):
+
+        self.load_entities()
+
         # Now call attr_get
         with Capturing() as output:
             ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
@@ -202,7 +213,6 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        #self.assertEqual(output, "sample_set_id\tset_attr_1\nSS-NT\tValue-C\nSS-TP\tValue-A")
         self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-A")
 
         # Now call attr_set on a sample_set, followed by attr_get
@@ -216,6 +226,23 @@ class TestFISSHighLevel(unittest.TestCase):
         output = '\n'.join(output)
         logging.debug(output)
         self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-E")
+
+    def test_attr_del(self):
+
+        self.load_entities()
+
+        call_fiss("-y", "attr_delete", "-p", self.project, "-w", self.workspace,
+                   "-t", "sample_set", "-e", "SS-NT", "-a", "set_attr_1")
+
+        with Capturing() as output:
+            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+                             "-t", "sample_set", "-e", "SS-NT")
+
+        # Should return only set_attr_2, non-existent set_attr_1 will be ignored
+        self.assertEqual(0, ret)
+        output = '\n'.join(output)
+        logging.debug(output)
+        self.assertEqual(output, "entity:sample_set_id\tset_attr_2\nSS-NT\tValue-D")
 
     def test_api_url(self):
         fcconfig = fc_config_get_all()
