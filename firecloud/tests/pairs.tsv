@@ -1,0 +1,11 @@
+entity:pair_id	participant_id	case_sample	control_sample	pair_attr1	pair_attr2
+PAIR-1	P-1	S-1-TP	S-1-NT	attr1_value1	attr2_value1
+PAIR-2	P-2	S-2-TP	S-2-NT	attr1_value2	attr2_value2
+PAIR-3	P-3	S-3-TP	S-3-NT	attr1_value3	attr2_value3
+PAIR-4	P-4	S-4-TP	S-4-NT	attr1_value4	attr2_value4
+PAIR-5	P-5	S-5-TP	S-5-NT	attr1_value5	attr2_value5
+PAIR-6	P-6	S-6-TP	S-6-NT	attr1_value6	attr2_value6
+PAIR-7	P-7	S-7-TP	S-7-NT	attr1_value7	attr2_value7
+PAIR-8	P-8	S-8-TP	S-8-NT	attr1_value8	attr2_value8
+PAIR-9	P-9	S-9-TP	S-9-NT	attr1_value9	attr2_value9
+PAIR-10	P-10	S-10-TP	S-10-NT	attr1_value10	attr2_value10
