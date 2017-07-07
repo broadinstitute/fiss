@@ -200,8 +200,14 @@ class TestFISSHighLevel(unittest.TestCase):
                    "-f", os.path.join("firecloud", "tests", "sset_membership.tsv"))
         call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "sset.tsv"))
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "pairs.tsv"))
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "pairset_membership.tsv"))
+        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+                   "-f", os.path.join("firecloud", "tests", "pairset_attr.tsv"))
 
-    def test_attr_get_set(self):
+    def test_attr_sample_set(self):
 
         self.load_entities()
 
@@ -243,6 +249,34 @@ class TestFISSHighLevel(unittest.TestCase):
         output = '\n'.join(output)
         logging.debug(output)
         self.assertEqual(output, "entity:sample_set_id\tset_attr_2\nSS-NT\tValue-D")
+
+    def test_attr_pair(self):
+
+        self.load_entities()
+        with Capturing() as output:
+            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+                            "-t", "pair", "-e", "PAIR-1")
+
+        self.assertEqual(0, ret)
+        output = '\n'.join(output)
+        logging.debug(output)
+        self.assertEqual(output,
+            'entity:pair_id\tcase_sample\tparticipant\tcontrol_sample\tpair_attr2\tpair_attr1\n'
+            'PAIR-1\tS-1-TP\tP-1\tS-1-NT\tattr2_value1\tattr1_value1')
+
+    def test_attr_pair_set(self):
+
+        self.load_entities()
+        with Capturing() as output:
+            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+                            "-t", "pair_set", "-e", "PAIRSET-1")
+
+        self.assertEqual(0, ret)
+        output = '\n'.join(output)
+        logging.debug(output)
+        self.assertEqual(output,
+            'entity:pair_set_id\tpset_attr1\tpset_attr2\n'
+            'PAIRSET-1\tpset_attr1_value1\tpset_attr2_value1')
 
     def test_api_url(self):
         fcconfig = fc_config_get_all()
