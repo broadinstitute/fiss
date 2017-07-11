@@ -1267,6 +1267,8 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None, participant_d=N
                 input_arg_dict[inp] = val_deref
                 # 'name' is special, it really means '_id', which everything has
                 if expected_attr == "name":
+                    val_deref = case_sample_d.get('name')
+                    input_arg_dict[inp] = val_deref
                     continue
                 if expected_attr not in case_sample_attrs:
                     missing_attrs.append((inp, val))
@@ -1277,6 +1279,8 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None, participant_d=N
                 input_arg_dict[inp] = val_deref
                 # 'name' is special, it really means '_id', which everything has
                 if expected_attr == "name":
+                    val_deref = control_sample_d.get('name')
+                    input_arg_dict[inp] = val_deref
                     continue
                 if expected_attr not in control_sample_attrs:
                     missing_attrs.append((inp, val))
@@ -1287,6 +1291,8 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None, participant_d=N
                 input_arg_dict[inp] = val_deref
                 # 'name' is special, it really means '_id', which everything has
                 if expected_attr == "name":
+                    val_deref = participant_d.get('name')
+                    input_arg_dict[inp] = val_deref
                     continue
                 if expected_attr not in participant_attrs:
                     missing_attrs.append((inp, val))
@@ -1305,6 +1311,8 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None, participant_d=N
                 input_arg_dict[inp] = val_deref
                 # 'name' is special, it really means '_id', which everything has
                 if expected_attr == "name":
+                    val_deref = entity_d.get('name')
+                    input_arg_dict[inp] = val_deref
                     continue
                 if expected_attr not in entity_attrs:
                     missing_attrs.append((inp, val))
