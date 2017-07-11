@@ -1140,7 +1140,7 @@ def config_validate(args):
     control_sample_d = None
     config_d = r.json()
 
-    print (config_d)
+    print (json.dumps(config_d))
 
     if args.entity:
         entity_type = config_d['methodConfiguration']['rootEntityType']
@@ -1153,7 +1153,7 @@ def config_validate(args):
         else:
             entity_d = entity_r.json()
 
-            print(entity_d)
+            print(json.dumps(entity_d))
 
         if 'case_sample' in entity_d['attributes']:
             case_sample_r = fapi.get_entity(args.project, args.workspace,
@@ -1200,7 +1200,7 @@ def config_validate(args):
     fapi._check_response_code(w, 200)
     workspace_d = w.json()
 
-    print(workspace_d)
+    print(json.dumps(workspace_d))
 
     ii, io, ma, mwa = _validate_helper(args, config_d, workspace_d, entity_d, participant_d, case_sample_d, control_sample_d)
     ii_msg = "\nInvalid inputs:"
@@ -1324,6 +1324,13 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None, participant_d=N
                 input_arg_dict[inp] = val_deref
                 if expected_attr not in workspace_attrs:
                     missing_wksp_attrs.append((inp, val))
+
+            elif val.startswith('"') and val.endswith('"'):
+                #string literal
+                val_deref = val[1:-1]
+                input_arg_dict[inp] = val_deref
+
+
             # Anything else is a literal
         pass
         print('-------------')
