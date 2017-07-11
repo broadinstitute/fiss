@@ -81,6 +81,12 @@ class TestFISSHighLevel(unittest.TestCase):
         result = call_func("-l", "config")
         self.assertIn("config_validate", result)
         self.assertNotIn("space_info", result)
+        with Capturing() as result:
+            status = call_cli("-l", "config")
+        self.assertEqual(0, status)
+        self.assertIn("config_get", result)
+        self.assertIn("config_acl", result)
+        self.assertNotIn("flow_start", result)
 
     def test_dash_F(self):
         result = call_func("-F", "space_info")

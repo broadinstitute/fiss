@@ -1515,7 +1515,7 @@ def printToCLI(value):
         for k, v in sorted(value.items()):
             print(u("{0}\t{1}".format(k,v)))
     elif isinstance(value, (list, tuple)):
-        list(map(print, value))
+        list(map(lambda v: print(u(v)), value))
     elif not isinstance(value, int):
         print(u("{0}".format(value)))
     return retval
