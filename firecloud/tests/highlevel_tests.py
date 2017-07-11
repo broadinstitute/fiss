@@ -4,29 +4,24 @@ from __future__ import print_function
 import unittest
 import logging
 import sys
-import os, re
+import os
 from getpass import getuser
 import nose
-from firecloud.fiss import main as fiss_main
+import json
+from firecloud.fiss import main as fiss_func
+from firecloud.fiss import main_as_cli as fiss_cli
 from firecloud.fccore import fc_config_get_all
 from firecloud import api as fapi
 from io import StringIO             # cStringIO avoided, for Python2/3 compat
 
-def call_fiss(*args):
-    return fiss_main(["fissfc"] + list(args))
+def call_func(*args):
+    # Call HL API as Python function, returning objects.  Most tests use this
+    # approach, but some use call_cli to ensure that use case is also exercised
+    return fiss_func(["fissfc"] + list(args))
 
-def workspace_extract(response):
-    p = re.compile(r'.*workspaceId.*?"name": "(.*?)".*')
-    if isinstance(response, list):
-        if sys.version_info > (3,):
-            m = [m.group(1) for resp in response for m in [p.search(resp)] if m]
-        else:
-            rsp = ''.join(response)
-            m = [m.group(1) for m in [p.search(rsp)] if m]
-        return m.pop() if m else ""
-    else:
-        m = p.search(response)
-    return m.group(1) if m else ""
+def call_cli(*args):
+    # Call HL level API as from UNIX CLI,  prints to stdout & returns int status
+    return fiss_cli(["fissfc"] + list(args))
 
 class Capturing(list):
     def __enter__(self):
@@ -72,59 +67,41 @@ class TestFISSHighLevel(unittest.TestCase):
         #r = fapi.delete_workspace(cls.project, cls.workspace)
 
     def test_ping(self):
-        self.assertEqual(0, call_fiss("ping"))
+        #  Should return a string resembling '2017-07-07T17:37:23.228+0000'
+        self.assertGreater(len(call_func("ping")), 9)
 
     def test_space_info(self):
-        with Capturing() as fiss_output:
-            ret = call_fiss("space_info","-p",self.project,"-w",self.workspace)
-        logging.debug(fiss_output)
-        space_info = workspace_extract(fiss_output)
-        self.assertEqual(space_info, self.workspace)
-        self.assertEqual(0, ret)
+        result = call_func("space_info","-p",self.project,"-w",self.workspace)
+        result = json.loads(result)
+        self.assertEqual(result['workspace']['name'], self.workspace)
 
     def test_dash_l(self):
-        with Capturing() as output:
-            call_fiss('-l')
-        output = ''.join(output)
-        logging.debug(output)
-        self.assertIn("space_info", output)
-
-        with Capturing() as output:
-            call_fiss("-l", "config")
-        output = ''.join(output)
-        logging.debug(output)
-        self.assertIn("config_validate", output)
-        self.assertNotIn("space_info", output)
+        result = call_func('-l')
+        self.assertIn("space_info", result)
+        result = call_func("-l", "config")
+        self.assertIn("config_validate", result)
+        self.assertNotIn("space_info", result)
 
     def test_dash_F(self):
-        with Capturing() as output:
-            call_fiss("-F", "space_info")
-        output = ''.join(output)
-        logging.debug(output)
-        self.assertIn('def space_info(args)', output)
+        result = call_func("-F", "space_info")
+        self.assertIn('def space_info(args)', result)
 
     def test_space_new_delete(self):
         space = self.workspace + "_snd"
-        ret = call_fiss("space_new", "-p", self.project, "-w", space)
+        ret = call_func("space_new", "-p", self.project, "-w", space)
         self.assertEqual(0, ret)
-        ret = call_fiss("-y", "space_delete", "-p", self.project,"-w",space)
+        ret = call_func("-y", "space_delete", "-p", self.project,"-w",space)
         self.assertEqual(0, ret)
 
     def test_space_lock_unlock(self):
         args = ("-p", self.project, "-w", self.workspace)
-        with Capturing() as output:
-            ret = call_fiss('space_lock', *args)
-        logging.debug(''.join(output))
-        self.assertEqual(0, ret)
+        self.assertEqual(0, call_func('space_lock', *args))
 
         # Verify LOCKED worked, by trying to delete
         r = fapi.delete_workspace(self.project, self.workspace)
         fapi._check_response_code(r, 403)
 
-        with Capturing() as output:
-            ret = call_fiss('space_unlock', *args)
-        logging.debug(''.join(output))
-        self.assertEqual(0, ret)
+        self.assertEqual(0, call_func('space_unlock', *args))
 
         # Verify UNLOCKED, again by trying to delete
         r = fapi.delete_workspace(self.project, self.workspace)
@@ -140,48 +117,40 @@ class TestFISSHighLevel(unittest.TestCase):
         fapi._check_response_code(r, 200)
         metadata = r.json()["workspace"]
         # Now use part of that info (bucket id) to find the space (name)
-        with Capturing() as output:
-            ret = call_fiss("space_search", "-b", metadata['bucketName'])
-        self.assertEqual(0, ret)
-        self.assertIn(metadata['name'], ''.join(output))
+        result = call_func("space_search", "-b", metadata['bucketName'])
+        self.assertIn(metadata['name'], ''.join(result))
+        # Now search for goofy thing that should never be found
+        self.assertEqual([], call_func("space_search", "-b", '__NoTTHeRe__'))
 
     def test_space_list(self):
-        with Capturing() as output:
-            ret = call_fiss("space_list")
-        self.assertIn(self.workspace,''.join(output))
-        self.assertEqual(0, ret)
+        result = call_func("space_list")
+        self.assertIn(self.workspace, ''.join(result))
 
     def test_space_exists(self):
-        ret = call_fiss("space_exists", "-p", self.project, "-w", self.workspace)
+        ret = call_func("space_exists", "-p", self.project, "-w",self.workspace)
         self.assertEqual(True, ret)
 
     def test_entity_import_and_list(self):
         args = ("entity_import", "-p", self.project, "-w", self.workspace,
                "-f", os.path.join("firecloud", "tests", "participants.tsv"))
-        ret = call_fiss(*args)
-        self.assertEqual(0, ret)
-
-        # Verify import by spot-checking length and content of
+        self.assertEqual(0, call_func(*args))
+        # Verify import by spot-checking size and content of entity
         args = ("participant_list", "-p", self.project, "-w", self.workspace)
-        with Capturing() as output:
-            ret = call_fiss(*args)
-        self.assertEqual(0, ret)
-        self.assertEqual(2000, len(output))
-        self.assertEqual(True, 'P-0' in output)
-        self.assertEqual(True, 'P-999' in output)
-        self.assertEqual(True, 'P-1999' in output)
+        result = call_func(*args)
+        self.assertEqual(2000, len(result))
+        self.assertIn('P-0',   result)
+        self.assertIn('P-999', result)
+        self.assertIn('P-1999',result)
 
     def test_attr_workspace(self):
-        call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
-                   "-a", "workspace_attr", "-v", "test_value")
+        name = "workspace_attr"
+        value = "test_value"
+        call_func("-y", "attr_set", "-p", self.project, "-w", self.workspace,
+                   "-a", name, "-v", value)
 
-        with Capturing() as output:
-            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
-                             "-a", "workspace_attr")
-        self.assertEqual(0, ret)
-        output = ''.join(output)
-        logging.debug(output)
-        self.assertEqual(output, "workspace_attr\ttest_value")
+        result = call_func("attr_get", "-p", self.project, "-w", self.workspace,
+                    "-a", name)
+        self.assertEqual(result[name], value)
 
     def load_entities(self):
         # To potentially save time, check if entities already exist
@@ -192,28 +161,25 @@ class TestFISSHighLevel(unittest.TestCase):
         if r.status_code != 404:
             raise RuntimeError("while determining if SS-NT sample_set exists")
 
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "participants.tsv"))
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "samples.tsv"))
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "sset_membership.tsv"))
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "sset.tsv"))
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "pairs.tsv"))
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "pairset_membership.tsv"))
-        call_fiss("entity_import", "-p", self.project, "-w", self.workspace,
+        call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "pairset_attr.tsv"))
 
     def test_attr_sample_set(self):
-
         self.load_entities()
-
-        # Now call attr_get
         with Capturing() as output:
-            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+            ret = call_cli("attr_get", "-p", self.project, "-w", self.workspace,
                             "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1")
 
         self.assertEqual(0, ret)
@@ -222,11 +188,12 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-A")
 
         # Now call attr_set on a sample_set, followed by attr_get
-        call_fiss("-y", "attr_set", "-p", self.project, "-w", self.workspace,
+        ret = call_cli("-y", "attr_set", "-p", self.project, "-w", self.workspace,
                    "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1", "-v", "Value-E")
+        self.assertEqual(0, ret)
 
         with Capturing() as output:
-            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+            ret = call_cli("attr_get", "-p", self.project, "-w", self.workspace,
                              "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1")
         self.assertEqual(0, ret)
         output = '\n'.join(output)
@@ -234,14 +201,13 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-E")
 
     def test_attr_del(self):
-
         self.load_entities()
-
-        call_fiss("-y", "attr_delete", "-p", self.project, "-w", self.workspace,
+        ret = call_cli("-y", "attr_delete", "-p", self.project, "-w", self.workspace,
                    "-t", "sample_set", "-e", "SS-NT", "-a", "set_attr_1")
+        self.assertEqual(0, ret)
 
         with Capturing() as output:
-            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+            ret = call_cli("attr_get", "-p", self.project, "-w", self.workspace,
                              "-t", "sample_set", "-e", "SS-NT")
 
         # Should return only set_attr_2, non-existent set_attr_1 will be ignored
@@ -251,10 +217,9 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(output, "entity:sample_set_id\tset_attr_2\nSS-NT\tValue-D")
 
     def test_attr_pair(self):
-
         self.load_entities()
         with Capturing() as output:
-            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+            ret = call_cli("attr_get", "-p", self.project, "-w", self.workspace,
                             "-t", "pair", "-e", "PAIR-1")
 
         self.assertEqual(0, ret)
@@ -265,10 +230,9 @@ class TestFISSHighLevel(unittest.TestCase):
             'PAIR-1\tS-1-TP\tP-1\tS-1-NT\tattr2_value1\tattr1_value1')
 
     def test_attr_pair_set(self):
-
         self.load_entities()
         with Capturing() as output:
-            ret = call_fiss("attr_get", "-p", self.project, "-w", self.workspace,
+            ret = call_cli("attr_get", "-p", self.project, "-w", self.workspace,
                             "-t", "pair_set", "-e", "PAIRSET-1")
 
         self.assertEqual(0, ret)
@@ -277,19 +241,6 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(output,
             'entity:pair_set_id\tpset_attr1\tpset_attr2\n'
             'PAIRSET-1\tpset_attr1_value1\tpset_attr2_value1')
-
-    def test_api_url(self):
-        fcconfig = fc_config_get_all()
-        prev_root_url = fcconfig.root_url
-        # Call with deliberately bad URL, should fail
-        args = ("space_exists", "-p", self.project, "-w", self.workspace)
-        ret = call_fiss("-u", "https://api.firecloud.org/api/foo", *args)
-        self.assertEqual(False, ret)
-        # Now use correct URL prefix, but not terminated with trailing /, which
-        # will still succeed because trailing slash is silently appended
-        ret = call_fiss("-u", "https://api.firecloud.org/api", *args)
-        self.assertEqual(True, ret)
-        fcconfig.set_root_url(prev_root_url)
 
 def main():
     nose.main()

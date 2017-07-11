@@ -15,7 +15,7 @@ setup(
     long_description = _LONG_DESCRIPTION,
     entry_points = {
         'console_scripts': [
-            'fissfc = firecloud.fiss:main'
+            'fissfc = firecloud.fiss:main_as_cli'
             # Disable until fiss is formally deprecated
             # 'fiss = firecloud.fiss:main'
         ]

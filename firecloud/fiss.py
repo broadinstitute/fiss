@@ -111,7 +111,6 @@ def space_info(args):
     """ Get metadata for a workspace. """
     r = fapi.get_workspace(args.project, args.workspace)
     fapi._check_response_code(r, 200)
-    #TODO?: pretty_printworkspace(c)
     return r.content
 
 @fiss_cmd
@@ -545,7 +544,7 @@ def attr_get(args):
 
     # If some attributes have been collected, return in appropriate format
     if attrs:
-        if args.entity:
+        if args.entity:                     # Entity attributes
 
             def textify(thing):
                 if isinstance(thing, dict):
@@ -557,7 +556,7 @@ def attr_get(args):
             object_id = u'entity:%s_id' % args.entity_type
             result['__header__'] = [object_id] + list(attrs.keys())
         else:
-            result = attrs
+            result = attrs                  # Workspace attributes
     else:
         result = {}
 
@@ -1522,11 +1521,12 @@ def printToCLI(value):
     return retval
 
 #################################################
-# Main, entrypoint for fissfc
-################################################
+# Main entrypoints
+#################################################
 
 def main(argv=None):
-
+    # Use this entry point to call high level api and have objects returned,
+    # (see firecloud/tests/highlevel_tests.py:call_func for usage examples)
     if not argv:
         argv = sys.argv
 
@@ -2120,9 +2120,11 @@ def main(argv=None):
     if not os.path.isdir(fiss_home):
         os.makedirs(fiss_home)
 
+    result = None
+
     # Special cases, print help with no arguments
     if len(argv) == 1:
-            parser.print_help()
+        parser.print_help()
     elif argv[1] in ('-l', '--list'):
         # Print commands in a more readable way
         choices=[]
@@ -2135,9 +2137,7 @@ def main(argv=None):
         search = ''
         if len(argv) > 2:
             search = argv[2]
-        for c in sorted(choices):
-            if search in c:
-                print(u('\t{0}'.format(c)))
+        result = filter(lambda c: search in c, sorted(choices))
     elif argv[1] in ('-F', '--function'):
         # Show source for remaining args
         for fname in argv[2:]:
@@ -2145,10 +2145,9 @@ def main(argv=None):
             fiss_module = sys.modules[__name__]
             try:
                 func = getattr(fiss_module, fname)
-                source_lines = ''.join(getsourcelines(func)[0])
-                print(u(source_lines))
+                result = u(''.join(getsourcelines(func)[0]))
             except AttributeError:
-                pass
+                result = None
     else:
         # Otherwise parse args & call correct subcommand (skipping argv[0])
         args = parser.parse_args(argv[1:])
@@ -2159,14 +2158,20 @@ def main(argv=None):
         if args.api_url:
             fcconfig.set_root_url(args.api_url)
 
-        try:
-            result = args.func(args)
-            if result == None:
-                result = 0
-        except Exception as e:
-            result = __pretty_print_fc_exception(e)
+        result = args.func(args)
+        if result == None:
+            result = 0
 
-        return printToCLI(result)
+    return result
+
+def main_as_cli(argv=None):
+    # Use this entry point to call HL fiss funcs as though from the UNIX CLI.
+    # (see firecloud/tests/highlevel_tests.py:call_cli for usage examples)
+    try:
+        result = main(argv)
+    except Exception as e:
+        result = __pretty_print_fc_exception(e)
+    return printToCLI(result)
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit( main_as_cli() )
