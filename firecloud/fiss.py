@@ -980,6 +980,7 @@ def mop(args):
 
 @fiss_cmd
 def noop(args):
+    print("hello world")
     if args.verbose:
         proj  = getattr(args, "project","unspecified")
         space = getattr(args, "workspace", "unspecified")
@@ -1134,7 +1135,13 @@ def config_validate(args):
                                                                 args.config)
     fapi._check_response_code(r, 200)
     entity_d = None
+    participant_d = None
+    case_sample_d = None
+    control_sample_d = None
     config_d = r.json()
+
+    print (config_d)
+
     if args.entity:
         entity_type = config_d['methodConfiguration']['rootEntityType']
         entity_r = fapi.get_entity(args.project, args.workspace,
@@ -1146,12 +1153,56 @@ def config_validate(args):
         else:
             entity_d = entity_r.json()
 
+            print(entity_d)
+
+        if 'case_sample' in entity_d['attributes']:
+            case_sample_r = fapi.get_entity(args.project, args.workspace,
+                entity_d['attributes']['case_sample']['entityType'], 
+                entity_d['attributes']['case_sample']['entityName'])
+            fapi._check_response_code(case_sample_r, [200,404])
+            if case_sample_r.status_code == 404:
+                eprint("Error: No {0} named '{1}'".format(entity_d['attributes']['case_sample']['entityType'], 
+                entity_d['attributes']['case_sample']['entityName']))
+                return 2
+            else:
+                case_sample_d = case_sample_r.json()
+
+        if 'control_sample' in entity_d['attributes']:
+            control_sample_r = fapi.get_entity(args.project, args.workspace,
+                entity_d['attributes']['control_sample']['entityType'], 
+                entity_d['attributes']['control_sample']['entityName'])
+            fapi._check_response_code(control_sample_r, [200,404])
+            if control_sample_r.status_code == 404:
+                eprint("Error: No {0} named '{1}'".format(entity_d['attributes']['control_sample']['entityType'], 
+                entity_d['attributes']['control_sample']['entityName']))
+                return 2
+            else:
+                control_sample_d = control_sample_r.json()
+
+        if 'participant' in entity_d['attributes']:
+            participant_r = fapi.get_entity(args.project, args.workspace,
+                entity_d['attributes']['participant']['entityType'], 
+                entity_d['attributes']['participant']['entityName'])
+            fapi._check_response_code(participant_r, [200,404])
+            if participant_r.status_code == 404:
+                eprint("Error: No {0} named '{1}'".format(entity_d['attributes']['participant']['entityType'], 
+                entity_d['attributes']['participant']['entityName']))
+                return 2
+            else:
+                participant_d = participant_r.json()
+
+
+
+
+
     # also get the workspace info
     w = fapi.get_workspace(args.project, args.workspace)
     fapi._check_response_code(w, 200)
     workspace_d = w.json()
 
-    ii, io, ma, mwa = _validate_helper(args, config_d, workspace_d, entity_d)
+    print(workspace_d)
+
+    ii, io, ma, mwa = _validate_helper(args, config_d, workspace_d, entity_d, participant_d, case_sample_d, control_sample_d)
     ii_msg = "\nInvalid inputs:"
     io_msg = "\nInvalid outputs:"
     ma_msg = "\n{0} {1} doesn't satisfy the following inputs:".format(entity_type, args.entity) if args.entity else ""
@@ -1166,7 +1217,7 @@ def config_validate(args):
     if ii + io + ma + mwa:
         return 1
 
-def _validate_helper(args, config_d, workspace_d, entity_d=None):
+def _validate_helper(args, config_d, workspace_d, entity_d=None, participant_d=None, case_sample_d=None, control_sample_d=None):
     """ Return FISSFC validation information on config for a certain entity """
         # 4 ways to have invalid config:
     invalid_inputs = sorted(config_d["invalidInputs"])
@@ -1179,20 +1230,69 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None):
     missing_attrs = []
     missing_wksp_attrs = []
 
+
+    case_sample_attrs = set()
+    control_sample_attrs = set()
+    participant_attrs = set()
+
     # If an entity was provided, also check to see if that entity has the necessary inputs
     if entity_d:
+
+        input_arg_dict = {}
+
         entity_type = config_d['methodConfiguration']['rootEntityType']
 
         # If the attribute is listed here, it has an entry
         entity_attrs = set(entity_d['attributes'])
+
+        if case_sample_d:
+            case_sample_attrs = set(case_sample_d['attributes'])
+        if control_sample_d:
+            control_sample_attrs = set(control_sample_d['attributes'])
+        if participant_d:
+            participant_attrs = set(participant_d['attributes'])
 
         # Optimization, only get the workspace attrs if the method config has any
         workspace_attrs = workspace_d['workspace']['attributes']
 
         # So now iterate over the inputs
         for inp, val in iteritems(config_d['methodConfiguration']['inputs']):
+            #provisitionally store value, will remain if it is leteral or will get replaced if it is an attribute
+            input_arg_dict[inp] = val
             # Must be an attribute on the entity
-            if val.startswith("this."):
+            if val.startswith("this.case_sample."):
+                expected_attr = val.split('.')[2]
+                print(expected_attr)
+                val_deref = case_sample_d['attributes'].get(expected_attr)
+                input_arg_dict[inp] = val_deref
+                # 'name' is special, it really means '_id', which everything has
+                if expected_attr == "name":
+                    continue
+                if expected_attr not in case_sample_attrs:
+                    missing_attrs.append((inp, val))
+            elif val.startswith("this.control_sample."):
+                expected_attr = val.split('.')[2]
+                print(expected_attr)
+                val_deref = control_sample_d['attributes'].get(expected_attr)
+                input_arg_dict[inp] = val_deref
+                # 'name' is special, it really means '_id', which everything has
+                if expected_attr == "name":
+                    continue
+                if expected_attr not in control_sample_attrs:
+                    missing_attrs.append((inp, val))
+            elif val.startswith("this.participant."):
+                expected_attr = val.split('.')[2]
+                print(expected_attr)
+                val_deref = participant_d['attributes'].get(expected_attr)
+                input_arg_dict[inp] = val_deref
+                # 'name' is special, it really means '_id', which everything has
+                if expected_attr == "name":
+                    continue
+                if expected_attr not in participant_attrs:
+                    missing_attrs.append((inp, val))
+
+
+            elif val.startswith("this."):
                 # Normally, the value is of the form 'this.attribute',
                 # but for operations on sets, e.g. one can also do
                 # 'this.samples.attr'. But even in this case, there must be a
@@ -1200,18 +1300,31 @@ def _validate_helper(args, config_d, workspace_d, entity_d=None):
                 # value works as expected. Other pathological cases would've been
                 # caught above by the validation endpoint
                 expected_attr = val.split('.')[1]
+                print(expected_attr)
+                val_deref = entity_d['attributes'].get(expected_attr)
+                input_arg_dict[inp] = val_deref
                 # 'name' is special, it really means '_id', which everything has
                 if expected_attr == "name":
                     continue
                 if expected_attr not in entity_attrs:
                     missing_attrs.append((inp, val))
 
-            if val.startswith("workspace."):
+            elif val.startswith("workspace."):
                 # Anything not matching this format will be caught above
                 expected_attr = val.split('.')[1]
+                val_deref = workspace_d['workspace']['attributes'].get(expected_attr)
+                input_arg_dict[inp] = val_deref
                 if expected_attr not in workspace_attrs:
                     missing_wksp_attrs.append((inp, val))
             # Anything else is a literal
+        pass
+        print('-------------')
+
+        input_arg_json = json.dumps(input_arg_dict)
+        print('-------------')
+        print(input_arg_json)
+        print('-------------')
+
 
     return invalid_inputs, invalid_outputs, missing_attrs, missing_wksp_attrs
 
