@@ -10,7 +10,7 @@ import json
 import sys
 import os
 from inspect import getsourcelines
-from traceback import print_tb as print_traceback
+from traceback import print_exc, print_tb as print_traceback
 import argparse
 import subprocess
 import re
@@ -364,10 +364,10 @@ def flow_set_acl(args):
 @fiss_cmd
 def flow_list(args):
     """ List workflows in the methods repository """
-    r = fapi.list_repository_methods()
+    r = fapi.list_repository_methods(name=args.name)
     fapi._check_response_code(r, 200)
 
-    #Parse the JSON for the workspace + namespace
+    # Parse the JSON for the workspace + namespace
     methods = r.json()
     results = []
     for m in methods:
@@ -378,6 +378,11 @@ def flow_list(args):
 
     # Sort for easier viewing, ignore case
     return sorted(results, key=lambda s: s.lower())
+
+@fiss_cmd
+def flow_exists(args):
+    '''Determine whether a given workflow is present in methods repo'''
+    return len(flow_list(args)) != 0
 
 @fiss_cmd
 def flow_start(args):
@@ -1488,8 +1493,9 @@ def __pretty_print_fc_exception(e):
     try:
         # Attempt to unpack error message as JSON
         e = json.loads(e.args[0])
-        source = ' (' + e["source"] + ')'
-        msg = e["message"]
+        # Default to 'FireCloud' if component which gave error was not specified
+        source = ' (' + e.get('source','FireCloud') + ')'
+        msg = e['message']
         for pattern in __PatternsToFilter:
             match = pattern[0].match(msg)
             if match:
@@ -1500,7 +1506,8 @@ def __pretty_print_fc_exception(e):
         if isinstance(code, str):
             preface = ''
         source  = ''
-        msg = e.args[0]
+        print_exc(2)
+        msg = "{0}".format(e)
 
     print("{0}{1}{2}: {3}".format(preface, code, source, msg))
     return 99
@@ -1816,10 +1823,16 @@ def main(argv=None):
     macl_parser.set_defaults(func=flow_set_acl)
 
     # List available methods
-    flow_list_parser = subparsers.add_parser(
-        'flow_list', description='List available workflows'
-    )
-    flow_list_parser.set_defaults(func=flow_list)
+    subp = subparsers.add_parser('flow_list',
+        description='List available workflows')
+    subp.add_argument('-n', '--name', default=None,required=False,
+        help='name of single workflow to search for (optional)')
+    subp.set_defaults(func=flow_list)
+
+    subp = subparsers.add_parser('flow_exists',
+        description='Determine if named workflow exists in metho repository')
+    subp.add_argument('name', help='name of method to search for In repository')
+    subp.set_defaults(func=flow_exists)
 
     # Configuration: list
     subp = subparsers.add_parser(
