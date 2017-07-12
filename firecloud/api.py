@@ -627,13 +627,16 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
 ### 1.3 Method Repository
 ###########################
 
-def list_repository_methods():
+def list_repository_methods(name=None):
     """List methods in the methods repository.
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/listMethodRepositoryMethods
     """
-    return __get("methods")
+    params = dict()
+    if name:
+        params['name'] = name
+    return __get("methods", params=params)
 
 def list_repository_configs():
     """List configurations in the methods repository.
