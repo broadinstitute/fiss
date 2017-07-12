@@ -1,8 +1,8 @@
-task echo {
-	String echo_me
+task echo_task {
+	String message
 
 	command {
-		echo  ${echo_me} && echo ${echo_me} > echo.txt
+		echo  ${message} && echo ${message} > echo.txt
 	}
 
 	runtime { 
@@ -12,4 +12,8 @@ task echo {
 	output {
 		File echoed="echo.txt"
 	}
+}
+
+workflow echo {
+	call echo_task {input: message="Hello, from the simple GDAC echo task"}
 }
