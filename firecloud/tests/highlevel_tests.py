@@ -10,9 +10,12 @@ import nose
 import json
 from firecloud.fiss import main as fiss_func
 from firecloud.fiss import main_as_cli as fiss_cli
-from firecloud.fccore import fc_config_get_all
+from firecloud import fccore
 from firecloud import api as fapi
-from io import StringIO             # cStringIO avoided, for Python2/3 compat
+if sys.version_info > (3,):
+    from io import StringIO
+else:
+    from StringIO import StringIO
 
 def call_func(*args):
     # Call HL API as Python function, returning objects.  Most tests use this
@@ -47,7 +50,7 @@ class TestFISSHighLevel(unittest.TestCase):
         if fiss_verbosity == None:
             fiss_verbosity = 0
 
-        fcconfig = fc_config_get_all()
+        fcconfig = fccore.config_get_all()
         fcconfig.set_verbosity(fiss_verbosity)
         cls.project = fcconfig.project
         if not cls.project:
@@ -64,7 +67,7 @@ class TestFISSHighLevel(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         print("\nFinishing high-level CLI tests ...\n", file=sys.stderr)
-        #r = fapi.delete_workspace(cls.project, cls.workspace)
+        r = fapi.delete_workspace(cls.project, cls.workspace)
 
     def test_ping(self):
         #  Should return a string resembling '2017-07-07T17:37:23.228+0000'
@@ -86,7 +89,7 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertIn("config_get", result)
         self.assertIn("config_acl", result)
-        self.assertNotIn("flow_start", result)
+        self.assertNotIn("meth_exists", result)
 
     def test_dash_F(self):
         result = call_func("-F", "space_info")
@@ -131,6 +134,10 @@ class TestFISSHighLevel(unittest.TestCase):
     def test_space_list(self):
         result = call_func("space_list")
         self.assertIn(self.workspace, ''.join(result))
+        with Capturing() as result:
+            ret = call_cli("space_list")
+        self.assertEqual(0, ret)
+        self.assertIn(self.project + '\t' + self.workspace, result)
 
     def test_space_exists(self):
         ret = call_func("space_exists", "-p", self.project, "-w",self.workspace)
@@ -257,9 +264,56 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEqual(output,
-            'entity:pair_set_id\tpset_attr1\tpset_attr2\n'
-            'PAIRSET-1\tpset_attr1_value1\tpset_attr2_value1')
+        # See FIXME comment in attr_pair for why we compare sorted lists here
+        self.assertEqual(sorted(output.split()),
+            ['PAIRSET-1',
+            'entity:pair_set_id',
+            'pset_attr1',
+            'pset_attr1_value1',
+            'pset_attr2',
+            'pset_attr2_value1'])
+
+    def test_config_ops(self):
+        name = 'echo'
+        ns = 'broadgdac'
+        code = os.path.join('firecloud', 'tests', 'echo.wdl')
+        if not call_func('meth_exists', name):
+            ret = call_cli('meth_new', '--method', name, '--wdl', code)
+            self.assertEqual(0, ret)
+        self.assertEqual(True, call_func('meth_exists', name))
+
+        # Generate a config template, using the 'echo' method in the
+        # broadgdac namespace (which should be publicly readable)
+        config = call_func('config_template',
+            '--method', name,
+            '--namespace', ns, '--snapshot-id', "1",
+            '--entity-type', 'sample_set',
+            '--configname', name)
+
+        self.assertIn("methodRepoMethod", config)
+        self.assertIn("namespace", config)
+        output_attribute = "echo.echo_task.echoed"
+        self.assertIn(output_attribute, config)
+        config = json.loads(config)
+        self.assertEqual(config['name'], name)
+
+        # Set the output attribute (making it a valid config), then install
+        config['outputs'][output_attribute] = 'workspace.echoed_results'
+        result = call_func('config_put', '-p', self.project,
+            '-w', self.workspace,
+            '-c', json.dumps(config))
+        self.assertEqual(True, result)
+
+        # And do some spot-checking 
+        config = call_func('config_get', '-p', self.project,
+            '-w', self.workspace,
+            '-c', name)
+        self.assertTrue(len(config) != 0)
+
+        config = json.loads(config)
+        self.assertEqual(config['outputs'][output_attribute], 'workspace.echoed_results')
+        self.assertEqual(config['rootEntityType'], 'sample_set')
+        self.assertEqual(config['methodConfigVersion'], 1)
 
 def main():
     nose.main()

@@ -1,7 +1,18 @@
 =======================================================================
 Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
+Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.3 -  HL flow_start() renamed to config_start, because only configs can
+           actually be submitted for execution (i.e. 'started'), and only
+           when residing in a workspace; other HL flow_* commands renamed to
+           meth_*, to reflect that they operate upon methods in the FC method
+           repo; added new config_put(), config_new() and config_template HL
+           commands; added more HL tests and refactored others; introduced new
+           main_as_cli() routine as the place which calls the true main() but
+           then prints the returned result to stdout [allowing existing main()
+           to be used in a more function-oriented way; added fccore routines
+           which facilitate editing content (e.g. files, method configs)
 v0.16.1 -  Completed print stmt refactoring started in 0.16.0; added entity_type
            to config state object; added attr_list & config_delete high level
            commands, and additional regression tests

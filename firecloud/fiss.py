@@ -9,6 +9,7 @@ from __future__ import print_function
 import json
 import sys
 import os
+import time
 from inspect import getsourcelines
 from traceback import print_exc, print_tb as print_traceback
 import argparse
@@ -18,12 +19,12 @@ import collections
 from six import iteritems, string_types, itervalues, u
 from six.moves import input
 from firecloud import api as fapi
-from firecloud.fccore import *
+from firecloud import fccore
 from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
 
-fcconfig = fc_config_parse()
+fcconfig = fccore.config_parse()
 
 def fiss_cmd(function):
     """ Decorator to indicate a function is a FISS command """
@@ -111,7 +112,7 @@ def space_info(args):
     """ Get metadata for a workspace. """
     r = fapi.get_workspace(args.project, args.workspace)
     fapi._check_response_code(r, 200)
-    return r.content
+    return r.text
 
 @fiss_cmd
 def space_delete(args):
@@ -303,7 +304,7 @@ def sset_delete(args):
     return entity_delete(args)
 
 @fiss_cmd
-def flow_new(args):
+def meth_new(args):
     """ Submit a new workflow (or update) to the methods repository. """
     r = fapi.update_repository_method(args.namespace, args.method,
                                     args.synopsis, args.wdl, args.doc)
@@ -313,7 +314,7 @@ def flow_new(args):
     return 0
 
 @fiss_cmd
-def flow_delete(args):
+def meth_delete(args):
     """ Remove (redact) a method from the method repository """
     message = "WARNING: this will delete workflow \n\t{0}/{1}:{2}".format(
                                     args.namespace, args.method, args.snapshot_id)
@@ -328,7 +329,7 @@ def flow_delete(args):
     return 0
 
 @fiss_cmd
-def flow_acl(args):
+def meth_acl(args):
     ''' Retrieve access control list for given version of a repository method'''
     r = fapi.get_repository_method_acl(args.namespace, args.method,
                                                     args.snapshot_id)
@@ -337,7 +338,7 @@ def flow_acl(args):
     return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
 
 @fiss_cmd
-def flow_set_acl(args):
+def meth_set_acl(args):
     """ Assign an ACL role to a list of users for a worklow. """
     acl_updates = [{"user": user, "role": args.role} for user in args.users]
 
@@ -362,7 +363,7 @@ def flow_set_acl(args):
     return 0
 
 @fiss_cmd
-def flow_list(args):
+def meth_list(args):
     """ List workflows in the methods repository """
     r = fapi.list_repository_methods(name=args.name)
     fapi._check_response_code(r, 200)
@@ -380,13 +381,13 @@ def flow_list(args):
     return sorted(results, key=lambda s: s.lower())
 
 @fiss_cmd
-def flow_exists(args):
+def meth_exists(args):
     '''Determine whether a given workflow is present in methods repo'''
-    return len(flow_list(args)) != 0
+    return len(meth_list(args)) != 0
 
 @fiss_cmd
-def flow_start(args):
-    '''Start running a workflow, on given entity in given space'''
+def config_start(args):
+    '''Invoke a task (method configuration), on given entity in given space'''
 
     # Try to use call caching (job avoidance)?  Flexibly accept range of answers
     cache = getattr(args, "cache", True)
@@ -429,6 +430,8 @@ def config_list(args):
     results = []
     for m in methods:
         ns = m['namespace']
+        if not ns:
+            ns = '__EMPTYSTRING__'
         name = m['name']
         # Ugh: configs in workspaces look different from configs in methodRepo
         mver = m.get('methodRepoMethod', None)
@@ -457,6 +460,87 @@ def config_get(args):
                                         args.namespace, args.config)
     fapi._check_response_code(r, 200)
     return r.text
+
+@fiss_cmd
+def config_put(args):
+    '''Install a valid method configuration into a workspace, in one of several
+       ways: from a JSON file containing a config definition (both file names
+       and objects are supported); as a string representing the content of such
+       a JSON file; or as a dict generated from such JSON content, e.g via
+       json.loads(). Note that the CLI supports only string & filename input.'''
+
+    config = args.config
+    if os.path.isfile(config):
+        with open(config, 'r') as fp:
+            config = json.loads(fp.read())
+    elif isinstance(config, str):
+        config = json.loads(config)
+    elif isinstance(config, dict):
+        pass
+    elif hasattr(config, "read"):
+        config = json.loads(config.read())
+    else:
+        raise ValueError('Input method config must be filename, string or dict')
+
+    r = fapi.create_workspace_config(args.project, args.workspace, config)
+    fapi._check_response_code(r, [201])
+    return True
+
+__EDITME__ = 'EDITME, or abort edit/install by leaving entire config unchanged'
+@fiss_cmd
+def config_template(args):
+    c = fapi.get_config_template(args.namespace, args.method, args.snapshot_id)
+    fapi._check_response_code(c, 200)
+
+    c = json.loads(c.text)
+    c['name'] = args.configname if args.configname else __EDITME__
+    c['namespace'] = args.namespace if args.namespace else __EDITME__
+    c['rootEntityType'] = args.entity_type if args.entity_type else __EDITME__
+    outputs = c['outputs']
+    for o in outputs:
+        outputs[o] = __EDITME__
+    inputs = c['inputs']
+    for i in inputs:
+        inputs[i] = __EDITME__
+
+    return json.dumps(c, indent=4, separators=(',', ': '))
+
+@fiss_cmd
+def config_edit(args):
+    # Placeholder: accept either a method config name or a file containing
+    # a method config definition (e.g. such as returned by config_get)
+    pass
+
+@fiss_cmd
+def config_new(args):
+    '''Attempt to install a new method config into a workspace, by: generating
+       a template from a versioned method in the methods repo, then launching
+       a local editor (respecting the $EDITOR environment variable) to fill in
+       the incomplete input/output fields.  Returns True if the config was
+       successfully installed, otherwise False'''
+
+    cfg = config_template(args)
+    # Iteratively try to edit/install the config: exit iteration by EITHER
+    #   Successful config_put() after editing
+    #   Leaving config unchanged in editor, e.g. quitting out of VI with :q
+    #   FIXME: put an small integer upper bound on the # of loops here
+    while True:
+        try:
+            edited = fccore.edit_text(cfg)
+            if edited == cfg:
+                eprint("No edits made, method config not installed ...")
+                break
+            if __EDITME__ in edited:
+                eprint("Edit is incomplete, method config not installed ...")
+                time.sleep(1)
+                continue
+            args.config = cfg = edited
+            config_put(args)
+            return True
+        except FireCloudServerError as fce:
+            __pretty_print_fc_exception(fce)
+
+    return False
 
 @fiss_cmd
 def config_delete(args):
@@ -992,7 +1076,7 @@ def noop(args):
 
 @fiss_cmd
 def config_cmd(args):
-    values = attrdict()
+    values = fccore.attrdict()
     names = args.variables
     if not names:
         names = list(fcconfig.keys())
@@ -1522,7 +1606,7 @@ def printToCLI(value):
         for k, v in sorted(value.items()):
             print(u("{0}\t{1}".format(k,v)))
     elif isinstance(value, (list, tuple)):
-        list(map(lambda v: print(u(v)), value))
+        list(map(lambda v: print(v), value))
     elif not isinstance(value, int):
         print(u("{0}".format(value)))
     return retval
@@ -1572,8 +1656,9 @@ def main(argv=None):
     # all take a (google) project and a workspace name
 
     workspace_parent = argparse.ArgumentParser(add_help=False)
-    workspace_parent.add_argument('-w', '--workspace', help='Workspace name',
-                    default=fcconfig.workspace, required=workspace_required)
+    workspace_parent.add_argument('-w', '--workspace',
+        default=fcconfig.workspace, required=workspace_required,
+        help='Workspace name (required if no default workspace configured)')
 
     proj_help =  'Project (workspace namespace). Required '
     proj_help += 'if no default project was configured'
@@ -1608,8 +1693,7 @@ def main(argv=None):
 
     # Commands that work with methods
     meth_parent = argparse.ArgumentParser(add_help=False)
-    meth_parent.add_argument('-m', '--method', required=True,
-                             help='Workflow/Method name')
+    meth_parent.add_argument('-m', '--method', required=True,help='method name')
     meth_parent.add_argument('-n', '--namespace', help='Method namespace',
                     default=fcconfig.method_ns, required=meth_ns_required)
 
@@ -1631,7 +1715,7 @@ def main(argv=None):
     attr_parent.add_argument('-a', '--attributes', nargs='*', metavar='attr',
                             help='List of attributes')
 
-    ## Create one subparser for each fiss equivalent
+    # Create one subparser for each fiss equivalent
     subparsers = parser.add_subparsers(prog='fissfc [OPTIONS]',
                                        help=argparse.SUPPRESS)
 
@@ -1650,7 +1734,7 @@ def main(argv=None):
     subp.add_argument('-q', '--quiet', action='store_true', help=phelp)
     subp.set_defaults(func=space_exists)
 
-    #Delete workspace
+    # Delete workspace
     subp = subparsers.add_parser('space_delete', description='Delete workspace')
     subp.add_argument('-w', '--workspace', help='Workspace name', required=True)
     proj_help =  'Project (workspace namespace). Required '
@@ -1662,8 +1746,7 @@ def main(argv=None):
     # Get workspace information
     subp = subparsers.add_parser(
         'space_info', description='Show workspace information',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.set_defaults(func=space_info)
 
     # List workspaces
@@ -1671,8 +1754,7 @@ def main(argv=None):
             description=
             'List available workspaces in projects (namespaces) to which you '\
             'have access. If you have a config file which defines a default '\
-            'project, then only the workspaces in that project will be listed.'
-    )
+            'project, then only the workspaces in that project will be listed.')
     subp.add_argument('-p', '--project', default=fcconfig.project,
             help='List spaces for projects whose names start with this prefix.'\
             ' You may also specify . (a dot), to list everything.')
@@ -1681,31 +1763,27 @@ def main(argv=None):
     # Lock workspace
     subp = subparsers.add_parser(
         'space_lock', description='Lock a workspace',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.set_defaults(func=space_lock)
 
     # Unlock Workspace
-    space_unlock_parser = subparsers.add_parser(
-        'space_unlock', description='Unlock a workspace',
-        parents=[workspace_parent]
-    )
-    space_unlock_parser.set_defaults(func=space_unlock)
+    subp = subparsers.add_parser('space_unlock',
+        description='Unlock a workspace',
+        parents=[workspace_parent])
+    subp.set_defaults(func=space_unlock)
 
     # Clone workspace
     clone_desc = 'Clone a workspace. The destination namespace or name must be '
     clone_desc += 'different from the workspace being cloned'
     subp = subparsers.add_parser(
         'space_clone', description=clone_desc,
-        parents=[workspace_parent, dest_space_parent]
-    )
+        parents=[workspace_parent, dest_space_parent])
     subp.set_defaults(func=space_clone)
 
     # Import data into a workspace
     subp = subparsers.add_parser(
         'entity_import', description='Import data into a workspace',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.add_argument('-f','--tsvfile', required=True,
                                help='Tab-delimited loadfile')
     subp.add_argument('-C', '--chunk-size', default=500, type=int,
@@ -1715,124 +1793,108 @@ def main(argv=None):
     # List of entity types in a workspace
     subp = subparsers.add_parser(
         'entity_types', parents=[workspace_parent],
-        description='List entity types in a workspace'
-    )
+        description='List entity types in a workspace')
     subp.set_defaults(func=entity_types)
 
     # List of entities in a workspace
     subp = subparsers.add_parser(
         'entity_list', description='List entity types in a workspace',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.set_defaults(func=entity_list)
 
     # List of participants
     subp = subparsers.add_parser(
         'participant_list', description='List participants in a workspace',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.set_defaults(func=participant_list)
 
     # List of samples
     subp = subparsers.add_parser(
         'sample_list', description='List samples in a workspace',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.set_defaults(func=sample_list)
 
     # List of sample sets
     subp = subparsers.add_parser(
         'sset_list', description='List sample sets in a workspace',
-        parents=[workspace_parent]
-    )
+        parents=[workspace_parent])
     subp.set_defaults(func=sset_list)
 
     # Delete entity in a workspace
     subp = subparsers.add_parser(
         'entity_delete', description='Delete entity in a workspace',
-        parents=[workspace_parent, etype_parent, entity_parent]
-    )
+        parents=[workspace_parent, etype_parent, entity_parent])
     subp.set_defaults(func=entity_delete)
 
-    partdel_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'participant_delete', description='Delete participant in a workspace',
-        parents=[workspace_parent, entity_parent]
-    )
-    partdel_parser.set_defaults(func=participant_delete)
+        parents=[workspace_parent, entity_parent])
+    subp.set_defaults(func=participant_delete)
 
-    sdel_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'sample_delete', description='Delete sample in a workspace',
-        parents=[workspace_parent, entity_parent]
-    )
-    sdel_parser.set_defaults(func=sample_delete)
+        parents=[workspace_parent, entity_parent])
+    subp.set_defaults(func=sample_delete)
 
-    ssdel_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'sset_delete', description='Delete sample set in a workspace',
-        parents=[workspace_parent, entity_parent]
-    )
-    ssdel_parser.set_defaults(func=sset_delete)
+        parents=[workspace_parent, entity_parent])
+    subp.set_defaults(func=sset_delete)
 
-    #Show workspace roles
-    wacl_parser = subparsers.add_parser(
+    # Show workspace roles
+    subp = subparsers.add_parser(
         'space_acl', description='Show users and roles in workspace',
-        parents=[workspace_parent]
-    )
-    wacl_parser.set_defaults(func=space_acl)
+        parents=[workspace_parent])
+    subp.set_defaults(func=space_acl)
 
-    #Set workspace roles
-    sacl_prsr = subparsers.add_parser(
-        'space_set_acl', description='Show users and roles in workspace',
-        parents=[workspace_parent, acl_parent]
-    )
-    sacl_prsr.set_defaults(func=space_set_acl)
+    # Set workspace roles
+    subp = subparsers.add_parser('space_set_acl',
+        description='Show users and roles in workspace',
+        parents=[workspace_parent, acl_parent])
+    subp.set_defaults(func=space_set_acl)
 
-    #Push a new workflow to the methods repo
-    nf_parser = subparsers.add_parser(
-        'flow_new', description='Push workflow to the methods repository',
-        parents=[meth_parent]
-    )
-    wdl_help = 'Workflow Description Language (WDL) file'
-    nf_parser.add_argument('-d','--wdl', help=wdl_help, required=True)
+    # Push a new workflow to the methods repo
+    subp = subparsers.add_parser('meth_new', parents=[meth_parent],
+        description='Install a method definition to the repository')
+    whelp = 'Method definiton, as a file of WDL (Workflow Description Language)'
+    subp.add_argument('-d','--wdl', help=whelp, required=True)
     syn_help = 'Short (<80 chars) description of method'
-    nf_parser.add_argument('-s', '--synopsis', help=syn_help)
-    nf_parser.add_argument('--doc', help='Optional documentation file <10Kb')
-    nf_parser.set_defaults(func=flow_new)
+    subp.add_argument('-s', '--synopsis', help=syn_help)
+    subp.add_argument('--doc', help='Optional documentation file <10Kb')
+    subp.set_defaults(func=meth_new)
 
-    #Redact a method
-    mredact_parser=subparsers.add_parser(
-        'flow_delete', description='Redact method from the methods repository',
-        parents=[meth_parent, snapshot_parent]
-    )
-    mredact_parser.set_defaults(func=flow_delete)
+    # Redact a method
+    subp = subparsers.add_parser('meth_delete',
+        description='Redact method from the methods repository',
+        parents=[meth_parent, snapshot_parent])
+    subp.set_defaults(func=meth_delete)
 
     # Access control list operations (upon methods)
     # Get ACL
-    methacl_parser = subparsers.add_parser(
-        'flow_acl', description='Show users and roles for a method',
-        parents=[meth_parent, snapshot_parent]
-    )
-    methacl_parser.set_defaults(func=flow_acl)
+    subp = subparsers.add_parser('meth_acl',
+        description='Show users and roles for a method',
+        parents=[meth_parent, snapshot_parent])
+    subp.set_defaults(func=meth_acl)
 
     # Set ACL
-    macl_parser = subparsers.add_parser(
-        'flow_set_acl', description='Show users and roles in workspace',
-        parents=[meth_parent, acl_parent]
-    )
-    macl_parser.add_argument('-i', '--snapshot-id',
+    subp = subparsers.add_parser('meth_set_acl',
+        description='Show users and roles in workspace',
+        parents=[meth_parent, acl_parent])
+    subp.add_argument('-i', '--snapshot-id',
                              help="Snapshot ID (version) of method/config")
-    macl_parser.set_defaults(func=flow_set_acl)
+    subp.set_defaults(func=meth_set_acl)
 
     # List available methods
-    subp = subparsers.add_parser('flow_list',
+    subp = subparsers.add_parser('meth_list',
         description='List available workflows')
     subp.add_argument('-n', '--name', default=None,required=False,
         help='name of single workflow to search for (optional)')
-    subp.set_defaults(func=flow_list)
+    subp.set_defaults(func=meth_list)
 
-    subp = subparsers.add_parser('flow_exists',
+    subp = subparsers.add_parser('meth_exists',
         description='Determine if named workflow exists in metho repository')
     subp.add_argument('name', help='name of method to search for In repository')
-    subp.set_defaults(func=flow_exists)
+    subp.set_defaults(func=meth_exists)
 
     # Configuration: list
     subp = subparsers.add_parser(
@@ -1855,9 +1917,9 @@ def main(argv=None):
                                  help=proj_help, required=proj_required)
     subp.set_defaults(func=config_delete)
 
-    # Configuration: retrieve (get)
-    subp = subparsers.add_parser(
-        'config_get', description='Retrieve method configuration (definition)',
+    # Method configuration commands
+    subp = subparsers.add_parser('config_get',
+        description='Retrieve method configuration definition',
         parents=[conf_parent])
     subp.add_argument('-w', '--workspace', help='Workspace name',
                     default=fcconfig.workspace, required=workspace_required)
@@ -1865,12 +1927,10 @@ def main(argv=None):
         help='Project (workspace namespace)', required=proj_required)
     subp.set_defaults(func=config_get)
 
-    # Configuration: copy
     subp = subparsers.add_parser('config_copy',description=
         'Copy a method config to a new name/space/namespace/project, '\
         'at least one of which MUST be specified.',
-        parents=[conf_parent]
-    )
+        parents=[conf_parent])
     subp.add_argument('-p', '--fromproject', default=fcconfig.project,
                                  help='Project (workspace namespace)',
                                  required=proj_required)
@@ -1882,16 +1942,37 @@ def main(argv=None):
     subp.add_argument("-P", "--toproject", help="destination project")
     subp.set_defaults(func=config_copy)
 
+    subp = subparsers.add_parser('config_new',
+        parents=[meth_parent, snapshot_parent, workspace_parent, etype_parent],
+        description=config_new.__doc__)
+    subp.add_argument('-c', '--configname', default=None,
+        help='name of new config; if unspecified, method name will be used')
+    subp.set_defaults(func=config_new)
+
+    subp = subparsers.add_parser('config_template',
+        parents=[meth_parent, snapshot_parent],
+        description='Generate a template method configuration, from the'
+        'given repository method')
+    subp.add_argument('-c', '--configname', default=None,
+        help='name of new config; if unspecified, method name will be used')
+    subp.add_argument('-t', '--entity-type', required=False, default='',
+        help='Root entity type, over which method config will execute')
+    subp.set_defaults(func=config_template)
+
+    subp = subparsers.add_parser('config_put', parents=[workspace_parent],
+        description=config_put.__doc__)
+    subp.add_argument('-c', '--config', required=True,
+        help='Method configuration definition, as described above')
+    subp.set_defaults(func=config_put)
+
+    subp = subparsers.add_parser('config_acl',
+        description='Show users and roles for a method configuration',
+        parents=[conf_parent, snapshot_parent])
+    subp.set_defaults(func=config_acl)
+
     # FIXME: continue subp = ... meme below, instead of uniquely naming each
     #        subparse; better yet, most of this can be greatly collapsed and
     #        pushed into a separate function and/or auto-generated
-
-    # Config ACLs
-    cfgacl_parser = subparsers.add_parser(
-        'config_acl', description='Show users and roles for a configuration',
-        parents=[conf_parent, snapshot_parent]
-    )
-    cfgacl_parser.set_defaults(func=config_acl)
 
     # Set ACL
     # cacl_parser = subparsers.add_parser('config_set_acl',
@@ -1903,7 +1984,7 @@ def main(argv=None):
     #                      choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
     # cacl_parser.add_argument('users', metavar='user', help='Firecloud username',
     #                          nargs='+')
-    # cacl_parser.set_defaults(func=flow_set_acl)
+    # cacl_parser.set_defaults(func=meth_set_acl)
 
     # Status
     subp = subparsers.add_parser('ping',
@@ -1914,15 +1995,13 @@ def main(argv=None):
         description='Retrieve values of attribute(s) from given entity',
         parents=[workspace_parent, attr_parent])
 
-    # Duplicate entity-type here, because it is optional for attr_get
+    # etype_parent not used for attr_get, because entity type is optional
     etype_help =  'Entity type to retrieve annotations from. '
     etype_help += 'If omitted, workspace attributes will be retrieved'
     etype_choices=['participant', 'participant_set', 'sample', 'sample_set',
         'pair', 'pair_set' ]
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
-        required=etype_required,
-        default=fcconfig.entity_type,
-        help="Entity type, required if no default entity_type was configured")
+        required=False, default='', help=etype_help)
     subp.add_argument('-e','--entity',help="Entity to retrieve attributes from")
     subp.set_defaults(func=attr_get)
 
@@ -1956,15 +2035,13 @@ def main(argv=None):
     # Copy attributes
     subp = subparsers.add_parser(
         'attr_copy', description="Copy workspace attributes between workspaces",
-        parents=[workspace_parent, dest_space_parent, attr_parent]
-    )
+        parents=[workspace_parent, dest_space_parent, attr_parent])
     subp.set_defaults(func=attr_copy)
 
     # Delete attributes
     subp = subparsers.add_parser(
         'attr_delete', description="Delete attributes in a workspace",
-        parents=[workspace_parent, attr_parent]
-    )
+        parents=[workspace_parent, attr_parent])
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
         required=etype_required,
         default=fcconfig.entity_type,
@@ -1973,22 +2050,20 @@ def main(argv=None):
     subp.set_defaults(func=attr_delete)
 
     # Set null sentinel values
-    attrf_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'attr_fill_null', description='Assign NULL sentinel value to attributes',
-        parents=[workspace_parent, etype_parent, attr_parent]
-    )
-    attrf_parser.add_argument("-o", "--to-loadfile", metavar='loadfile',
+        parents=[workspace_parent, etype_parent, attr_parent])
+    subp.add_argument("-o", "--to-loadfile", metavar='loadfile',
                               help="Save changes to provided loadfile, but do not perform update")
-    attrf_parser.set_defaults(func=attr_fill_null)
+    subp.set_defaults(func=attr_fill_null)
 
     # Delete unreferenced files from a workspace's bucket
-    mop_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'mop', description='Remove unused files from a workspace\'s bucket',
-        parents=[workspace_parent]
-    )
-    mop_parser.add_argument('--dry-run', action='store_true',
+        parents=[workspace_parent])
+    subp.add_argument('--dry-run', action='store_true',
                             help='Show deletions that would be performed')
-    mop_parser.set_defaults(func=mop)
+    subp.set_defaults(func=mop)
 
     subp = subparsers.add_parser('noop',
         description='Simple no-op command, for exercising interface')
@@ -2001,11 +2076,10 @@ def main(argv=None):
              'If no name is given, all config variables will be displayed.')
     subp.set_defaults(func=config_cmd)
 
-    # Submit a workflow
-    subp = subparsers.add_parser('flow_start',
+    # Invoke a method configuration
+    subp = subparsers.add_parser('config_start',
         description='Start running workflow in a given space',
-        parents=[workspace_parent, conf_parent, entity_parent]
-    )
+        parents=[workspace_parent, conf_parent, entity_parent])
     # Duplicate entity type here since we want sample_set to be default
     etype_help =  'Entity type to assign null values, if attribute is missing.'
     etype_help += '\nDefault: sample_set'
@@ -2016,117 +2090,99 @@ def main(argv=None):
     subp.add_argument('-x', '--expression', help=expr_help, default='')
     subp.add_argument('-C', '--cache', default=True,
         help='boolean: use previously cached results if possible [%(default)s]')
-    subp.set_defaults(func=flow_start)
+    subp.set_defaults(func=config_start)
 
     # Loop over sample sets, performing a command
     ssloop_help = 'Loop over sample sets in a workspace, performing <action>'
-    ssloop_parser = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'sset_loop', description=ssloop_help,
-        parents=[workspace_parent, attr_parent]
-    )
-    ssloop_parser.add_argument('action', help='FISS command to execute')
-    ssloop_parser.add_argument('-c', '--config',
+        parents=[workspace_parent, attr_parent])
+    subp.add_argument('action', help='FISS command to execute')
+    subp.add_argument('-c', '--config',
                                help='Method configuration name')
-    ssloop_parser.add_argument('-n', '--namespace',
+    subp.add_argument('-n', '--namespace',
                                help='Method configuration namespace')
     khelp = "Loop through all sample sets, ignoring errors"
-    ssloop_parser.add_argument('-k', '--keep-going', action='store_true',
+    subp.add_argument('-k', '--keep-going', action='store_true',
                                help=khelp)
-    ssloop_parser.add_argument('-x', '--expression', help=expr_help)
-    ssloop_parser.set_defaults(func=sset_loop)
+    subp.add_argument('-x', '--expression', help=expr_help)
+    subp.set_defaults(func=sset_loop)
 
-    mon_parser = subparsers.add_parser('monitor', help="Monitor submitted jobs.",
-        parents=[workspace_parent]
-    )
-    mon_parser.set_defaults(func=monitor)
-
+    subp = subparsers.add_parser('monitor', help="Monitor submitted jobs.",
+        parents=[workspace_parent])
+    subp.set_defaults(func=monitor)
 
     # Supervisor mode
     sup_help = "Run a Firehose-style workflow of workflows specified in DOT"
-    sup_parser = subparsers.add_parser(
-        'supervise', description=sup_help,
-        parents=[workspace_parent]
-    )
-    sup_parser.add_argument('workflow', help='Workflow description in DOT')
-    sup_parser.add_argument('-n', '--namespace', required=True,
+    subp = subparsers.add_parser( 'supervise', description=sup_help,
+        parents=[workspace_parent])
+    subp.add_argument('workflow', help='Workflow description in DOT')
+    subp.add_argument('-n', '--namespace', required=True,
                              help='Methods namespace')
-    sup_parser.add_argument('-s', '--sample-sets', nargs='+',
+    subp.add_argument('-s', '--sample-sets', nargs='+',
                             help='Sample sets to run workflow on')
     jhelp = "File to save monitor data. This file can be passed to " + \
             "fissfc supervise_recover in case the supervisor crashes " + \
             "(Default: %(default)s)"
     recovery = os.path.expanduser('~/.fiss/monitor_data.json')
-    sup_parser.add_argument('-j', '--json-checkpoint', default=recovery,
+    subp.add_argument('-j', '--json-checkpoint', default=recovery,
                             help=jhelp)
-    sup_parser.set_defaults(func=supervise)
+    subp.set_defaults(func=supervise)
 
     # Recover an old supervisor
     rec_help = "Recover a supervisor submission from the checkpoint file"
-    rec_parser = subparsers.add_parser(
-        'supervise_recover', description=rec_help
-    )
-    rec_parser.add_argument('recovery_file', default=recovery, nargs='?',
+    subp = subparsers.add_parser('supervise_recover', description=rec_help)
+    subp.add_argument('recovery_file', default=recovery, nargs='?',
                             help='File where supervisor metadata was stored')
-    rec_parser.set_defaults(func=supervise_recover)
+    subp.set_defaults(func=supervise_recover)
 
     # Space search
-    ssearch_prsr = subparsers.add_parser(
+    subp = subparsers.add_parser(
         'space_search', description="Search for workspaces"
     )
-    ssearch_prsr.add_argument('-b', '--bucket', help='Regex to match bucketName')
-    ssearch_prsr.set_defaults(func=space_search)
+    subp.add_argument('-b', '--bucket', help='Regex to match bucketName')
+    subp.set_defaults(func=space_search)
 
-
-    ecopy_prsr = subparsers.add_parser(
+    # Entity copy
+    subp = subparsers.add_parser(
         'entity_copy', description='Copy entities from one workspace to another',
-        parents=[workspace_parent, dest_space_parent, etype_parent]
-    )
-
-    ecopy_prsr.add_argument(
-        '-e', '--entities', nargs='+',
-        help='Entities to copy. If omitted, all entities will be copied.'
-    )
-    ecopy_prsr.set_defaults(func=entity_copy)
+        parents=[workspace_parent, dest_space_parent, etype_parent])
+    subp.add_argument('-e', '--entities', nargs='+',
+        help='Entities to copy. If omitted, all entities will be copied.')
+    subp.set_defaults(func=entity_copy)
 
 
     # List billing projects
-    proj_list_prsr = subparsers.add_parser(
-        'proj_list', description="List available billing projects"
-    )
-    proj_list_prsr.set_defaults(func=proj_list)
+    subp = subparsers.add_parser('proj_list',
+        description="List available billing projects")
+    subp.set_defaults(func=proj_list)
 
     # Validate config
-    conf_val_prsr = subparsers.add_parser(
-        'config_validate', description="Validate a workspace configuration",
-        parents=[workspace_parent]
-    )
-    conf_val_prsr.add_argument(
-        '-e', '--entity',
-        help="Validate config against this entity. Entity is assumed to be the same type as the config's root entity type",
-    )
-    conf_val_prsr.add_argument('-c', '--config',
+    subp = subparsers.add_parser('config_validate', parents=[workspace_parent],
+        description="Validate a workspace configuration")
+    subp.add_argument('-e', '--entity',
+        help="Validate config against this entity. Entity is assumed to be "
+        "the same type as the config's root entity type")
+    subp.add_argument('-c', '--config',
                                help='Method configuration name')
-    conf_val_prsr.add_argument('-n', '--namespace',
+    subp.add_argument('-n', '--namespace',
                                help='Method configuration namespace')
-    conf_val_prsr.set_defaults(func=config_validate)
+    subp.set_defaults(func=config_validate)
 
-    runnable_prsr = subparsers.add_parser(
-        'runnable', description="Show me what configurations can be run on which sample sets.",
-        parents=[workspace_parent]
-    )
-    runnable_prsr.add_argument('-c', '--config',
-                               help='Method configuration name')
-    runnable_prsr.add_argument('-n', '--namespace',
-                               help='Method configuration namespace')
-    runnable_prsr.add_argument(
-       '-e', '--entity',
-       help="Show me what configurations can be run on this entity",
-    )
-    runnable_prsr.add_argument('-t', '--entity-type', choices=etype_choices,
-        required=etype_required,
+    subp = subparsers.add_parser('runnable',
+        description="Show what configurations can be run on which entities.",
+        parents=[workspace_parent])
+    subp.add_argument('-c', '--config',
+        help='Method configuration name')
+    subp.add_argument('-n', '--namespace',
+        help='Method configuration namespace')
+    subp.add_argument('-e', '--entity',
+        help="Show me what configurations can be run on this entity")
+    subp.add_argument('-t', '--entity-type',
+        choices=etype_choices, required=etype_required,
         default=fcconfig.entity_type,
         help="Entity type, required if no default entity_type was configured")
-    runnable_prsr.set_defaults(func=runnable)
+    subp.set_defaults(func=runnable)
 
     # Create the .fiss directory if it doesn't exist
     fiss_home = os.path.expanduser("~/.fiss")
@@ -2150,7 +2206,7 @@ def main(argv=None):
         search = ''
         if len(argv) > 2:
             search = argv[2]
-        result = filter(lambda c: search in c, sorted(choices))
+        result = list(filter(lambda c: search in c, sorted(choices)))
     elif argv[1] in ('-F', '--function'):
         # Show source for remaining args
         for fname in argv[2:]:
@@ -2178,12 +2234,14 @@ def main(argv=None):
     return result
 
 def main_as_cli(argv=None):
-    # Use this entry point to call HL fiss funcs as though from the UNIX CLI.
-    # (see firecloud/tests/highlevel_tests.py:call_cli for usage examples)
+    '''Use this entry point to call HL fiss funcs as though from the UNIX CLI.
+       (see firecloud/tests/highlevel_tests.py:call_cli for usage examples)'''
     try:
         result = main(argv)
     except Exception as e:
         result = __pretty_print_fc_exception(e)
+    # FIXME: we should invert True/False return values to 0/1 here, to comply
+    # with UNIX exit code semantics (and avoid problems with make, scripts, etc)
     return printToCLI(result)
 
 if __name__ == '__main__':

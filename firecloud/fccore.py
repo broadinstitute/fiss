@@ -20,6 +20,9 @@ import os
 import configparser
 from firecloud import __about__
 from io import IOBase
+import tempfile
+import shutil
+from subprocess import call
 
 class attrdict(dict):
     """ dict whose members can be accessed as attributes, and default value is
@@ -48,13 +51,13 @@ class attrdict(dict):
         else:
             self.__setitem__(item, value)
 
-def fc_config_get(name):
+def config_get(name):
     return __fcconfig[name]     # Returns default value if name is undefined
 
-def fc_config_get_all():
+def config_get_all():
     return __fcconfig
 
-def fc_config_set(name, value):
+def config_set(name, value):
     # FIXME: should validate critical variables, e.g. that type is not changed
     __fcconfig[name] = value
 
@@ -98,7 +101,7 @@ __fcconfig = attrdict({
     'set_root_url'  : __set_root_url
 })
 
-def fc_config_parse(config=None, *files):
+def config_parse(config=None, *files):
     '''
     Read initial configuration state, from named config files; store
     this state within a config dictionary (which may be nested) whose keys may
@@ -125,7 +128,7 @@ def fc_config_parse(config=None, *files):
     # [DEFAULT] defines common variables for interpolation/substitution in
     # other sections, and are stored at the root level of the config object
     for keyval in cfgparser.items('DEFAULT'):
-        #print("fc_config_parse: adding config variable %s=%s" % (keyval[0], str(keyval[1])))
+        #print("config_parse: adding config variable %s=%s" % (keyval[0], str(keyval[1])))
         __fcconfig[keyval[0]] = keyval[1]
 
     for section in cfgparser.sections():
@@ -142,3 +145,38 @@ def fc_config_parse(config=None, *files):
         config.root_url += '/'
 
     return config
+
+# Text editing capability, loosely based on StackOverflow post: {{{
+#           call up an EDITOR (vim) from a python script
+
+__EDITOR__ = os.environ.get('EDITOR','vi')
+
+def edit_text(text=None):
+    # Edit block of text in a single string, returning the edited result
+    tf = tempfile.NamedTemporaryFile(suffix=".tmp")
+    if text:
+        tf.write(text)
+        tf.flush()
+    call([__EDITOR__, tf.name])
+    with open(tf.name, 'r') as newfile:
+        text = newfile.read()
+    tf.close()
+    try:
+        # Attempt to clean hidden temp files that EDITOR may have created
+        os.remove(tf.name + "~")
+    except OSError:
+        pass
+    return text
+
+def edit_file(name, backup=None):
+    # Edit file in place, optionally backing up first
+    # Returns True if file was modified else False
+    if backup:
+        shutil.copy2(name, backup)
+    # Record time of last modification: tolm
+    previous_tolm = os.stat(name).st_mtime
+    call([__EDITOR__, name])
+    current_tolm  = os.stat(name).st_mtime
+    return current_tolm != previous_tolm
+
+# }}}

@@ -8,7 +8,8 @@ import sys
 import os
 from getpass import getuser
 import firecloud.api as fapi
-from firecloud.fccore import fc_config_parse
+from firecloud import fccore
+from firecloud import api as fapi
 
 class TestFISSLowLevel(unittest.TestCase):
     """Unit test the low-level interface of FireCloud-enabled FISS. There should
@@ -25,7 +26,7 @@ class TestFISSLowLevel(unittest.TestCase):
         if fiss_verbosity == None:
             fiss_verbosity = 0
 
-        fcconfig = fc_config_parse()
+        fcconfig = fccore.config_parse()
         cls.project = fcconfig.project
         if not cls.project:
             raise ValueError("Your configuration must define a FireCloud project")
