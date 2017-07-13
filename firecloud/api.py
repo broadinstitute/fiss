@@ -663,7 +663,7 @@ def get_config_template(namespace, method, version):
     body = {
         "methodNamespace" : namespace,
         "methodName"      : method,
-        "methodVersion"   : version
+        "methodVersion"   : int(version)
     }
     return __post("template", json=body)
 
