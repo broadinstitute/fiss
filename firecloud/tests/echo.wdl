@@ -15,5 +15,5 @@ task echo_task {
 }
 
 workflow echo {
-	call echo_task {input: message="Hello, from the simple GDAC echo task"}
+	call echo_task
 }

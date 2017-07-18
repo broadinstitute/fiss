@@ -16,7 +16,7 @@ import argparse
 import subprocess
 import re
 import collections
-from six import iteritems, string_types, itervalues, u
+from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
 from firecloud import api as fapi
 from firecloud import fccore
@@ -1608,7 +1608,10 @@ def printToCLI(value):
     elif isinstance(value, (list, tuple)):
         list(map(lambda v: print(v), value))
     elif not isinstance(value, int):
-        print(u("{0}".format(value)))
+        if isinstance(value, text_type):
+            print(value)
+        else:
+            print(u("{0}".format(value)))
     return retval
 
 #################################################

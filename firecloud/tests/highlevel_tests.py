@@ -286,7 +286,7 @@ class TestFISSHighLevel(unittest.TestCase):
         # broadgdac namespace (which should be publicly readable)
         config = call_func('config_template',
             '--method', name,
-            '--namespace', ns, '--snapshot-id', "1",
+            '--namespace', ns, '--snapshot-id', "2",
             '--entity-type', 'sample_set',
             '--configname', name)
 
@@ -294,20 +294,29 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertIn("namespace", config)
         output_attribute = "echo.echo_task.echoed"
         self.assertIn(output_attribute, config)
+        
+        input_attribute = "echo.echo_task.message"
+        self.assertIn(input_attribute, config)
+        
         config = json.loads(config)
         self.assertEqual(config['name'], name)
 
         # Set the output attribute (making it a valid config), then install
         config['outputs'][output_attribute] = 'workspace.echoed_results'
+        config['inputs'][input_attribute] = '"Hello, from the simple GDAC echo task"'
         result = call_func('config_put', '-p', self.project,
             '-w', self.workspace,
             '-c', json.dumps(config))
         self.assertEqual(True, result)
 
-        # And do some spot-checking 
-        config = call_func('config_get', '-p', self.project,
-            '-w', self.workspace,
-            '-c', name)
+        # Do some spot-checking using CLI to ensure the json is not corrupted.
+        with Capturing() as config:
+            ret = call_cli('config_get', '-p', self.project,
+                '-w', self.workspace,
+                '-c', name)
+        self.assertEqual(0, ret)
+        config = '\n'.join(config)
+        
         self.assertTrue(len(config) != 0)
 
         config = json.loads(config)
