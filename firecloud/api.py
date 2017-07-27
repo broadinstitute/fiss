@@ -35,6 +35,8 @@ def _fiss_access_headers(headers=None):
 
     """
     credentials = GoogleCredentials.get_application_default()
+    # We need to request userinfo.profile and userinfo.email if we are using a service account to run FISS
+    credentials = credentials.create_scoped(['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'])
     access_token = credentials.get_access_token().access_token
     fiss_headers = {"Authorization" : "bearer " + access_token}
     fiss_headers["User-Agent"] = FISS_USER_AGENT
