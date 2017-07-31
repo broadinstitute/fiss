@@ -14,7 +14,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("oauth2client").setLevel(logging.WARNING)
 
 def supervise(project, workspace, namespace, workflow,
-              sample_sets, recovery_file, api_url):
+              sample_sets, recovery_file):
     """ Supervise submission of jobs from a Firehose-style workflow of workflows"""
     # Get arguments
 
@@ -29,8 +29,7 @@ def supervise(project, workspace, namespace, workflow,
         'workspace': workspace,
         'namespace': namespace,
         'workflow' : workflow,
-        'sample_sets': sample_sets,
-        'api_url': api_url
+        'sample_sets': sample_sets
     }
 
     monitor_data, dependencies = init_supervisor_data(workflow, sample_sets)
@@ -154,7 +153,6 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
     """ Supervisor loop. Loop forever until all tasks are evaluated or completed """
     project = args['project']
     workspace = args['workspace']
-    api_url = args['api_url']
     namespace = args['namespace']
     sample_sets = args['sample_sets']
     recovery_data = {'args': args}
@@ -185,7 +183,7 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
         completed = 0
 
         # Get the submissions
-        r = fapi.list_submissions(project, workspace, api_url)
+        r = fapi.list_submissions(project, workspace)
         sub_list = r.json()
         #TODO: filter this list by submission time first?
         sub_lookup = {s["submissionId"]: s for s in sub_list}
@@ -227,8 +225,7 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
                             for retry in range(3):
                                 r = fapi.create_submission(
                                     project, workspace, namespace, fc_config,
-                                    sset, etype="sample_set", expression=None,
-                                    api_root=api_url
+                                    sset, etype="sample_set", expression=None
                                 )
                                 if r.status_code == 201:
                                     task_data['submissionId'] = r.json()['submissionId']
