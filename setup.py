@@ -26,7 +26,6 @@ setup(
         'pydot',
         'requests',
         'six',
-        'yapsy',
         'pylint==1.7.1'
     ],
     classifiers = [

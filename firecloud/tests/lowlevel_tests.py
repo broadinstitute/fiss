@@ -7,7 +7,6 @@ import nose
 import sys
 import os
 from getpass import getuser
-import firecloud.api as fapi
 from firecloud import fccore
 from firecloud import api as fapi
 
@@ -160,6 +159,7 @@ class TestFISSLowLevel(unittest.TestCase):
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
+    @unittest.skip("Not Implemented")
     def test_get_entities_tsv(self):
         """Test get_entities_tsv()."""
         r =  fapi.get_entities_tsv(self.project,
@@ -303,9 +303,9 @@ class TestFISSLowLevel(unittest.TestCase):
         # Unlock, for other tests
         fapi.unlock_workspace(self.project, self.workspace)
 
-    def test_ping(self):
-        """Test ping()."""
-        r =  fapi.ping()
+    def test_health(self):
+        """Test health()."""
+        r =  fapi.health()
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 

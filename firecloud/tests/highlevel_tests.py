@@ -69,9 +69,9 @@ class TestFISSHighLevel(unittest.TestCase):
         print("\nFinishing high-level CLI tests ...\n", file=sys.stderr)
         r = fapi.delete_workspace(cls.project, cls.workspace)
 
-    def test_ping(self):
-        #  Should return a string resembling '2017-07-07T17:37:23.228+0000'
-        self.assertGreater(len(call_func("ping")), 9)
+    def test_health(self):
+        #  Should return a bytes of 'OK'
+        self.assertEqual(call_func("health"), b'OK')
 
     def test_space_info(self):
         result = call_func("space_info","-p",self.project,"-w",self.workspace)
@@ -294,10 +294,10 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertIn("namespace", config)
         output_attribute = "echo.echo_task.echoed"
         self.assertIn(output_attribute, config)
-        
+
         input_attribute = "echo.echo_task.message"
         self.assertIn(input_attribute, config)
-        
+
         config = json.loads(config)
         self.assertEqual(config['name'], name)
 
@@ -316,7 +316,7 @@ class TestFISSHighLevel(unittest.TestCase):
                 '-c', name)
         self.assertEqual(0, ret)
         config = '\n'.join(config)
-        
+
         self.assertTrue(len(config) != 0)
 
         config = json.loads(config)
