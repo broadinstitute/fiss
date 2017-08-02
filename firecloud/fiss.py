@@ -1513,7 +1513,7 @@ def _valid_headerline(l):
     if len(tsplit) != 2:
         return False
 
-    if tsplit[0] == 'entity':
+    if tsplit[0] in ('entity', 'update'):
         return tsplit[1] in ('participant_id', 'participant_set_id',
                              'sample_id', 'sample_set_id',
                              'pair_id', 'pair_set_id')
