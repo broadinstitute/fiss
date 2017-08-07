@@ -22,6 +22,9 @@ from firecloud.__about__ import __version__
 
 FISS_USER_AGENT = "FISS/" + __version__
 
+# Set Global credentials
+__CREDENTIALS = None
+
 #################################################
 # Utilities
 #################################################
@@ -34,11 +37,15 @@ def _fiss_access_headers(headers=None):
         headers (dict): Include additional headers as key-value pairs
 
     """
-    credentials = GoogleCredentials.get_application_default()
-    # We need to request userinfo.profile and userinfo.email if we are using a service account to run FISS
-    credentials = credentials.create_scoped(['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'])
-    access_token = credentials.get_access_token().access_token
-    fiss_headers = {"Authorization" : "bearer " + access_token}
+    # By only having a single instance of GoogleCredentials, access token
+    # caching is enabled
+    global __CREDENTIALS
+    if __CREDENTIALS is None:
+        __CREDENTIALS = GoogleCredentials.get_application_default()
+        # We need to request userinfo.profile and userinfo.email if we are using a service account to run FISS
+        __CREDENTIALS = __CREDENTIALS.create_scoped(['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'])
+    fcconfig.set_access_token(__CREDENTIALS.get_access_token().access_token)
+    fiss_headers = {"Authorization" : "bearer " + fcconfig.access_token}
     fiss_headers["User-Agent"] = FISS_USER_AGENT
     if headers:
         fiss_headers.update(headers)
