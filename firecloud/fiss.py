@@ -946,9 +946,9 @@ def attr_fill_null(args):
         return 1
 
 @fiss_cmd
-def ping(args):
-    """ Ping FireCloud Server """
-    r = fapi.ping()
+def health(args):
+    """ Health FireCloud Server """
+    r = fapi.health()
     fapi._check_response_code(r, 200)
     return r.content
 
@@ -1599,7 +1599,7 @@ def __pretty_print_fc_exception(e):
 def printToCLI(value):
     retval = value if isinstance(value, int) else 0
     if isinstance(value, dict):
-        # See attr_get for genesis of __header__ 
+        # See attr_get for genesis of __header__
         header = value.pop("__header__", None)
         if header:
             print('\t'.join(header))
@@ -1990,9 +1990,9 @@ def main(argv=None):
     # cacl_parser.set_defaults(func=meth_set_acl)
 
     # Status
-    subp = subparsers.add_parser('ping',
-        description='Show status of FireCloud services')
-    subp.set_defaults(func=ping)
+    subp = subparsers.add_parser('health',
+        description='Show health of FireCloud services')
+    subp.set_defaults(func=health)
 
     subp = subparsers.add_parser('attr_get',
         description='Retrieve values of attribute(s) from given entity',

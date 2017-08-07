@@ -12,7 +12,7 @@ import sys
 import io
 from collections import Iterable
 
-from six.moves.urllib.parse import urlencode
+from six.moves.urllib.parse import urlencode, urljoin
 import requests
 from oauth2client.client import GoogleCredentials
 
@@ -51,18 +51,18 @@ def _fiss_access_headers(headers=None):
         fiss_headers.update(headers)
     return fiss_headers
 
-def __get(methcall, headers=None, **kwargs):
+def __get(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
     if not headers:
         headers = _fiss_access_headers()
-    r = requests.get(fcconfig.root_url + methcall, headers=headers, **kwargs)
+    r = requests.get(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         print('FISSFC call: %s' % r.url, file=sys.stderr)
     return r
 
-def __post(methcall, headers=None, **kwargs):
+def __post(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
     if not headers:
         headers = _fiss_access_headers({"Content-type":  "application/json"})
-    r = requests.post(fcconfig.root_url + methcall, headers=headers, **kwargs)
+    r = requests.post(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         info = r.url
         json = kwargs.get("json", None)
@@ -71,10 +71,10 @@ def __post(methcall, headers=None, **kwargs):
         print('FISSFC call: POST %s' % info, file=sys.stderr)
     return r
 
-def __put(methcall, headers=None, **kwargs):
+def __put(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
     if not headers:
         headers = _fiss_access_headers()
-    r = requests.put(fcconfig.root_url + methcall, headers=headers, **kwargs)
+    r = requests.put(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         info = r.url
         json = kwargs.get("json", None)
@@ -83,10 +83,10 @@ def __put(methcall, headers=None, **kwargs):
         print('FISSFC call: POST %s' % info, file=sys.stderr)
     return r
 
-def __delete(methcall, headers=None):
+def __delete(methcall, headers=None, root_url=fcconfig.root_url):
     if not headers:
         headers = _fiss_access_headers()
-    r = requests.delete(fcconfig.root_url + methcall, headers=headers)
+    r = requests.delete(urljoin(root_url, methcall), headers=headers)
     if fcconfig.verbosity > 1:
         print('FISSFC call: DELETE %s' % r.url, file=sys.stderr)
     return r
@@ -308,7 +308,7 @@ def delete_entity_type(namespace, workspace, etype, ename):
         body = [{"entityType":etype, "entityName":ename}]
     elif isinstance(ename, Iterable):
         body = [{"entityType":etype, "entityName":i} for i in ename]
-    
+
     return __post(uri, json=body)
 
 def delete_participant(namespace, workspace, name):
@@ -884,15 +884,17 @@ def get_status():
     Swagger:
         https://api.firecloud.org/#!/Status/status
     """
-    return __get("status")
+    root_url = fcconfig.root_url.rpartition("api")[0]
+    return __get("status", root_url=root_url)
 
-def ping():
-    """Ping FireCloud API.
+def health():
+    """Health of FireCloud API.
 
     Swagger:
-        https://api.firecloud.org/#!/Status/ping
+        https://api.firecloud.org/#!/Status/health
     """
-    return __get("status/ping")
+    root_url = fcconfig.root_url.rpartition("api")[0]
+    return __get("health", root_url=root_url)
 
 ######################
 ### 1.6 Submissions
@@ -1046,11 +1048,11 @@ def create_workspace(namespace, name, authorizationDomain="", attributes=None):
 
     if not attributes:
         attributes = dict()
-    
+
     body = {
         "namespace": namespace,
         "name": name,
-        "attributes": attributes        
+        "attributes": attributes
     }
     if authorizationDomain:
         body["authorizationDomain"] = {"membersGroupName": authorizationDomain}
