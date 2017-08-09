@@ -61,6 +61,9 @@ def config_set(name, value):
     # FIXME: should validate critical variables, e.g. that type is not changed
     __fcconfig[name] = value
 
+def __set_access_token(access_token):
+    __fcconfig.access_token = access_token
+
 def __set_verbosity(verbosity):
     previous_value = __fcconfig.verbosity
     try:
@@ -87,18 +90,20 @@ def __set_root_url(url):
     return previous_value
 
 __fcconfig = attrdict({
-    'root_url'       : 'https://api.firecloud.org/api/',
-    'user_agent'    : 'FISS/' + __about__.__version__,
-    'debug'         : False,
-    'verbosity'     : 0,
-    'page_size'     : 1000,
-    'project'       : '',
-    'workspace'     : '',
-    'method_ns'     : '',
-    'entity_type'   : 'sample_set',
-    'get_verbosity' : __get_verbosity,
-    'set_verbosity' : __set_verbosity,
-    'set_root_url'  : __set_root_url
+    'root_url'         : 'https://api.firecloud.org/api/',
+    'user_agent'       : 'FISS/' + __about__.__version__,
+    'debug'            : False,
+    'verbosity'        : 0,
+    'page_size'        : 1000,
+    'project'          : '',
+    'workspace'        : '',
+    'method_ns'        : '',
+    'entity_type'      : 'sample_set',
+    'access_token'     : '',
+    'set_access_token' : __set_access_token,
+    'get_verbosity'    : __get_verbosity,
+    'set_verbosity'    : __set_verbosity,
+    'set_root_url'     : __set_root_url
 })
 
 def config_parse(config=None, *files):

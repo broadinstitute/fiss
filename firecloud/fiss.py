@@ -2117,19 +2117,20 @@ def main(argv=None):
 
     # Supervisor mode
     sup_help = "Run a Firehose-style workflow of workflows specified in DOT"
-    subp = subparsers.add_parser( 'supervise', description=sup_help,
-        parents=[workspace_parent])
+    subp = subparsers.add_parser('supervise', description=sup_help,
+                                 parents=[workspace_parent])
     subp.add_argument('workflow', help='Workflow description in DOT')
-    subp.add_argument('-n', '--namespace', required=True,
-                             help='Methods namespace')
+    subp.add_argument('-n', '--namespace', default=fcconfig.method_ns,
+                      required=meth_ns_required,
+                      help='Methods namespace')
     subp.add_argument('-s', '--sample-sets', nargs='+',
-                            help='Sample sets to run workflow on')
+                      help='Sample sets to run workflow on')
     jhelp = "File to save monitor data. This file can be passed to " + \
-            "fissfc supervise_recover in case the supervisor crashes " + \
-            "(Default: %(default)s)"
+            "fissfc supervise_recover in case the supervisor crashes" + \
+            " (Default: %(default)s)"
     recovery = os.path.expanduser('~/.fiss/monitor_data.json')
     subp.add_argument('-j', '--json-checkpoint', default=recovery,
-                            help=jhelp)
+                      help=jhelp)
     subp.set_defaults(func=supervise)
 
     # Recover an old supervisor
