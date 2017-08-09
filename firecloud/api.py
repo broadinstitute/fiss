@@ -13,6 +13,7 @@ import io
 from collections import Iterable
 
 from six.moves.urllib.parse import urlencode, urljoin
+from six import string_types
 import requests
 from oauth2client.client import GoogleCredentials
 
@@ -177,7 +178,7 @@ def upload_entities_tsv(namespace, workspace, entities_tsv):
         workspace (str): Workspace name
         entities_tsv (file): FireCloud loadfile, see format above
     """
-    if isinstance(entities_tsv, str):
+    if isinstance(entities_tsv, string_types):
         with open(entities_tsv, "r") as tsv:
             entity_data = tsv.read()
     elif isinstance(entities_tsv, io.StringIO):
@@ -304,7 +305,7 @@ def delete_entity_type(namespace, workspace, etype, ename):
     """
 
     uri = "workspaces/{0}/{1}/entities/delete".format(namespace, workspace)
-    if isinstance(ename, str):
+    if isinstance(ename, string_types):
         body = [{"entityType":etype, "entityName":ename}]
     elif isinstance(ename, Iterable):
         body = [{"entityType":etype, "entityName":i} for i in ename]
@@ -1055,7 +1056,11 @@ def create_workspace(namespace, name, authorizationDomain="", attributes=None):
         "attributes": attributes
     }
     if authorizationDomain:
-        body["authorizationDomain"] = {"membersGroupName": authorizationDomain}
+        authDomain = [{"membersGroupName": authorizationDomain}]
+    else:
+        authDomain = []
+
+    body["authorizationDomain"] = authDomain
 
     return __post("workspaces", json=body)
 
@@ -1120,7 +1125,8 @@ def update_workspace_acl(namespace, workspace, acl_updates):
     # FIXME: create __patch method, akin to __get, __delete etc
     return requests.patch(uri, headers=headers, data=json.dumps(acl_updates))
 
-def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace):
+def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
+                    authorizationDomain=""):
     """Clone a FireCloud workspace.
 
     A clone is a shallow copy of a FireCloud workspace, enabling
@@ -1131,16 +1137,27 @@ def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace):
         from_workspace (str): Source workspace's name
         to_namespace (str):  project to which target workspace belongs
         to_workspace (str): Target workspace's name
+        authorizationDomain: (str) required authorization domains
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/cloneWorkspace
     """
 
+    if authorizationDomain:
+        if isinstance(authorizationDomain, string_types):
+            authDomain = [{"membersGroupName": authorizationDomain}]
+        else:
+            authDomain = [{"membersGroupName": authDomain} for authDomain in authorizationDomain]
+    else:
+        authDomain = []
+
     body = {
         "namespace": to_namespace,
         "name": to_workspace,
-        "attributes": dict()
+        "attributes": dict(),
+        "authorizationDomain": authDomain,
     }
+
     uri = "workspaces/{0}/{1}/clone".format(from_namespace, from_workspace)
     return __post(uri, json=body)
 
