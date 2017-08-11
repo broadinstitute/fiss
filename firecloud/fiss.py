@@ -1604,7 +1604,7 @@ def printToCLI(value):
         if header:
             print('\t'.join(header))
         for k, v in sorted(value.items()):
-            print(u("{0}\t{1}".format(k,v)))
+            print(u'{0}\t{1}'.format(k, v))
     elif isinstance(value, (list, tuple)):
         list(map(lambda v: print(v), value))
     elif not isinstance(value, int):
