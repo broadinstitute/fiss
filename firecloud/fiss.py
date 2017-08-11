@@ -1995,12 +1995,13 @@ def main(argv=None):
     subp.set_defaults(func=health)
 
     subp = subparsers.add_parser('attr_get',
-        description='Retrieve values of attribute(s) from given entity',
+        description='Retrieve attribute values from an entity identified by '\
+        'name and type.  If either name or type are omitted then workspace '\
+        'attributes will be returned.',
         parents=[workspace_parent, attr_parent])
 
     # etype_parent not used for attr_get, because entity type is optional
     etype_help =  'Entity type to retrieve annotations from. '
-    etype_help += 'If omitted, workspace attributes will be retrieved'
     etype_choices=['participant', 'participant_set', 'sample', 'sample_set',
         'pair', 'pair_set' ]
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
