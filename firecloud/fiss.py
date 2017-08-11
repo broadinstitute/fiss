@@ -1604,7 +1604,7 @@ def printToCLI(value):
         if header:
             print('\t'.join(header))
         for k, v in sorted(value.items()):
-            print(u("{0}\t{1}".format(k,v)))
+            print(u'{0}\t{1}'.format(k, v))
     elif isinstance(value, (list, tuple)):
         list(map(lambda v: print(v), value))
     elif not isinstance(value, int):
@@ -1995,12 +1995,13 @@ def main(argv=None):
     subp.set_defaults(func=health)
 
     subp = subparsers.add_parser('attr_get',
-        description='Retrieve values of attribute(s) from given entity',
+        description='Retrieve attribute values from an entity identified by '\
+        'name and type.  If either name or type are omitted then workspace '\
+        'attributes will be returned.',
         parents=[workspace_parent, attr_parent])
 
     # etype_parent not used for attr_get, because entity type is optional
     etype_help =  'Entity type to retrieve annotations from. '
-    etype_help += 'If omitted, workspace attributes will be retrieved'
     etype_choices=['participant', 'participant_set', 'sample', 'sample_set',
         'pair', 'pair_set' ]
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
