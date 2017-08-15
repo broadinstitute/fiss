@@ -408,6 +408,18 @@ def config_start(args):
         args.namespace, args.config, args.project, args.workspace, id)), id
 
 @fiss_cmd
+def config_stop(args):
+    '''Abort a task (method configuration) by submission ID in given space'''
+
+    r = fapi.abort_submission(args.project, args.workspace,
+                              args.submission_id)
+    fapi._check_response_code(r, 204)
+
+    return ("Aborted {0} in {1}/{2}".format(args.submission_id,
+                                            args.project,
+                                            args.workspace))
+
+@fiss_cmd
 def config_list(args):
     """ List configurations in the methods repository or a workspace. """
     verbose = fcconfig.verbosity
@@ -2087,13 +2099,20 @@ def main(argv=None):
     etype_help =  'Entity type to assign null values, if attribute is missing.'
     etype_help += '\nDefault: sample_set'
     subp.add_argument('-t', '--entity-type',
-        default='sample_set', choices=etype_choices)
+        default='sample_set', choices=etype_choices, help=etype_help)
     expr_help = "(optional) Entity expression to use when entity type doesn't"
     expr_help += " match the method configuration. Example: 'this.samples'"
     subp.add_argument('-x', '--expression', help=expr_help, default='')
     subp.add_argument('-C', '--cache', default=True,
         help='boolean: use previously cached results if possible [%(default)s]')
     subp.set_defaults(func=config_start)
+    
+    # Abort a running method configuration
+    subp = subparsers.add_parser('config_stop',
+        description='Stop running submission ID in a given space',
+        parents=[workspace_parent])
+    subp.add_argument('-i', '--submission_id', required=True)
+    subp.set_defaults(func=config_stop)
 
     # Loop over sample sets, performing a command
     ssloop_help = 'Loop over sample sets in a workspace, performing <action>'
