@@ -11,7 +11,7 @@ import sys
 import os
 import time
 from inspect import getsourcelines
-from traceback import print_exc, print_tb as print_traceback
+from traceback import print_tb as print_traceback
 import argparse
 import subprocess
 import re
@@ -1590,7 +1590,6 @@ def __pretty_print_fc_exception(e):
         if isinstance(code, str):
             preface = ''
         source  = ''
-        print_exc(2)
         msg = "{0}".format(e)
 
     print("{0}{1}{2}: {3}".format(preface, code, source, msg))
