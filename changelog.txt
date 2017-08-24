@@ -3,6 +3,11 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.4 -  Correctly escape characters in JSON/CLI interaction; Allow Service 
+           Account FireCloud users to run FISS; Consolidated into a global fcconfig 
+           and cache credentials; Fixed status to health change; Enable the updating 
+           of entities by allowing the 'update:' header; Enable access token caching;
+           Fix for API breaking changes in create workspace/clone_workspace.
 v0.16.3 -  HL flow_start() renamed to config_start, because only configs can
            actually be submitted for execution (i.e. 'started'), and only
            when residing in a workspace; other HL flow_* commands renamed to
