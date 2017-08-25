@@ -1650,6 +1650,9 @@ def main(argv=None):
     # Core Flags
     parser.add_argument('-u', '--url', dest='api_url', default=None,
             help='Firecloud API root URL [default: %s]' % fcconfig.root_url)
+    
+    parser.add_argument('-c', '--credentials', default=None,
+                        help='Firecloud credentials file')
 
     parser.add_argument("-v", "--version", action='version',version=__version__)
 
@@ -2249,6 +2252,8 @@ def main(argv=None):
             fcconfig.set_verbosity(args.verbose)
         if args.api_url:
             fcconfig.set_root_url(args.api_url)
+        if args.credentials:
+            fcconfig.set_credentials(args.credentials)
 
         result = args.func(args)
         if result == None:
