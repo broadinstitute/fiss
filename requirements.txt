@@ -1,5 +1,5 @@
 requests
 nose
 pylint
-oauth2client
+google-auth
 six

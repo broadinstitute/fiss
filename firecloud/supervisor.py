@@ -1,4 +1,3 @@
-from six import print_
 import time
 import pydot
 import logging
@@ -9,9 +8,6 @@ from firecloud import api as fapi
 logging.basicConfig(format='%(asctime)s::%(levelname)s  %(message)s',
                     datefmt='%Y-%m-%d %I:%M:%S', level=logging.INFO)
 
-    # Quiet requests, oauth
-logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("oauth2client").setLevel(logging.WARNING)
 
 def supervise(project, workspace, namespace, workflow,
               sample_sets, recovery_file):
@@ -241,7 +237,7 @@ def supervise_until_complete(monitor_data, dependencies, args, recovery_file):
                             else:
                                 # None of the attempts above succeeded, log an error, mark as failed
                                 logging.error("Maximum retries exceeded")
-                                task_data['state'] == 'Completed'
+                                task_data['state'] = 'Completed'
                                 task_data['evaluated'] = True
                                 task_data['succeeded'] = False
 

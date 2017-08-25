@@ -61,9 +61,6 @@ def config_set(name, value):
     # FIXME: should validate critical variables, e.g. that type is not changed
     __fcconfig[name] = value
 
-def __set_access_token(access_token):
-    __fcconfig.access_token = access_token
-
 def __set_verbosity(verbosity):
     previous_value = __fcconfig.verbosity
     try:
@@ -99,8 +96,6 @@ __fcconfig = attrdict({
     'workspace'        : '',
     'method_ns'        : '',
     'entity_type'      : 'sample_set',
-    'access_token'     : '',
-    'set_access_token' : __set_access_token,
     'get_verbosity'    : __get_verbosity,
     'set_verbosity'    : __set_verbosity,
     'set_root_url'     : __set_root_url
