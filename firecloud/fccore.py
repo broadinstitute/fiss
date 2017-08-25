@@ -72,7 +72,7 @@ def __set_credentials(credentials):
     else:
         __fcconfig.credentials = credentials
         # Use custom credentials file for authentication
-        os.putenv(environment_vars.CREDENTIALS, credentials)
+        os.environ[environment_vars.CREDENTIALS] = credentials
     return previous_value
 
 def __set_verbosity(verbosity):
@@ -160,7 +160,7 @@ def config_parse(config=None, *files):
     if not config.root_url.endswith('/'):
         config.root_url += '/'
     if os.path.isfile(config.credentials):
-        os.putenv(environment_vars.CREDENTIALS, config.credentials)
+        os.environ[environment_vars.CREDENTIALS] = config.credentials
 
     return config
 

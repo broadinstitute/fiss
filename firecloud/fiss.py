@@ -2256,7 +2256,7 @@ def main(argv=None):
             fcconfig.set_credentials(args.credentials)
 
         result = args.func(args)
-        if result == None:
+        if result is None:
             result = 0
 
     return result

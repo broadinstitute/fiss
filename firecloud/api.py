@@ -10,10 +10,12 @@ from __future__ import print_function
 import json
 import sys
 import io
+import logging
 from collections import Iterable
 
 from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
+
 import google.auth
 from google.auth.transport.requests import AuthorizedSession
 
@@ -24,8 +26,10 @@ from firecloud.__about__ import __version__
 FISS_USER_AGENT = "FISS/" + __version__
 
 # Set Global Authorized Session
-__SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
-                                                   'https://www.googleapis.com/auth/userinfo.email'])[0])
+__SESSION = None
+
+# Suppress warnings about project ID
+logging.getLogger('google.auth').setLevel(logging.ERROR)
 
 #################################################
 # Utilities
@@ -33,11 +37,17 @@ __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/a
 def _fiss_agent_header(headers=None):
     """ Return request headers for fiss.
         Inserts FISS as the User-Agent.
+        Initializes __SESSION if it hasn't been set.
 
     Args:
         headers (dict): Include additional headers as key-value pairs
 
     """
+    global __SESSION
+    if __SESSION is None:
+        __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
+                                                           'https://www.googleapis.com/auth/userinfo.email'])[0])
+
     fiss_headers = {"User-Agent" : FISS_USER_AGENT}
     if headers is not None:
         fiss_headers.update(headers)
