@@ -273,7 +273,6 @@ def sset_list(args):
 @fiss_cmd
 def entity_delete(args):
     """ Delete entity in a workspace. """
-    #raise NotImplementedError("Entity deletion is currently broken in FC :(")
 
     prompt = "WARNING: this will delete {0} {1} in {2}/{3}".format(
         args.entity_type, args.entity, args.project, args.workspace
