@@ -22,7 +22,7 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'oauth2client',
+        'google-auth',
         'pydot',
         'requests',
         'six',

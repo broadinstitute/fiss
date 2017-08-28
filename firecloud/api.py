@@ -10,12 +10,14 @@ from __future__ import print_function
 import json
 import sys
 import io
+import logging
 from collections import Iterable
 
 from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
-import requests
-from oauth2client.client import GoogleCredentials
+
+import google.auth
+from google.auth.transport.requests import AuthorizedSession
 
 from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
@@ -23,47 +25,46 @@ from firecloud.__about__ import __version__
 
 FISS_USER_AGENT = "FISS/" + __version__
 
-# Set Global credentials
-__CREDENTIALS = None
+# Set Global Authorized Session
+__SESSION = None
+
+# Suppress warnings about project ID
+logging.getLogger('google.auth').setLevel(logging.ERROR)
 
 #################################################
 # Utilities
 #################################################
-def _fiss_access_headers(headers=None):
+def _fiss_agent_header(headers=None):
     """ Return request headers for fiss.
-        Retrieves an access token with the user's google crededentials, and
-        inserts FISS as the User-Agent.
+        Inserts FISS as the User-Agent.
+        Initializes __SESSION if it hasn't been set.
 
     Args:
         headers (dict): Include additional headers as key-value pairs
 
     """
-    # By only having a single instance of GoogleCredentials, access token
-    # caching is enabled
-    global __CREDENTIALS
-    if __CREDENTIALS is None:
-        __CREDENTIALS = GoogleCredentials.get_application_default()
-        # We need to request userinfo.profile and userinfo.email if we are using a service account to run FISS
-        __CREDENTIALS = __CREDENTIALS.create_scoped(['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'])
-    fcconfig.set_access_token(__CREDENTIALS.get_access_token().access_token)
-    fiss_headers = {"Authorization" : "bearer " + fcconfig.access_token}
-    fiss_headers["User-Agent"] = FISS_USER_AGENT
-    if headers:
+    global __SESSION
+    if __SESSION is None:
+        __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
+                                                           'https://www.googleapis.com/auth/userinfo.email'])[0])
+
+    fiss_headers = {"User-Agent" : FISS_USER_AGENT}
+    if headers is not None:
         fiss_headers.update(headers)
     return fiss_headers
 
 def __get(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
     if not headers:
-        headers = _fiss_access_headers()
-    r = requests.get(urljoin(root_url, methcall), headers=headers, **kwargs)
+        headers = _fiss_agent_header()
+    r = __SESSION.get(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         print('FISSFC call: %s' % r.url, file=sys.stderr)
     return r
 
 def __post(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
     if not headers:
-        headers = _fiss_access_headers({"Content-type":  "application/json"})
-    r = requests.post(urljoin(root_url, methcall), headers=headers, **kwargs)
+        headers = _fiss_agent_header({"Content-type":  "application/json"})
+    r = __SESSION.post(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         info = r.url
         json = kwargs.get("json", None)
@@ -74,8 +75,8 @@ def __post(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
 
 def __put(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
     if not headers:
-        headers = _fiss_access_headers()
-    r = requests.put(urljoin(root_url, methcall), headers=headers, **kwargs)
+        headers = _fiss_agent_header()
+    r = __SESSION.put(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         info = r.url
         json = kwargs.get("json", None)
@@ -86,8 +87,8 @@ def __put(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
 
 def __delete(methcall, headers=None, root_url=fcconfig.root_url):
     if not headers:
-        headers = _fiss_access_headers()
-    r = requests.delete(urljoin(root_url, methcall), headers=headers)
+        headers = _fiss_agent_header()
+    r = __SESSION.delete(urljoin(root_url, methcall), headers=headers)
     if fcconfig.verbosity > 1:
         print('FISSFC call: DELETE %s' % r.url, file=sys.stderr)
     return r
@@ -138,7 +139,7 @@ def list_entity_types(namespace, workspace):
     Swagger:
         https://api.firecloud.org/#!/Entities/getEntityTypes
     """
-    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    headers = _fiss_agent_header({"Content-type":  "application/json"})
     uri = "workspaces/{0}/{1}/entities".format(namespace, workspace)
     return __get(uri, headers=headers)
 
@@ -154,7 +155,7 @@ def upload_entities(namespace, workspace, entity_data):
         https://api.firecloud.org/#!/Entities/importEntities
     """
     body = urlencode({"entities" : entity_data})
-    headers = _fiss_access_headers({
+    headers = _fiss_agent_header({
         'Content-type':  "application/x-www-form-urlencoded"
     })
     uri = "workspaces/{0}/{1}/importEntities".format(namespace, workspace)
@@ -429,12 +430,12 @@ def update_entity(namespace, workspace, etype, ename, updates):
     Swagger:
         https://api.firecloud.org/#!/Entities/update_entity
     """
-    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    headers = _fiss_agent_header({"Content-type":  "application/json"})
     uri = "{0}workspaces/{1}/{2}/entities/{3}/{4}".format(fcconfig.root_url,
                                             namespace, workspace, etype, ename)
 
     # FIXME: create __patch method, akin to __get, __delete etc
-    return requests.patch(uri, headers=headers, json=updates)
+    return __SESSION.patch(uri, headers=headers, json=updates)
 
 ###############################
 ### 1.2 Method Configurations
@@ -525,7 +526,7 @@ def update_workspace_config(namespace, workspace, cnamespace, configname, body):
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/updateWorkspaceMethodConfig
     """
-    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    headers = _fiss_agent_header({"Content-type":  "application/json"})
     body = json.dumps(body)
     uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
                                         workspace, cnamespace, configname)
@@ -1121,9 +1122,9 @@ def update_workspace_acl(namespace, workspace, acl_updates):
     """
     uri = "{0}workspaces/{1}/{2}/acl".format(fcconfig.root_url,
                                                 namespace, workspace)
-    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    headers = _fiss_agent_header({"Content-type":  "application/json"})
     # FIXME: create __patch method, akin to __get, __delete etc
-    return requests.patch(uri, headers=headers, data=json.dumps(acl_updates))
+    return __SESSION.patch(uri, headers=headers, data=json.dumps(acl_updates))
 
 def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
                     authorizationDomain=""):
@@ -1209,13 +1210,13 @@ def update_workspace_attributes(namespace, workspace, attrs):
     Swagger:
         https://api.firecloud.org/#!/Workspaces/updateAttributes
     """
-    headers = _fiss_access_headers({"Content-type":  "application/json"})
+    headers = _fiss_agent_header({"Content-type":  "application/json"})
     uri = "{0}workspaces/{1}/{2}/updateAttributes".format(fcconfig.root_url,
                                                         namespace, workspace)
     body = json.dumps(attrs)
 
     # FIXME: create __patch method, akin to __get, __delete etc
-    return requests.patch(uri, headers=headers, data=body)
+    return __SESSION.patch(uri, headers=headers, data=body)
 
 # Helper functions to create attribute update dictionaries
 

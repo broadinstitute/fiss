@@ -23,6 +23,7 @@ from io import IOBase
 import tempfile
 import shutil
 from subprocess import call
+from google.auth import environment_vars
 
 class attrdict(dict):
     """ dict whose members can be accessed as attributes, and default value is
@@ -61,8 +62,18 @@ def config_set(name, value):
     # FIXME: should validate critical variables, e.g. that type is not changed
     __fcconfig[name] = value
 
-def __set_access_token(access_token):
-    __fcconfig.access_token = access_token
+def __set_credentials(credentials):
+    previous_value = __fcconfig.credentials
+    if not credentials:
+        return previous_value
+    if not os.path.isfile(credentials):
+        print("\t\t__set_credentials: {0} is not an accessible file".format(credentials),file=sys.stderr)
+        # simply keep previous value
+    else:
+        __fcconfig.credentials = credentials
+        # Use custom credentials file for authentication
+        os.environ[environment_vars.CREDENTIALS] = credentials
+    return previous_value
 
 def __set_verbosity(verbosity):
     previous_value = __fcconfig.verbosity
@@ -90,6 +101,7 @@ def __set_root_url(url):
     return previous_value
 
 __fcconfig = attrdict({
+    'credentials'      : '',
     'root_url'         : 'https://api.firecloud.org/api/',
     'user_agent'       : 'FISS/' + __about__.__version__,
     'debug'            : False,
@@ -99,10 +111,9 @@ __fcconfig = attrdict({
     'workspace'        : '',
     'method_ns'        : '',
     'entity_type'      : 'sample_set',
-    'access_token'     : '',
-    'set_access_token' : __set_access_token,
     'get_verbosity'    : __get_verbosity,
     'set_verbosity'    : __set_verbosity,
+    'set_credentials'  : __set_credentials,
     'set_root_url'     : __set_root_url
 })
 
@@ -148,6 +159,8 @@ def config_parse(config=None, *files):
     config.verbosity = int(config.verbosity)
     if not config.root_url.endswith('/'):
         config.root_url += '/'
+    if os.path.isfile(config.credentials):
+        os.environ[environment_vars.CREDENTIALS] = config.credentials
 
     return config
 

@@ -188,6 +188,17 @@ class TestFISSHighLevel(unittest.TestCase):
                    "-f", os.path.join("firecloud", "tests", "pairset_membership.tsv"))
         call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "pairset_attr.tsv"))
+    
+    def test_entity_delete(self):
+        self.load_entities()
+        ret = call_cli("-y", "entity_delete", "-p", self.project,
+                       "-w", self.workspace, "-t", "sample_set",
+                       "-e", "SS-NT")
+        self.assertEqual(0, ret)
+        with Capturing() as output:
+            ret = call_cli("sset_list", "-p", self.project,
+                           "-w", self.workspace)            
+        self.assertNotIn("SS-NT", output)
 
     def test_attr_sample_set(self):
         self.load_entities()

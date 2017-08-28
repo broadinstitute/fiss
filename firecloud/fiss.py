@@ -273,7 +273,6 @@ def sset_list(args):
 @fiss_cmd
 def entity_delete(args):
     """ Delete entity in a workspace. """
-    raise NotImplementedError("Entity deletion is currently broken in FC :(")
 
     prompt = "WARNING: this will delete {0} {1} in {2}/{3}".format(
         args.entity_type, args.entity, args.project, args.workspace
@@ -282,8 +281,9 @@ def entity_delete(args):
     if not (args.yes or _confirm_prompt(prompt)):
         return
 
-    r = fapi.delete_entity(args.project, args.workspace, args.entity_type,
-                                                                args.entity)
+    json_body=[{"entityType": args.entity_type,
+                "entityName": args.entity}]
+    r = fapi.delete_entities(args.project, args.workspace, json_body)
     fapi._check_response_code(r, 204)
     if fcconfig.verbosity:
         print("Succesfully deleted " + args.type + " " + args.entity)
@@ -406,6 +406,18 @@ def config_start(args):
 
     return ("Started {0}/{1} in {2}/{3}: id={4}".format(
         args.namespace, args.config, args.project, args.workspace, id)), id
+
+@fiss_cmd
+def config_stop(args):
+    '''Abort a task (method configuration) by submission ID in given space'''
+
+    r = fapi.abort_submission(args.project, args.workspace,
+                              args.submission_id)
+    fapi._check_response_code(r, 204)
+
+    return ("Aborted {0} in {1}/{2}".format(args.submission_id,
+                                            args.project,
+                                            args.workspace))
 
 @fiss_cmd
 def config_list(args):
@@ -1638,6 +1650,9 @@ def main(argv=None):
     # Core Flags
     parser.add_argument('-u', '--url', dest='api_url', default=None,
             help='Firecloud API root URL [default: %s]' % fcconfig.root_url)
+    
+    parser.add_argument('-c', '--credentials', default=None,
+                        help='Firecloud credentials file')
 
     parser.add_argument("-v", "--version", action='version',version=__version__)
 
@@ -2087,13 +2102,20 @@ def main(argv=None):
     etype_help =  'Entity type to assign null values, if attribute is missing.'
     etype_help += '\nDefault: sample_set'
     subp.add_argument('-t', '--entity-type',
-        default='sample_set', choices=etype_choices)
+        default='sample_set', choices=etype_choices, help=etype_help)
     expr_help = "(optional) Entity expression to use when entity type doesn't"
     expr_help += " match the method configuration. Example: 'this.samples'"
     subp.add_argument('-x', '--expression', help=expr_help, default='')
     subp.add_argument('-C', '--cache', default=True,
         help='boolean: use previously cached results if possible [%(default)s]')
     subp.set_defaults(func=config_start)
+    
+    # Abort a running method configuration
+    subp = subparsers.add_parser('config_stop',
+        description='Stop running submission ID in a given space',
+        parents=[workspace_parent])
+    subp.add_argument('-i', '--submission_id', required=True)
+    subp.set_defaults(func=config_stop)
 
     # Loop over sample sets, performing a command
     ssloop_help = 'Loop over sample sets in a workspace, performing <action>'
@@ -2230,9 +2252,11 @@ def main(argv=None):
             fcconfig.set_verbosity(args.verbose)
         if args.api_url:
             fcconfig.set_root_url(args.api_url)
+        if args.credentials:
+            fcconfig.set_credentials(args.credentials)
 
         result = args.func(args)
-        if result == None:
+        if result is None:
             result = 0
 
     return result
