@@ -273,7 +273,7 @@ def sset_list(args):
 @fiss_cmd
 def entity_delete(args):
     """ Delete entity in a workspace. """
-    raise NotImplementedError("Entity deletion is currently broken in FC :(")
+    #raise NotImplementedError("Entity deletion is currently broken in FC :(")
 
     prompt = "WARNING: this will delete {0} {1} in {2}/{3}".format(
         args.entity_type, args.entity, args.project, args.workspace
@@ -282,8 +282,9 @@ def entity_delete(args):
     if not (args.yes or _confirm_prompt(prompt)):
         return
 
-    r = fapi.delete_entity(args.project, args.workspace, args.entity_type,
-                                                                args.entity)
+    json_body=[{"entityType": args.entity_type,
+                "entityName": args.entity}]
+    r = fapi.delete_entities(args.project, args.workspace, json_body)
     fapi._check_response_code(r, 204)
     if fcconfig.verbosity:
         print("Succesfully deleted " + args.type + " " + args.entity)
