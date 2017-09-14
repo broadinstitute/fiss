@@ -886,6 +886,43 @@ def update_repository_config_acl(namespace, config, snapshot_id, acl_updates):
                                                 config, snapshot_id)
     return __post(uri, json=acl_updates)
 
+def get_method_configuration(namespace, method_name):
+    """Get method configurations.
+
+    Given the namespace/name of a method, returns all configurations in
+    the repository that reference that method.
+
+    Args:
+        namespace (str): Configuration namespace
+        method_name (str): Method name.
+
+    Swagger:
+        https://api.firecloud.org/#!/Method_Repository/get_api_methods_namespace_name_configurations
+
+    """
+
+    uri = "methods/{0}/{1}/configurations".format(namespace, method_name)
+
+    return __get(uri)
+
+# https://api.firecloud.org/#!/Method_Repository/get_api_methods_definitions
+
+def get_api_methods_definitions():
+    """List method definitions.
+
+    List method definitions - i.e. unique namespace/name pairs -
+    with counts of snapshots and associated configurations
+
+    Swagger:
+        https://api.firecloud.org/#!/Method_Repository/get_api_methods_definitions
+
+    """
+
+    uri = "methods/definitions"
+
+    return __get(uri)
+
+
 #################
 ### 1.4 Profile
 #################
