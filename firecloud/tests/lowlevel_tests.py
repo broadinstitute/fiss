@@ -310,6 +310,11 @@ class TestFISSLowLevel(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
+    def test_overwrite_workspace_config(self):
+        """Test overwrite_workspace_config()."""
+        pass
+
+    @unittest.skip("Not Implemented")
     def test_rename_workspace_config(self):
         """Test rename_workspace_config()."""
         pass
