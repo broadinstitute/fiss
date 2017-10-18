@@ -589,17 +589,10 @@ def config_copy(args):
     copy['name'] = args.toname
     copy['namespace'] = args.tonamespace
 
-    # If existing one already exists, delete first
-    r = fapi.get_workspace_config(args.toproject, args.tospace,
-                                        args.tonamespace, args.toname)
-    if r.status_code == 200:
-        r = fapi.delete_workspace_config(args.toproject, args.tospace,
-                                        args.tonamespace, args.toname)
-        fapi._check_response_code(r, 204)
-
-    # Finally, instantiate the copy
-    r = fapi.create_workspace_config(args.toproject, args.tospace, copy)
-    fapi._check_response_code(r, 201)
+    # Instantiate the copy
+    r = fapi.overwrite_workspace_config(args.toproject, args.tospace,
+                                        args.tonamespace, args.toname, copy)
+    fapi._check_response_code(r, 200)
 
     if fcconfig.verbosity:
         print("Method %s/%s:%s copied to %s/%s:%s" % (

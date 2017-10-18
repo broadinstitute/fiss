@@ -82,7 +82,7 @@ def __put(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
         json = kwargs.get("json", None)
         if json:
             info += " \n(json=%s) " % json
-        print('FISSFC call: POST %s' % info, file=sys.stderr)
+        print('FISSFC call: PUT %s' % info, file=sys.stderr)
     return r
 
 def __delete(methcall, headers=None, root_url=fcconfig.root_url):
@@ -513,6 +513,25 @@ def get_workspace_config(namespace, workspace, cnamespace, config):
                                             workspace, cnamespace, config)
     return __get(uri)
 
+def overwrite_workspace_config(namespace, workspace, cnamespace, configname, body):
+    """Add or overwrite method configuration in workspace.
+
+    Args:
+        namespace  (str): project to which workspace belongs
+        workspace  (str): Workspace name
+        cnamespace (str): Configuration namespace
+        configname (str): Configuration name
+        body      (json): new body (definition) of the method config
+
+    Swagger:
+        https://api.firecloud.org/#!/Method_Configurations/overwriteWorkspaceMethodConfig
+    """
+    headers = _fiss_agent_header({"Content-type": "application/json"})
+    body = json.dumps(body)
+    uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
+                                        workspace, cnamespace, configname)
+    return __put(uri, headers=headers, data=body)
+
 def update_workspace_config(namespace, workspace, cnamespace, configname, body):
     """Update method configuration in workspace.
 
@@ -526,11 +545,10 @@ def update_workspace_config(namespace, workspace, cnamespace, configname, body):
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/updateWorkspaceMethodConfig
     """
-    headers = _fiss_agent_header({"Content-type":  "application/json"})
     body = json.dumps(body)
     uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
                                         workspace, cnamespace, configname)
-    return __put(uri, headers=headers, data=body)
+    return __post(uri, json=body)
 
 def validate_config(namespace, workspace, cnamespace, config):
     """Get syntax validation for a configuration.
