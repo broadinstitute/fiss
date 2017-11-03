@@ -23,6 +23,8 @@ from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
 
+import os
+
 FISS_USER_AGENT = "FISS/" + __version__
 
 # Set Global Authorized Session
@@ -1268,3 +1270,22 @@ def _attr_lrem(attr, value):
         "attributeName"      : attr,
         "addUpdateAttribute" : value
     }
+
+# cloud functions
+def get_bucket(fileInCloud, downloadDir, filename, logFile, manifestLogging):
+    """Downloads a file in cloud using multi-threaded/multi-processing copy.
+    Args:
+        fileInCloud: the link to a file in a Google bucket.
+        downloadDir: the local directory to save the file.
+        filename: the name of the zip file to be saved as.
+        logFile: the name of the Gooogle manifest log file name.
+        manifestLogging: if True, then outputs a manifest log file with detailed
+            information about each item that is copied using 'gsutil cp'; otherwise,
+            no manifest logging.
+    """
+    file = os.path.join(downloadDir, filename)
+    if manifestLogging == True:
+        cmd = "gsutil -m cp -L {} {} {}".format(logFile, fileInCloud, file)
+    else:
+        cmd = "gsutil -m cp {} {}".format(fileInCloud, file)
+    os.system(cmd)
