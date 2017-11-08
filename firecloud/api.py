@@ -893,8 +893,8 @@ def get_method_configuration(namespace, method_name):
     the repository that reference that method.
 
     Args:
-        namespace (str): Configuration namespace
-        method_name (str): Method name.
+        namespace (str): Method namespace
+        method_name (str): Method name
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/get_api_methods_namespace_name_configurations
@@ -904,8 +904,6 @@ def get_method_configuration(namespace, method_name):
     uri = "methods/{0}/{1}/configurations".format(namespace, method_name)
 
     return __get(uri)
-
-# https://api.firecloud.org/#!/Method_Repository/get_api_methods_definitions
 
 def get_api_methods_definitions():
     """List method definitions.
