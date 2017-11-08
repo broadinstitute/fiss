@@ -114,7 +114,7 @@ class TestFISSHighLevel(unittest.TestCase):
 
         # Verify UNLOCKED, again by trying to delete
         r = fapi.delete_workspace(self.project, self.workspace)
-        fapi._check_response_code(r, 202)
+        fapi._check_response_code(r, 200)
 
         # Lastly, recreate space in case this test was run in series with others
         r = fapi.create_workspace(self.project, self.workspace)

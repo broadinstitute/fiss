@@ -123,7 +123,7 @@ def space_delete(args):
         return 0
 
     r = fapi.delete_workspace(args.project, args.workspace)
-    fapi._check_response_code(r, [202, 404])
+    fapi._check_response_code(r, [200, 202, 204, 404])
     if fcconfig.verbosity:
         print('Deleted workspace {0}/{1}'.format(args.project, args.workspace))
     return 0

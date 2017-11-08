@@ -117,7 +117,7 @@ __fcconfig = attrdict({
     'set_root_url'     : __set_root_url
 })
 
-def config_parse(config=None, *files):
+def config_parse(*files, config=None, config_profile=".fissconfig", **kwargs):
     '''
     Read initial configuration state, from named config files; store
     this state within a config dictionary (which may be nested) whose keys may
@@ -131,13 +131,16 @@ def config_parse(config=None, *files):
     cfgparser = configparser.SafeConfigParser()
 
     fileNames = list()
+
+    # Give personal/user followed by current working directory configuration the first say
+    fileNames.append(os.path.join(os.path.expanduser('~'), config_profile))
+
+    fileNames.append(os.path.join(os.getcwd(), config_profile))
+
     for f in files:
         if isinstance(f, IOBase):
             f = f.name
         fileNames.append(f)
-
-    # Give personal/user configuration the last say
-    fileNames.append(os.path.expanduser('~/.fissconfig'))
 
     cfgparser.read(fileNames)
 
@@ -161,6 +164,14 @@ def config_parse(config=None, *files):
         config.root_url += '/'
     if os.path.isfile(config.credentials):
         os.environ[environment_vars.CREDENTIALS] = config.credentials
+
+    # if config override file options with passed options
+    for key, value in config.items():
+        config[key] = value
+
+    # if any explict config options are passed override.
+    for key, value in kwargs.items():
+        config[key] = value
 
     return config
 
