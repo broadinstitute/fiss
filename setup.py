@@ -26,7 +26,7 @@ setup(
         'pydot',
         'requests',
         'six',
-        'pylint==1.7.1'
+        'pylint==1.7.2'
     ],
     classifiers = [
         "Programming Language :: Python :: 2",
