@@ -81,6 +81,12 @@ After installation your the 'fissfc' executable should be findable in your
 $PATH.  Type 'fissfc --help' for more details on how to use this utility
 in a UNIX setting.
 
+Note that if you are running on a Google VM, executing 'pip install' as an
+unprivileged user (i.e. not sudo) will result in the package being installed
+to a directory named $HOME/.local, so you will need to ensure $HOME/.local/bin
+is in your $PATH (e.g. by setting it in your Bash login script) so that
+the fissfc binary can be found.
+
 =======================================================================
 5. Low-Level API
 =======================================================================
