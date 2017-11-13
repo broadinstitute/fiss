@@ -1287,8 +1287,9 @@ def get_bucket(fileInCloud, downloadDir, filename, manifestLogFile=None):
             https://cloud.google.com/storage/docs/gsutil/commands/cp
     """
     file = os.path.join(downloadDir, filename)
-    if not manifestLogFile:
-        cmd = "gsutil -m cp {} {}".format(fileInCloud, file)
-    else:
+    if manifestLogFile:
         cmd = "gsutil -m cp -L {} {} {}".format(manifestLogFile, fileInCloud, file)
+    else:
+        cmd = "gsutil -m cp {} {}".format(fileInCloud, file)
+    # TODO: use subprocess instead
     os.system(cmd)
