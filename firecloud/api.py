@@ -1272,20 +1272,23 @@ def _attr_lrem(attr, value):
     }
 
 # cloud functions
-def get_bucket(fileInCloud, downloadDir, filename, logFile, manifestLogging):
-    """Downloads a file in cloud using multi-threaded/multi-processing copy.
+def get_bucket(fileInCloud, downloadDir, filename, manifestLogFile=None):
+    """Downloads a file in cloud using multi-threaded/multi-processing copy, which
+    is what the -m option provides.
     Args:
         fileInCloud: the link to a file in a Google bucket.
         downloadDir: the local directory to save the file.
         filename: the name of the zip file to be saved as.
-        logFile: the name of the Gooogle manifest log file name.
-        manifestLogging: if True, then outputs a manifest log file with detailed
-            information about each item that is copied using 'gsutil cp'; otherwise,
-            no manifest logging.
+        manifestLogFile: the name of a Google manifest log file. By specifying
+            the manifestLogFile, logging is turned on, which outputs a manifest
+            log file with detailed information about each item that is copied using
+            'gsutil cp'. For more information (including what happens if the log
+            file already exists,), reference GCP's documentation:
+            https://cloud.google.com/storage/docs/gsutil/commands/cp
     """
     file = os.path.join(downloadDir, filename)
-    if manifestLogging == True:
-        cmd = "gsutil -m cp -L {} {} {}".format(logFile, fileInCloud, file)
-    else:
+    if not manifestLogFile:
         cmd = "gsutil -m cp {} {}".format(fileInCloud, file)
+    else:
+        cmd = "gsutil -m cp -L {} {} {}".format(manifestLogFile, fileInCloud, file)
     os.system(cmd)
