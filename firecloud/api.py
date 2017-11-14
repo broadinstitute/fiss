@@ -23,6 +23,8 @@ from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
 
+import os
+
 FISS_USER_AGENT = "FISS/" + __version__
 
 # Set Global Authorized Session
@@ -1268,3 +1270,26 @@ def _attr_lrem(attr, value):
         "attributeName"      : attr,
         "addUpdateAttribute" : value
     }
+
+# cloud functions
+def get_bucket(fileInCloud, downloadDir, filename, manifestLogFile=None):
+    """Downloads a file in cloud using multi-threaded/multi-processing copy, which
+    is what the -m option provides.
+    Args:
+        fileInCloud: the link to a file in a Google bucket.
+        downloadDir: the local directory to save the file.
+        filename: the name of the zip file to be saved as.
+        manifestLogFile: the name of a Google manifest log file. By specifying
+            the manifestLogFile, logging is turned on, which outputs a manifest
+            log file with detailed information about each item that is copied using
+            'gsutil cp'. For more information (including what happens if the log
+            file already exists,), reference GCP's documentation:
+            https://cloud.google.com/storage/docs/gsutil/commands/cp
+    """
+    file = os.path.join(downloadDir, filename)
+    if manifestLogFile:
+        cmd = "gsutil -m cp -L {} {} {}".format(manifestLogFile, fileInCloud, file)
+    else:
+        cmd = "gsutil -m cp {} {}".format(fileInCloud, file)
+    # TODO: use subprocess instead
+    os.system(cmd)
