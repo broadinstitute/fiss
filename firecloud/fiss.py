@@ -307,10 +307,12 @@ def sset_delete(args):
 def meth_new(args):
     """ Submit a new workflow (or update) to the methods repository. """
     r = fapi.update_repository_method(args.namespace, args.method,
-                                    args.synopsis, args.wdl, args.doc)
+                                      args.synopsis, args.wdl, args.doc,
+                                      args.comment)
     fapi._check_response_code(r, 201)
     if fcconfig.verbosity:
-        print("Method %s installed to project %s" % (args.method,args.namespace))
+        print("Method %s installed to project %s" % (args.method,
+                                                     args.namespace))
     return 0
 
 @fiss_cmd
@@ -1871,6 +1873,9 @@ def main(argv=None):
     syn_help = 'Short (<80 chars) description of method'
     subp.add_argument('-s', '--synopsis', help=syn_help)
     subp.add_argument('--doc', help='Optional documentation file <10Kb')
+    subp.add_argument('-c', '--comment', metavar='SNAPSHOT_COMMENT',
+                      help='Optional comment specific to this snapshot',
+                      default='')
     subp.set_defaults(func=meth_new)
 
     # Redact a method

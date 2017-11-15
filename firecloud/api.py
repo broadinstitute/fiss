@@ -747,7 +747,8 @@ def get_repository_method(namespace, method, snapshot_id):
     uri = "methods/{0}/{1}/{2}".format(namespace, method, snapshot_id)
     return __get(uri)
 
-def update_repository_method(namespace, method, synopsis, wdl, doc=None):
+def update_repository_method(namespace, method, synopsis, wdl, doc=None,
+                             comment=""):
     """Create/Update workflow definition.
 
     FireCloud will create a new snapshot_id for the given workflow.
@@ -758,6 +759,7 @@ def update_repository_method(namespace, method, synopsis, wdl, doc=None):
         synopsis (str): short (<80 char) description of method
         wdl (file): Workflow Description Language file
         doc (file): (Optional) Additional documentation
+        comment (str): (Optional) Comment specific to this snapshot
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/post_api_methods
@@ -777,7 +779,8 @@ def update_repository_method(namespace, method, synopsis, wdl, doc=None):
         "entityType": "Workflow",
         "payload": wdl_payload,
         "documentation": doc,
-        "synopsis": synopsis
+        "synopsis": synopsis,
+        "snapshotComment": comment
     }
 
     return __post("methods", json=body)
