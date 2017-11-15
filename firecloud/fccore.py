@@ -125,9 +125,9 @@ def config_parse(*files, config=None, config_profile=".fissconfig", **kwargs):
     config object may be passed in, as a way of accumulating or overwriting
     configuration state; if one is NOT passed, the default config obj is used
     '''
+    local_config = config
+    config = __fcconfig
 
-    if not config:
-        config = __fcconfig
     cfgparser = configparser.SafeConfigParser()
 
     fileNames = list()
@@ -165,9 +165,10 @@ def config_parse(*files, config=None, config_profile=".fissconfig", **kwargs):
     if os.path.isfile(config.credentials):
         os.environ[environment_vars.CREDENTIALS] = config.credentials
 
-    # if config override file options with passed options
-    for key, value in config.items():
-        config[key] = value
+    # if local_config override options with passed options
+    if local_config is not None:
+        for key, value in local_config.items():
+            config[key] = value
 
     # if any explict config options are passed override.
     for key, value in kwargs.items():
