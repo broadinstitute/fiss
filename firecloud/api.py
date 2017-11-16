@@ -770,8 +770,6 @@ def update_repository_method(namespace, method, synopsis, wdl, doc=None,
     if doc is not None:
         with open (doc, 'r') as df:
             doc = df.read()
-    else:
-        doc = ""
 
     body = {
         "namespace": namespace,
@@ -783,7 +781,8 @@ def update_repository_method(namespace, method, synopsis, wdl, doc=None,
         "snapshotComment": comment
     }
 
-    return __post("methods", json=body)
+    return __post("methods",
+                  json={key: value for key, value in body.items() if value})
 
 def delete_repository_method(namespace, name, snapshot_id):
     """Redacts a method and all of its associated configurations.
