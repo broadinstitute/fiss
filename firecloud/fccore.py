@@ -18,12 +18,14 @@ from __future__ import print_function
 import sys
 import os
 import configparser
-from firecloud import __about__
-from io import IOBase
 import tempfile
 import shutil
+from collections import Iterable
 from subprocess import call
+from io import IOBase
+from firecloud import __about__
 from google.auth import environment_vars
+from six import string_types
 
 class attrdict(dict):
     """ dict whose members can be accessed as attributes, and default value is
@@ -117,7 +119,7 @@ __fcconfig = attrdict({
     'set_root_url'     : __set_root_url
 })
 
-def config_parse(*files, config=None, config_profile=".fissconfig", **kwargs):
+def config_parse(files=None, config=None, config_profile=".fissconfig", **kwargs):
     '''
     Read initial configuration state, from named config files; store
     this state within a config dictionary (which may be nested) whose keys may
@@ -130,19 +132,23 @@ def config_parse(*files, config=None, config_profile=".fissconfig", **kwargs):
 
     cfgparser = configparser.SafeConfigParser()
 
-    fileNames = list()
+    filenames = list()
 
     # Give personal/user followed by current working directory configuration the first say
-    fileNames.append(os.path.join(os.path.expanduser('~'), config_profile))
+    filenames.append(os.path.join(os.path.expanduser('~'), config_profile))
 
-    fileNames.append(os.path.join(os.getcwd(), config_profile))
+    filenames.append(os.path.join(os.getcwd(), config_profile))
 
-    for f in files:
-        if isinstance(f, IOBase):
-            f = f.name
-        fileNames.append(f)
+    if files:
+        if isinstance(files, string_types):
+            filenames.append(files)
+        elif isinstance(files, Iterable):
+            for f in files:
+                if isinstance(f, IOBase):
+                    f = f.name
+                filenames.append(f)
 
-    cfgparser.read(fileNames)
+    cfgparser.read(filenames)
 
     # [DEFAULT] defines common variables for interpolation/substitution in
     # other sections, and are stored at the root level of the config object
