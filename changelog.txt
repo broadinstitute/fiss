@@ -3,11 +3,24 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.5 -  Added 3 new HL commands - config_stop(), entity_delete(), and
+           get_bucket() - and one new LL command - overwrite_workspace_config();
+           Updated 2 HL commands - space_delete(): accept new API return codes,
+           update_repository_method(): added snapshot comment string - and one
+           LL command - config_parse(): added new precedence logic and ability
+           to specify arbitrary attributes via **kwargs; Updated authentication
+           to use google.auth instead of the deprecated oauth2client, additional
+           related enhancements include use of a single requests session for the
+           duration of use (fixed a failure mode in supervisor caused by the
+           creation of too many connections in rapid succession) and the ability
+           to specify credentials file via config or CLI.
+
 v0.16.4 -  Correctly escape characters in JSON/CLI interaction; Allow Service 
            Account FireCloud users to run FISS; Consolidated into a global fcconfig 
            and cache credentials; Fixed status to health change; Enable the updating 
            of entities by allowing the 'update:' header; Enable access token caching;
            Fix for API breaking changes in create workspace/clone_workspace.
+
 v0.16.3 -  HL flow_start() renamed to config_start, because only configs can
            actually be submitted for execution (i.e. 'started'), and only
            when residing in a workspace; other HL flow_* commands renamed to
@@ -18,9 +31,11 @@ v0.16.3 -  HL flow_start() renamed to config_start, because only configs can
            then prints the returned result to stdout [allowing existing main()
            to be used in a more function-oriented way; added fccore routines
            which facilitate editing content (e.g. files, method configs)
+
 v0.16.1 -  Completed print stmt refactoring started in 0.16.0; added entity_type
            to config state object; added attr_list & config_delete high level
            commands, and additional regression tests
+
 v0.16.0 -  Major refactoring: yapsy plugin system removed, replaced with
            ConfigParser module, which employs simpler and clearer INI-style
            config files (similar to GIT config); to enable high level API
