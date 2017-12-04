@@ -529,7 +529,6 @@ def overwrite_workspace_config(namespace, workspace, cnamespace, configname, bod
         https://api.firecloud.org/#!/Method_Configurations/overwriteWorkspaceMethodConfig
     """
     headers = _fiss_agent_header({"Content-type": "application/json"})
-    body = json.dumps(body)
     uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
                                         workspace, cnamespace, configname)
     return __put(uri, headers=headers, data=body)
@@ -547,7 +546,6 @@ def update_workspace_config(namespace, workspace, cnamespace, configname, body):
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/updateWorkspaceMethodConfig
     """
-    body = json.dumps(body)
     uri = "workspaces/{0}/{1}/method_configs/{2}/{3}".format(namespace,
                                         workspace, cnamespace, configname)
     return __post(uri, json=body)
