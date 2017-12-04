@@ -284,6 +284,11 @@ def entity_delete(args):
     json_body=[{"entityType": args.entity_type,
                 "entityName": args.entity}]
     r = fapi.delete_entities(args.project, args.workspace, json_body)
+
+    if r.status_code in (409, ):
+        if fcconfig.verbosity:
+            print("CONFLICT: Entity requested for deletion has conflict dependency.")
+
     fapi._check_response_code(r, 204)
     if fcconfig.verbosity:
         print("Succesfully deleted " + args.type + " " + args.entity)
