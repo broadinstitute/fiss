@@ -10,9 +10,10 @@ setup(
     version = __version__,
     packages = find_packages(),
     description = 'Firecloud API bindings and FISS CLI',
-    author = 'Tim DeFreitas',
-    author_email = 'timdef@broadinstitute.org',
+    author = 'Broad Institute CGA Genome Data Analysis Center',
+    author_email = 'gdac@broadinstitute.org',
     long_description = _LONG_DESCRIPTION,
+    url = 'https://github.com/broadinstitute/fiss',
     entry_points = {
         'console_scripts': [
             'fissfc = firecloud.fiss:main_as_cli'
