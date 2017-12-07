@@ -3,6 +3,10 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.6 -  Hotfix; workspace method config LL commands updated to comply with
+           API changes; setup.py updated to reflect current authorship and
+           contact information.
+
 v0.16.5 -  Added 3 new HL commands - config_stop(), entity_delete(), and
            get_bucket() - and one new LL command - overwrite_workspace_config();
            Updated 2 HL commands - space_delete(): accept new API return codes,
