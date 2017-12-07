@@ -218,7 +218,7 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
     }
     
     return __post(uri, json=body, params={'linkExistingEntities':
-                                     str(link_existing_entities).lower()})
+                                          str(link_existing_entities).lower()})
 
 def get_entities(namespace, workspace, etype):
     """List entities of given type in a workspace.
