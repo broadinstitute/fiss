@@ -191,7 +191,7 @@ def upload_entities_tsv(namespace, workspace, entities_tsv):
     return upload_entities(namespace, workspace, entity_data)
 
 def copy_entities(from_namespace, from_workspace, to_namespace,
-                  to_workspace, etype, enames):
+                  to_workspace, etype, enames, link_existing_entities=False):
     """Copy entities between workspaces
 
     Args:
@@ -201,6 +201,7 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
         to_workspace (str): Target workspace name
         etype (str): Entity type
         enames (list(str)): List of entity names to copy
+        link_existing_entities (boolean): Link all soft conflicts to the entities that already exist.
 
     Swagger:
         https://api.firecloud.org/#!/Entities/copyEntities
@@ -215,8 +216,9 @@ def copy_entities(from_namespace, from_workspace, to_namespace,
         "entityType": etype,
         "entityNames": enames
     }
-
-    return __post(uri, json=body)
+    
+    return __post(uri, json=body, params={'linkExistingEntities':
+                                          str(link_existing_entities).lower()})
 
 def get_entities(namespace, workspace, etype):
     """List entities of given type in a workspace.

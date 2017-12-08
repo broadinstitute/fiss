@@ -1204,7 +1204,8 @@ def entity_copy(args):
         return
 
     r = fapi.copy_entities(args.project, args.workspace, args.to_project,
-                        args.to_workspace, args.entity_type, args.entities)
+                           args.to_workspace, args.entity_type, args.entities,
+                           link_existing_entities=args.link)
     fapi._check_response_code(r, 201)
     return 0
 
@@ -2173,6 +2174,8 @@ def main(argv=None):
         parents=[workspace_parent, dest_space_parent, etype_parent])
     subp.add_argument('-e', '--entities', nargs='+',
         help='Entities to copy. If omitted, all entities will be copied.')
+    subp.add_argument('-l', '--link', action='store_true',
+                      help='link new entities to existing entities')
     subp.set_defaults(func=entity_copy)
 
 
