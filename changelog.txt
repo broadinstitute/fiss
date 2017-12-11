@@ -3,6 +3,10 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.7 -  Enabled LL and HL access to the linkExistingEntities field of the
+           copy entities API, enabling copying set entities to workspaces that
+           already contain some portion of the entities comprising the set.
+
 v0.16.6 -  Hotfix; workspace method config LL commands updated to comply with
            API changes; setup.py updated to reflect current authorship and
            contact information.
