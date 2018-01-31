@@ -2,6 +2,7 @@
 Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
+v0.16.8 -  Hotfix; entity_import corrected to only strip newline characters.
 
 v0.16.7 -  Enabled LL and HL access to the linkExistingEntities field of the
            copy entities API, enabling copying set entities to workspaces that
