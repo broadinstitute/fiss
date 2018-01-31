@@ -12,6 +12,7 @@ import os
 import time
 from inspect import getsourcelines
 from traceback import print_tb as print_traceback
+from io import open
 import argparse
 import subprocess
 import re
@@ -222,7 +223,7 @@ def entity_import(args):
 
     with open(args.tsvfile) as tsvf:
         headerline = tsvf.readline().strip()
-        entity_data = [l.strip() for l in tsvf]
+        entity_data = [l.rstrip('\n') for l in tsvf]
 
     return _batch_load(project, workspace, headerline, entity_data, chunk_size)
 
