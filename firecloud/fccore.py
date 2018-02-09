@@ -21,7 +21,7 @@ import configparser
 import tempfile
 import shutil
 from collections import Iterable
-from subprocess import call
+import subprocess
 from io import IOBase
 from firecloud import __about__
 from google.auth import environment_vars
@@ -193,7 +193,7 @@ def edit_text(text=None):
     if text:
         tf.write(text)
         tf.flush()
-    call([__EDITOR__, tf.name])
+    subprocess.call([__EDITOR__, tf.name])
     with open(tf.name, 'r') as newfile:
         text = newfile.read()
     tf.close()
@@ -211,7 +211,7 @@ def edit_file(name, backup=None):
         shutil.copy2(name, backup)
     # Record time of last modification: tolm
     previous_tolm = os.stat(name).st_mtime
-    call([__EDITOR__, name])
+    subprocess.call([__EDITOR__, name])
     current_tolm  = os.stat(name).st_mtime
     return current_tolm != previous_tolm
 
