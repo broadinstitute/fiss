@@ -474,7 +474,9 @@ def config_get(args):
     r = fapi.get_workspace_config(args.project, args.workspace,
                                         args.namespace, args.config)
     fapi._check_response_code(r, 200)
-    return r.text
+    # Setting ensure_ascii to False ensures unicode string returns
+    return json.dumps(r.json(), indent=4, separators=(',', ': '),
+                      sort_keys=True, ensure_ascii=False)
 
 @fiss_cmd
 def config_put(args):
@@ -501,24 +503,25 @@ def config_put(args):
     fapi._check_response_code(r, [201])
     return True
 
-__EDITME__ = 'EDITME, or abort edit/install by leaving entire config unchanged'
+__EDITME__ = u'EDITME, or abort edit/install by leaving entire config unchanged'
 @fiss_cmd
 def config_template(args):
     c = fapi.get_config_template(args.namespace, args.method, args.snapshot_id)
     fapi._check_response_code(c, 200)
 
-    c = json.loads(c.text)
-    c['name'] = args.configname if args.configname else __EDITME__
-    c['namespace'] = args.namespace if args.namespace else __EDITME__
-    c['rootEntityType'] = args.entity_type if args.entity_type else __EDITME__
-    outputs = c['outputs']
+    c = c.json()
+    c[u'name'] = args.configname or __EDITME__
+    c[u'namespace'] = args.namespace or __EDITME__
+    c[u'rootEntityType'] = args.entity_type or __EDITME__
+    outputs = c[u'outputs']
     for o in outputs:
         outputs[o] = __EDITME__
-    inputs = c['inputs']
+    inputs = c[u'inputs']
     for i in inputs:
         inputs[i] = __EDITME__
 
-    return json.dumps(c, indent=4, separators=(',', ': '))
+    return json.dumps(c, indent=4, separators=(',', ': '), sort_keys=True,
+                      ensure_ascii=False)
 
 @fiss_cmd
 def config_edit(args):
