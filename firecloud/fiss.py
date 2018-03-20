@@ -2176,34 +2176,32 @@ def main(argv=None):
 
     # List billing projects
     subp = subparsers.add_parser('proj_list',
-        description="List available billing projects")
+                                 description="List available billing projects")
     subp.set_defaults(func=proj_list)
 
     # Validate config
     subp = subparsers.add_parser('config_validate', parents=[workspace_parent],
         description="Validate a workspace configuration")
     subp.add_argument('-e', '--entity',
-        help="Validate config against this entity. Entity is assumed to be "
-        "the same type as the config's root entity type")
+        help="Validate config against this entity. Entity is assumed to be " +
+             "the same type as the config's root entity type")
     subp.add_argument('-c', '--config',
                                help='Method configuration name')
     subp.add_argument('-n', '--namespace',
                                help='Method configuration namespace')
     subp.set_defaults(func=config_validate)
 
-    subp = subparsers.add_parser('runnable',
-        description="Show what configurations can be run on which entities.",
-        parents=[workspace_parent])
+    subp = subparsers.add_parser('runnable', parents=[workspace_parent],
+        description="Show what configurations can be run on which entities.")
     subp.add_argument('-c', '--config',
         help='Method configuration name')
     subp.add_argument('-n', '--namespace',
         help='Method configuration namespace')
     subp.add_argument('-e', '--entity',
         help="Show me what configurations can be run on this entity")
-    subp.add_argument('-t', '--entity-type',
-        choices=etype_choices, required=etype_required,
-        default=fcconfig.entity_type,
-        help=etype_help)
+    subp.add_argument('-t', '--entity-type', choices=etype_choices,
+                      required=etype_required, default=fcconfig.entity_type,
+                      help=etype_help)
     subp.set_defaults(func=runnable)
 
     # Create the .fiss directory if it doesn't exist
