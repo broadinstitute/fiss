@@ -1693,7 +1693,7 @@ def main(argv=None):
     acl_parent = argparse.ArgumentParser(add_help=False)
     acl_parent.add_argument('-r', '--role', help='ACL role', required=True,
                            choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
-    acl_parent.add_argument('--users', nargs='+', required=True,
+    acl_parent.add_argument('--users', nargs='+', required=True, metavar='user',
         help='FireCloud usernames. Use "public" to set global permissions.')
 
     # Commands that operates on entity_types
