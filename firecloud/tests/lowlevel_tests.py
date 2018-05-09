@@ -66,7 +66,7 @@ class TestFISSLowLevel(unittest.TestCase):
         # Cleanup, Delete workspace
         r =  fapi.delete_workspace(self.project, temp_space)
         print(r.status_code, r.content)
-        self.assertEqual(r.status_code, 202)
+        self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
     def test_copy_config_from_repo(self):
@@ -204,6 +204,12 @@ class TestFISSLowLevel(unittest.TestCase):
     def test_get_repository_method_acl(self):
         """Test get_repository_method_acl()."""
         pass
+
+    def test_get_api_methods_definitions(self):
+        """Test get_api_methods_definitions()."""
+        r = fapi.get_api_methods_definitions()
+        print(r.status_code, r.content)
+        self.assertEqual(r.status_code, 200)
 
     def test_get_status(self):
         """Test get_status()."""
