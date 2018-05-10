@@ -5,11 +5,11 @@ Based on the version in dalmation (github.com/broadinstitute/dalmatian), with so
 modifications to focus on 'sample-sets', rate-limit API requests, and remove dependency
 on Pandas python library
 
-The script includes a main for exectution via the command line, as an example:
+The script includes a main for execution via the command line, as an example:
 
 python cost_to_tsv_simple.py --namespace broad-firecloud-cptac --workspace Philosopher_Test --verbose
 
-but is as valuable in a REPL for less-than-whole-workspace costing profiles.
+but valuable in a REPL for a less-than-whole-workspace costing profile.
 """
 
 import csv, os, subprocess, itertools, re, copy, random, argparse
@@ -21,7 +21,11 @@ from pprint import pprint as pp
 
 from firecloud import api as fapi
 from firecloud.errors import *
-import iso8601, pytz
+
+try:
+    import iso8601, pytz
+except ImportError:
+    raise ImportError('additional timing libraries: iso8601 and pytz are required.')
 
 from cost_storage import get_vm_cost
 
@@ -391,8 +395,8 @@ def main_repl(namespace, workspace, verbose=True, use_timestamp=True):
 def main():
     parser = argparse.ArgumentParser(description='Collect billing metrics from FireCloud workspace')
 
-    parser.add_argument('--namespace', type=str, help='FireCloud namespace')
-    parser.add_argument('--workspace', type=str, help='FireCloud workspace')
+    parser.add_argument('--namespace', type=str, required=True, help='FireCloud namespace')
+    parser.add_argument('--workspace', type=str, required=True, help='FireCloud workspace')
     parser.add_argument('--filter', nargs="*", help="A file, dir, glob pattern to filter submissions")
     parser.add_argument('--verbose', action='store_true', help='print verbose messages')
     parser.add_argument('--use_timestamp', action='store_true', default=True, help='print messages')
