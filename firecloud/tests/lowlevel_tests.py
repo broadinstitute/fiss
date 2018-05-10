@@ -205,6 +205,12 @@ class TestFISSLowLevel(unittest.TestCase):
         """Test get_repository_method_acl()."""
         pass
 
+    def test_get_api_methods_definitions(self):
+        """Test get_api_methods_definitions()."""
+        r = fapi.get_api_methods_definitions()
+        print(r.status_code, r.content)
+        self.assertEqual(r.status_code, 200)
+
     def test_get_status(self):
         """Test get_status()."""
         r =  fapi.get_status()
