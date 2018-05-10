@@ -1,3 +1,17 @@
+"""
+A simple FISS wrapper script to extract costing estimations from FireCloud workspaces.
+
+Based on the version in dalmation (github.com/broadinstitute/dalmatian), with some minor
+modifications to focus on 'sample-sets', rate-limit API requests, and remove dependency
+on Pandas python library
+
+The script includes a main for exectution via the command line, as an example:
+
+python cost_to_tsv_simple.py --namespace broad-firecloud-cptac --workspace Philosopher_Test --verbose
+
+but is as valuable in a REPL for less-than-whole-workspace costing profiles.
+"""
+
 import csv, os, subprocess, itertools, re, copy, random, argparse
 from collections import namedtuple, defaultdict, Counter, OrderedDict
 import collections
@@ -375,10 +389,6 @@ def main_repl(namespace, workspace, verbose=True, use_timestamp=True):
 
 
 def main():
-    # namespace = 'broad-firecloud-gdac'
-    # workspace = 'analyses__2018_01_18'
-
-    # TODO: load arguments, pass to compute_costs
     parser = argparse.ArgumentParser(description='Collect billing metrics from FireCloud workspace')
 
     parser.add_argument('--namespace', type=str, help='FireCloud namespace')
