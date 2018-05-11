@@ -68,7 +68,7 @@ def filter_submissions(submissions, known_submissions_files):
     known_submissions = []
     for filename in known_submissions_files:
         # load as series of OrderedDicts
-        with open(test_file) as csvfile:
+        with open(filename) as csvfile:
             reader = csv.DictReader(csvfile, delimiter="\t")
             keys = reader.fieldnames
             r = csv.reader(csvfile, delimiter="\t")

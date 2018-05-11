@@ -1,3 +1,4 @@
+import subprocess
 from firecloud import api as fapi
 
 def get_vm_cost(machine_type, preemptible=True):
