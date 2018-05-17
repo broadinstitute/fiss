@@ -23,7 +23,6 @@ from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
 
-import os
 
 FISS_USER_AGENT = "FISS/" + __version__
 
@@ -1307,18 +1306,3 @@ def _attr_lrem(attr, value):
         "attributeName"      : attr,
         "addUpdateAttribute" : value
     }
-
-# cloud functions
-# TODO: change name since it doesn't retrieve a bucket but a file living in a bucket
-def get_bucket(fileInCloud, downloadDir, filename):
-    """Downloads a file in cloud using multi-threaded/multi-processing copy, which
-    is what the -m option provides.
-    Args:
-        fileInCloud: the link to a file in a Google bucket.
-        downloadDir: the local directory to save the file.
-        filename: the name of the zip file to be saved as.
-    """
-    file = os.path.join(downloadDir, filename)
-    cmd = "gsutil -m cp {} {}".format(fileInCloud, file)
-    # TODO: use subprocess instead
-    os.system(cmd)
