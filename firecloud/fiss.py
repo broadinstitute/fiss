@@ -2167,7 +2167,7 @@ def main(argv=None):
     subp = subparsers.add_parser(
         'entity_copy', description='Copy entities from one workspace to another',
         parents=[workspace_parent, dest_space_parent, etype_parent])
-    subp.add_argument('-e', '--entities', nargs='+',
+    subp.add_argument('-e', '--entities', nargs='+', metavar='entity',
         help='Entities to copy. If omitted, all entities will be copied.')
     subp.add_argument('-l', '--link', action='store_true',
                       help='link new entities to existing entities')
