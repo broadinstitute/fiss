@@ -3,12 +3,16 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.11 - On install, will install gcloud if not available and not running in
+           Google AppEngine; will attempt to set authentication credentials if
+           they have not been set.
+
 v0.16.10 - Formatting cleanup to HL commands config_get and config_template;
            fixed tests that were broken due to change in API response code for
-           space_delete (200 -> 202)
+           space_delete (200 -> 202).
 
 v0.16.9 -  Hotfix; modified how subprocess.call() is utilized to avoid
-           problems on Google AppEngine, where it is prohibited
+           problems on Google AppEngine, where it is prohibited.
 
 v0.16.8 -  Hotfix; entity_import corrected to only strip newline characters.
 

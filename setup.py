@@ -5,6 +5,7 @@ import tempfile
 import subprocess
 from setuptools import setup, find_packages, Command
 from setuptools.command.install import install
+from setuptools.package_index import PackageIndex
 from setuptools.command.easy_install import six, rmtree_safe, rmtree, log
 from firecloud.__about__ import __version__
 _README           = os.path.join(os.path.dirname(__file__), 'README')
@@ -63,8 +64,7 @@ class InstallGcloudCommand(Command):
         if platform.system() != "Windows":
             self.curl = which('curl')
             self.bash = which('bash')
-        self.set_undefined_options('easy_install',
-                                   ('package_index', 'package_index'))
+        self.package_index = PackageIndex()
     
     # Copied from setuptools.command.easy_install.easy_install
     @contextlib.contextmanager
