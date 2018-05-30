@@ -905,7 +905,7 @@ def update_repository_config_acl(namespace, config, snapshot_id, acl_updates):
                                                 config, snapshot_id)
     return __post(uri, json=acl_updates)
 
-def get_method_configuration(namespace, method_name):
+def get_method_configurations(namespace, method_name):
     """Get method configurations.
 
     Given the namespace/name of a method, returns all configurations in
