@@ -3,6 +3,9 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.12 - Removed gcloud requirement from README (automatic as of v0.16.11);
+           Updated Dockerfile and added .dockerignore
+
 v0.16.11 - On install, will install gcloud if not available and not running in
            Google AppEngine; Now attempts to set authentication credentials if
            they have not been set; Added license; Added new LL functions:

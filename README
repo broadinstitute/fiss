@@ -59,12 +59,6 @@ FISS depends on several additional Python software packages, as listed in
 setup.py; typically the entire installation process (including loading of
 packages) takes only a few minutes.
 
-FireCloud uses the Google Cloud SDK (https://cloud.google.com/sdk/) to manage
-authorization. To use the firecloud CLI or API, you must install the SDK and
-login locally with
-
-    gcloud auth application-default login
-
 **Note: FireCloud encryts all web traffic with TLSv1.2. Some versions of
 python will not function correctly, and must be recompiled with openssl
 v1.02 or later. If recompiling is not an option, there is also a

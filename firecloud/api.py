@@ -9,6 +9,7 @@ the README at https://pypi.python.org/pypi/firecloud.
 from __future__ import print_function
 import json
 import sys
+import os
 import io
 import logging
 import subprocess

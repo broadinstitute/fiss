@@ -1,5 +1,8 @@
-FROM python:2.7.11
+FROM python:2.7.15-slim
 
-RUN apt-get update && apt-get install -y curl
-RUN pip install firecloud
-RUN curl https://sdk.cloud.google.com | bash
+RUN set -ex \
+    && apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir -U --upgrade-strategy eager firecloud
+
+CMD ["fissfc"]
