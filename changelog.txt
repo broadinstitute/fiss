@@ -4,8 +4,10 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 Terms used below:  HL = high level interface, LL = low level interface
 
 v0.16.11 - On install, will install gcloud if not available and not running in
-           Google AppEngine; will attempt to set authentication credentials if
-           they have not been set.
+           Google AppEngine; Now attempts to set authentication credentials if
+           they have not been set; Added license; Added new LL functions:
+           get_method_configurations() and get_api_methods_definitions();
+           Removed LL function get_bucket().
 
 v0.16.10 - Formatting cleanup to HL commands config_get and config_template;
            fixed tests that were broken due to change in API response code for
