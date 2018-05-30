@@ -11,12 +11,14 @@ import json
 import sys
 import io
 import logging
+import subprocess
 from collections import Iterable
 
 from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
 
 import google.auth
+from google.auth.exceptions import DefaultCredentialsError
 from google.auth.transport.requests import AuthorizedSession
 
 from firecloud.errors import FireCloudServerError
@@ -46,8 +48,26 @@ def _fiss_agent_header(headers=None):
     """
     global __SESSION
     if __SESSION is None:
-        __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
-                                                           'https://www.googleapis.com/auth/userinfo.email'])[0])
+        try:
+            __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
+                                                               'https://www.googleapis.com/auth/userinfo.email'])[0])
+        except DefaultCredentialsError as dce:
+            if os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine/'):
+                raise
+            logging.warning("Unable to determine application credentials")
+            try:
+                subprocess.check_call(['gcloud', 'auth', 'application-default',
+                                       'login', '--no-launch-browser'])
+                __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
+                                                                   'https://www.googleapis.com/auth/userinfo.email'])[0])
+            except subprocess.CalledProcessError as cpe:
+                if cpe.returncode < 0:
+                    logging.exception("%s was terminated by signal %d",
+                                      cpe.cmd, -cpe.returncode)
+                else:
+                    logging.exception("%s returned %d", cpe.cmd,
+                                      cpe.returncode)
+                raise dce
 
     fiss_headers = {"User-Agent" : FISS_USER_AGENT}
     if headers is not None:
