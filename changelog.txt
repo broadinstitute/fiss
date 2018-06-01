@@ -3,6 +3,8 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.14 - Hotfix: Fixed warning messages that would cause errors if executed.
+
 v0.16.13 - Dockerfile updated to use local files rather than pull from pypi;
            Enhanced installation of Google Cloud SDK and ensured its
            availability to subprocesses; Fixed a broken LL test.
