@@ -1,2 +1,7 @@
 *
 !Dockerfile
+!firecloud
+!LICENSE
+!README
+!requirements.txt
+!setup.py

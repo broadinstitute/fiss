@@ -66,7 +66,7 @@ class TestFISSLowLevel(unittest.TestCase):
         # Cleanup, Delete workspace
         r =  fapi.delete_workspace(self.project, temp_space)
         print(r.status_code, r.content)
-        self.assertEqual(r.status_code, 200)
+        self.assertIn(r.status_code, [200, 202])
 
     @unittest.skip("Not Implemented")
     def test_copy_config_from_repo(self):
