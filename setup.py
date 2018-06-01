@@ -8,39 +8,26 @@ from setuptools.command.install import install
 from setuptools.package_index import PackageIndex
 from setuptools.command.easy_install import six, rmtree_safe, rmtree, log
 from firecloud.__about__ import __version__
+from firecloud import which
 _README           = os.path.join(os.path.dirname(__file__), 'README')
 _LONG_DESCRIPTION = open(_README).read()
-
-# Based on https://stackoverflow.com/a/379535
-def which(program):
-    def is_exe(fpath):
-        return os.path.exists(fpath) and os.access(fpath, os.X_OK) and os.path.isfile(fpath)
-
-    def ext_candidates(fpath):
-        yield fpath
-        # Handle windows executable extensions
-        for ext in os.environ.get("PATHEXT", "").split(os.pathsep):
-            if ext: yield fpath + ext
-
-    fpath, _ = os.path.split(program)
-    if fpath and is_exe(program):
-        return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            exe_file = os.path.join(path, program)
-            for candidate in ext_candidates(exe_file):
-                if is_exe(candidate):
-                    return candidate
-
-    return None
 
 class InstallCommand(install):
     def needs_gcloud(self):
         """Returns true if gcloud is unavailable and needed for
         authentication."""
+        gcloud_default_path = ['google-cloud-sdk', 'bin']
+        if platform.system() != "Windows":
+            gcloud_default_path = os.path.join(os.path.expanduser('~'),
+                                               *gcloud_default_path)
+        else:
+            gcloud_default_path = os.path.join(os.environ['LOCALAPPDATA'],
+                                               'Google', 'Cloud SDK',
+                                               *gcloud_default_path)
         return not os.getenv('SERVER_SOFTWARE',
-                             '').startswith('Google App Engine/') and \
-               which('gcloud') is None
+                             '').startswith('Google App Engine/') \
+               and gcloud_default_path not in os.environ["PATH"].split(os.pathsep) \
+               and which('gcloud') is None
     
     sub_commands = install.sub_commands + [('install_gcloud', needs_gcloud)]
 
@@ -56,20 +43,22 @@ class InstallGcloudCommand(Command):
         self.package_index = None
         
     def finalize_options(self):
-        self.win_gcloud_url = \
-        "https://dl.google.com/dl/cloudsdk/channels/rapid/google-cloud-sdk.zip"
-        self.nix_gcloud_url = "https://sdk.cloud.google.com"
-        self.win_gcloud_installer = "google-cloud-sdk\install.bat"
-        self.silent = "--disable-prompts"
+        
         if platform.system() != "Windows":
             self.curl = which('curl')
             self.bash = which('bash')
+            self.gcloud_url = "https://sdk.cloud.google.com"
+            self.silent = "--disable-prompts"
+        else:
+            self.silent = "/S"
+            self.gcloud_url = "https://dl.google.com/dl/cloudsdk/channels/" \
+                              "rapid/GoogleCloudSDKInstaller.exe"
         self.package_index = PackageIndex()
     
     # Copied from setuptools.command.easy_install.easy_install
     @contextlib.contextmanager
     def _tmpdir(self):
-        tmpdir = tempfile.mkdtemp(prefix=six.u("easy_install-"))
+        tmpdir = tempfile.mkdtemp(prefix=six.u("install_gcloud-"))
         try:
             # cast to str as workaround for #709 and #710 and #712
             yield str(tmpdir)
@@ -80,13 +69,11 @@ class InstallGcloudCommand(Command):
         warn_msg = "Please install the Google Cloud SDK manually:\n\t" \
                    "https://cloud.google.com/sdk/downloads"
         if platform.system() == "Windows":
-            from zipfile import ZipFile
             with self._tmpdir() as tmpdir:
-                ZipFile(self.package_index.download(self.win_gcloud_url,
-                                                    tmpdir)).extractall(tmpdir)
+                gcloud_install_cmd = \
+                       self.package_index.download(self.gcloud_url, tmpdir)
                 try:
-                    output = subprocess.check_output([os.path.join(tmpdir,
-                                                                   self.win_gcloud_installer),
+                    output = subprocess.check_output([gcloud_install_cmd,
                                                       self.silent],
                                                      stderr=subprocess.STDOUT)
                     log.info(output)
@@ -96,7 +83,7 @@ class InstallGcloudCommand(Command):
         elif self.curl is not None and self.bash is not None:
             try:
                 script = subprocess.check_output([self.curl, "-s", "-S",
-                                                  self.nix_gcloud_url],
+                                                  self.gcloud_url],
                                                  stderr=subprocess.STDOUT)
                 if script:
                     with self._tmpdir() as tmpdir:
@@ -116,6 +103,12 @@ class InstallGcloudCommand(Command):
         else:
             log.warn("Unable to find curl and/or bash. " + warn_msg)
 
+    def get_inputs(self):
+        return []
+    
+    def get_outputs(self):
+        return []
+
 # Setup information
 setup(
     cmdclass = {
@@ -129,6 +122,7 @@ setup(
     author = 'Broad Institute CGA Genome Data Analysis Center',
     author_email = 'gdac@broadinstitute.org',
     long_description = _LONG_DESCRIPTION,
+    license = "BSD 3-Clause License",
     url = 'https://github.com/broadinstitute/fiss',
     entry_points = {
         'console_scripts': [
@@ -139,7 +133,7 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'google-auth',
+        'google-auth==1.4.2',
         'pydot',
         'requests[security]',
         'six',
@@ -150,8 +144,6 @@ setup(
         "Programming Language :: Python :: 3",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
-
-    ],
-
+        "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator"
+    ]
 )
