@@ -76,10 +76,10 @@ class InstallGcloudCommand(Command):
                     output = subprocess.check_output([gcloud_install_cmd,
                                                       self.silent],
                                                      stderr=subprocess.STDOUT)
-                    log.info(six.u(output.decode()))
+                    log.info(output.decode('utf-8'))
                 except subprocess.CalledProcessError as cpe:
                     log.warn(u' '.join(cpe.cmd) + u":\n\t" +
-                             six.u(cpe.output.decode()))
+                             cpe.output.decode('utf-8'))
                 
         elif self.curl is not None and self.bash is not None:
             try:
@@ -91,17 +91,17 @@ class InstallGcloudCommand(Command):
                         gcloud_install_cmd = os.path.join(tmpdir,
                                                           'installer.sh')
                         with open(gcloud_install_cmd, 'w') as gcloud_install_fd:
-                            gcloud_install_fd.write(script)
+                            gcloud_install_fd.write(script.decode('utf-8'))
                         output = subprocess.check_output([self.bash,
                                                           gcloud_install_cmd,
                                                           self.silent],
                                                          stderr=subprocess.STDOUT)
-                        log.info(six.u(output.decode()))
+                        log.info(output.decode('utf-8'))
                 else:
                     log.warn("Unable to download installer script. " + warn_msg)
             except subprocess.CalledProcessError as cpe:
                 log.warn(u' '.join(cpe.cmd) + u":\n\t" +
-                         six.u(cpe.output.decode()))
+                         cpe.output.decode('utf-8'))
         else:
             log.warn("Unable to find curl and/or bash. " + warn_msg)
 
