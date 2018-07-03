@@ -17,6 +17,7 @@ import argparse
 import subprocess
 import re
 import collections
+from difflib import unified_diff
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
 from firecloud import api as fapi
@@ -477,6 +478,19 @@ def config_get(args):
     # Setting ensure_ascii to False ensures unicode string returns
     return json.dumps(r.json(), indent=4, separators=(',', ': '),
                       sort_keys=True, ensure_ascii=False)
+
+@fiss_cmd
+def config_diff(args):
+    """Compare method configuration definitions across workspaces"""
+    config_1 = config_get(args).splitlines()
+    args.project = args.Project
+    args.workspace = args.Workspace
+    cfg_1_name = args.config
+    if args.Config is not None:
+        args.config = args.Config
+    config_2 = config_get(args).splitlines()
+    return list(line.rstrip() for line in 
+                unified_diff(config_1, config_2, cfg_1_name, args.config))
 
 @fiss_cmd
 def config_put(args):
@@ -1941,6 +1955,20 @@ def main(argv=None):
     subp.add_argument('-p', '--project', default=fcconfig.project,
                       help=proj_help, required=proj_required)
     subp.set_defaults(func=config_get)
+    
+    subp = subparsers.add_parser('config_diff',
+        description='Compare method configuration definitions across workspaces',
+        parents=[conf_parent])
+    subp.add_argument('-w', '--workspace', help='First Workspace name',
+                      default=fcconfig.workspace, required=workspace_required)
+    subp.add_argument('-p', '--project', default=fcconfig.project,
+                      help="First " + proj_help, required=proj_required)
+    subp.add_argument('-W', '--Workspace', help='Second Workspace name',
+                      default=fcconfig.workspace, required=workspace_required)
+    subp.add_argument('-P', '--Project', default=fcconfig.project,
+                      help="Second " + proj_help, required=proj_required)
+    subp.add_argument('-C', '--Config', help="Second config name")
+    subp.set_defaults(func=config_diff)
 
     subp = subparsers.add_parser('config_copy', description=
         'Copy a method config to a new name/space/namespace/project, ' +
