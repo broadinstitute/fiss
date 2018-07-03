@@ -491,8 +491,7 @@ def config_diff(args):
     if args.Namespace is not None:
         args.namespace = args.Namespace
     config_2 = config_get(args).splitlines()
-    return list(line.rstrip() for line in 
-                unified_diff(config_1, config_2, cfg_1_name, args.config))
+    return list(unified_diff(config_1, config_2, cfg_1_name, args.config, lineterm=''))
 
 @fiss_cmd
 def config_put(args):
