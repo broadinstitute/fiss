@@ -488,6 +488,8 @@ def config_diff(args):
     cfg_1_name = args.config
     if args.Config is not None:
         args.config = args.Config
+    if args.Namespace is not None:
+        args.namespace = args.Namespace
     config_2 = config_get(args).splitlines()
     return list(line.rstrip() for line in 
                 unified_diff(config_1, config_2, cfg_1_name, args.config))
@@ -1963,11 +1965,12 @@ def main(argv=None):
                       default=fcconfig.workspace, required=workspace_required)
     subp.add_argument('-p', '--project', default=fcconfig.project,
                       help="First " + proj_help, required=proj_required)
+    subp.add_argument('-C', '--Config', help="Second method config name")
+    subp.add_argument('-N', '--Namespace', help="Second method config namespace")
     subp.add_argument('-W', '--Workspace', help='Second Workspace name',
                       default=fcconfig.workspace, required=workspace_required)
     subp.add_argument('-P', '--Project', default=fcconfig.project,
                       help="Second " + proj_help, required=proj_required)
-    subp.add_argument('-C', '--Config', help="Second config name")
     subp.set_defaults(func=config_diff)
 
     subp = subparsers.add_parser('config_copy', description=
