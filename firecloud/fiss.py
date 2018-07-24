@@ -481,7 +481,8 @@ def config_get(args):
 
 @fiss_cmd
 def config_diff(args):
-    """Compare method configuration definitions across workspaces"""
+    """Compare method configuration definitions across workspaces. Ignores
+       methodConfigVersion if the verbose argument is not set"""
     config_1 = config_get(args).splitlines()
     args.project = args.Project
     args.workspace = args.Workspace
@@ -491,7 +492,13 @@ def config_diff(args):
     if args.Namespace is not None:
         args.namespace = args.Namespace
     config_2 = config_get(args).splitlines()
+    if not args.verbose:
+        config_1 = skip_cfg_ver(config_1)
+        config_2 = skip_cfg_ver(config_2)
     return list(unified_diff(config_1, config_2, cfg_1_name, args.config, lineterm=''))
+
+def skip_cfg_ver(cfg):
+    return [line for line in cfg if not line.startswith('    "methodConfigVersion": ')]
 
 @fiss_cmd
 def config_put(args):
