@@ -173,13 +173,14 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(result[name], value)
 
     def load_entities(self):
-        # To potentially save time, check if entities already exist
-        r = fapi.get_entity(self.project, self.workspace, "sample_set", "SS-NT")
-        if r.status_code == 200:
+        # To potentially save time, sanity check if entities already exist
+        r1 = fapi.get_entity(self.project, self.workspace, "sample_set", "SS-TP")
+        r2 = fapi.get_entity(self.project, self.workspace, "participant_set", "PARTICIP_SET_2")
+        if r1.status_code == 200 and r2.status_code == 200:
             return
 
-        if r.status_code != 404:
-            raise RuntimeError("while determining if SS-NT sample_set exists")
+        if r1.status_code not in [404,200] or r2.status_code not in [404,200]:
+            raise RuntimeError("while checking for sample_set/participant_set")
 
         print("\n\tLoading data entities for tests ...", file=sys.stderr)
         args =("entity_import", "-p", self.project, "-w", self.workspace)
@@ -347,11 +348,11 @@ class TestFISSHighLevel(unittest.TestCase):
         args = ('sample_list', '-p', self.project, '-w', self.workspace)
 
         # Sample set, by way of using default value for -t
-        result = call_func(*(args + ('-e', 'SS-NT')))
+        result = call_func(*(args + ('-e', 'SS-TP')))
         self.assertEqual(2000, len(result))
-        self.assertIn('S-0-NT',   result)
-        self.assertIn('S-501-NT', result)
-        self.assertIn('S-1999-NT',result)
+        self.assertIn('S-0-TP',   result)
+        self.assertIn('S-501-TP', result)
+        self.assertIn('S-1999-TP',result)
 
         # Single sample (silly, but FISS aims to tolerate such)
         result = call_func(*(args + ('-e', 'S-1000-TP', '-t', 'sample')))
