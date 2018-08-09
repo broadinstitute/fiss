@@ -182,21 +182,17 @@ class TestFISSHighLevel(unittest.TestCase):
             raise RuntimeError("while determining if SS-NT sample_set exists")
 
         print("\n\tLoading data entities for tests ...", file=sys.stderr)
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "participants.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "samples.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "sset_membership.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "sset.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "pairs.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "pairset_membership.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "pairset_attr.tsv"))
-
+        args =("entity_import", "-p", self.project, "-w", self.workspace)
+        datapath = os.path.join("firecloud", "tests")
+        call_func(*(args + ("-f", os.path.join(datapath, "participants.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "particip_set_members.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "particip_set.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "samples.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "sset_membership.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "sset.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "pairs.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "pairset_membership.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "pairset_attr.tsv"))))
         print("\t... done loading data ...", file=sys.stderr)
     
     def test_entity_delete(self):
@@ -346,32 +342,36 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(config['methodConfigVersion'], 1)
 
     def test_sample_list(self):
+
         self.load_entities()
+        args = ('sample_list', '-p', self.project, '-w', self.workspace)
 
         # Sample set, by way of using default value for -t
-        result = call_func('sample_list', '-p', self.project,
-                       '-w', self.workspace, '-e', 'SS-NT')
+        result = call_func(*(args + ('-e', 'SS-NT')))
         self.assertEqual(2000, len(result))
         self.assertIn('S-0-NT',   result)
         self.assertIn('S-501-NT', result)
         self.assertIn('S-1999-NT',result)
 
+        # Single sample (silly, but FISS aims to tolerate such)
+        result = call_func(*(args + ('-e', 'S-1000-TP', '-t', 'sample')))
+        self.assertEqual(1, len(result))
+        self.assertIn('S-1000-TP', result)
+
         # Pair
-        result = call_func('sample_list', '-p', self.project,
-            '-w', self.workspace, '-e', 'PAIR-3', '-t', 'pair')
+        result = call_func(*(args + ('-e', 'PAIR-3', '-t', 'pair')))
         self.assertEqual(2, len(result))
         self.assertIn('S-3-TP',   result)
         self.assertIn('S-3-NT', result)
 
         # Participant
-        result = call_func('sample_list', '-p', self.project,
-            '-w', self.workspace, '-e', 'P-23', '-t', 'participant')
+        result = call_func(*(args + ('-e', 'P-23', '-t', 'participant')))
         self.assertEqual(2, len(result))
         self.assertIn('S-23-NT', result)
         self.assertIn('S-23-TP', result)
 
         # Workspace, by way of using all defaults (no entity or type args)
-        result = call_func('sample_list','-p',self.project,'-w',self.workspace)
+        result = call_func(*args)
         self.assertEqual(4000, len(result))
         self.assertIn('S-0-TP',    result)
         self.assertIn('S-1000-TP', result)
@@ -380,14 +380,56 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertIn('S-1999-NT', result)
 
     def test_pair_list(self):
-        self.load_entities()
 
-        result = call_func('pair_list', '-p', self.project,
-                       '-w', self.workspace)
+        self.load_entities()
+        args = ('pair_list', '-p', self.project, '-w', self.workspace)
+
+        # Workspace
+        result = call_func(*args)
         self.assertEqual(10, len(result))
         self.assertIn('PAIR-1',  result)
         self.assertIn('PAIR-5',  result)
         self.assertIn('PAIR-10', result)
+
+        # Participant
+        result = call_func(*(args + ('-e', 'P-9', '-t', 'participant')))
+        self.assertEqual(1, len(result))
+        self.assertIn('PAIR-9', result)
+
+        # Pair set, by way of using default value for -t
+        result = call_func(*(args + ('-e', 'PAIRSET-1')))
+        self.assertEqual(5, len(result))
+        self.assertEqual(sorted(result),
+           ['PAIR-1', 'PAIR-2', 'PAIR-3', 'PAIR-4', 'PAIR-5'])
+
+        # Single pair (silly, but FISS aims to tolerate such)
+        result = call_func(*(args + ('-e', 'PAIR-4', '-t', 'pair')))
+        self.assertEqual(1, len(result))
+        self.assertIn('PAIR-4', result)
+
+    def test_participant_list(self):
+
+        self.load_entities()
+        args = ('participant_list', '-p', self.project, '-w', self.workspace)
+
+        # Workspace
+        result = call_func(*args)
+        self.assertEqual(2000, len(result))
+        self.assertIn('P-0',  result)
+        self.assertIn('P-1000',  result)
+        self.assertIn('P-1999', result)
+
+        # Participant set, by way of using default value for -t
+        result = call_func(*(args + ('-e', 'PARTICIP_SET_2')))
+        self.assertEqual(10, len(result))
+        self.assertIn('P-11',  result)
+        self.assertIn('P-15',  result)
+        self.assertIn('P-20',  result)
+
+        # Single participant (silly, but FISS aims to tolerate such)
+        result = call_func(*(args + ('-e', 'P-1350', '-t', 'participant')))
+        self.assertEqual(1, len(result))
+        self.assertIn('P-1350', result)
 
 def main():
     nose.main()
