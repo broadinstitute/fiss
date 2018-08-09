@@ -251,20 +251,51 @@ def entity_list(args):
 #
 #     print(r.content)
 
-def __get_entities(args, kind):
-    r = fapi.get_entities(args.project, args.workspace, kind)
-    fapi._check_response_code(r, 200)
-    return [ entity['name'] for entity in r.json() ]
+def __get_entities(args, kind, page_size=1000):
+    entities = _entity_paginator(args.project, args.workspace, kind,
+                                                page_size=page_size)
+    return [ entity['name'] for entity in entities ]
 
 @fiss_cmd
 def participant_list(args):
-    """ List participants in a workspace. """
+    ''' List participants defined within a workspace.'''
     return __get_entities(args, "participant")
 
 @fiss_cmd
+def pair_list(args):
+    ''' List pairs defined within a workspace.'''
+    return __get_entities(args, "pair")
+
+@fiss_cmd
 def sample_list(args):
-    """ List samples in a workspace. """
-    return __get_entities(args, "sample")
+    ''' List samples within a container. '''
+
+    # Case 1: retrieve samples within a named data entity
+    if args.entity_type and args.entity:
+        # Edge case: caller asked for samples within a sample
+        if args.entity_type == 'sample':
+            return args.entity
+        # Edge case: samples for a participant, which has to be done hard way
+        # by iteratiing over all samples (see firecloud/discussion/9648)
+        elif args.entity_type == 'participant':
+            samples = _entity_paginator(args.project, args.workspace,
+                                     'sample', page_size=2000)
+            return [ e['name'] for e in samples if
+                     e['attributes']['participant']['entityName'] == args.entity]
+
+        # Otherwise retrieve the container entity
+        r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
+        fapi._check_response_code(r, 200)
+        if args.entity_type == 'pair':
+            pair = r.json()['attributes']
+            samples = [ pair['case_sample'], pair['control_sample'] ]
+        else:
+            samples = r.json()['attributes']["samples"]['items']
+
+        return [ sample['entityName'] for sample in samples ]
+
+    # Case 2: retrieve all samples within a workspace
+    return __get_entities(args, "sample", page_size=2000)
 
 @fiss_cmd
 def sset_list(args):
@@ -275,11 +306,10 @@ def sset_list(args):
 def entity_delete(args):
     """ Delete entity in a workspace. """
 
-    prompt = "WARNING: this will delete {0} {1} in {2}/{3}".format(
-        args.entity_type, args.entity, args.project, args.workspace
-    )
+    msg = "WARNING: this will delete {0} {1} in {2}/{3}".format(
+        args.entity_type, args.entity, args.project, args.workspace)
 
-    if not (args.yes or _confirm_prompt(prompt)):
+    if not (args.yes or _confirm_prompt(msg)):
         return
 
     json_body=[{"entityType": args.entity_type,
@@ -909,7 +939,6 @@ def attr_fill_null(args):
                     args.entity_type, attr
                 )
                 if not args.yes and not _confirm_prompt(message, prompt):
-                    #Don't do it!
                     return
 
         # check to see if no sentinels are necessary
@@ -1447,7 +1476,7 @@ def runnable(args):
 # Utilities
 #################################################
 
-def _confirm_prompt(message, prompt="\nAre you sure? [Y\\n]: ",
+def _confirm_prompt(message, prompt="\nAre you sure? [y/yes (default: no)]: ",
                     affirmations=("Y", "Yes", "yes", "y")):
     """
     Display a message, then confirmation prompt, and return true
@@ -1639,6 +1668,8 @@ def main(argv=None):
     meth_ns_required = not bool(fcconfig.method_ns)
     workspace_required = not bool(fcconfig.workspace)
     etype_required = not bool(fcconfig.entity_type)
+    etype_choices = ['participant', 'participant_set', 'sample', 'sample_set',
+                     'pair', 'pair_set' ]
 
     # Initialize core parser (TODO: Add longer description)
     usage  = 'fissfc [OPTIONS] [CMD [-h | arg ...]]'
@@ -1822,10 +1853,24 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.set_defaults(func=participant_list)
 
+    # List of pairs
+    subp = subparsers.add_parser(
+        'pair_list', description='List pairs defined within a workspace',
+        parents=[workspace_parent])
+    subp.set_defaults(func=pair_list)
+
     # List of samples
     subp = subparsers.add_parser(
-        'sample_list', description='List samples in a workspace',
-        parents=[workspace_parent])
+        'sample_list',
+        parents=[workspace_parent],
+        description='Return the list of samples within a given container, ' \
+            'which by default is the workspace; otherwise, the samples within'\
+            'the named entity will be listed.  If an entity type is not given '\
+            'then sample_set will be assumed.')
+    subp.add_argument('-e', '--entity', default=None,
+            help='Entity name, to list samples within container entities')
+    subp.add_argument('-t', '--entity-type', default='sample_set',
+            help='The type for named entity [default:%(default)s]`')
     subp.set_defaults(func=sample_list)
 
     # List of sample sets
@@ -2011,8 +2056,6 @@ def main(argv=None):
         parents=[workspace_parent, attr_parent])
 
     # etype_parent not used for attr_get, because entity type is optional
-    etype_choices = ['participant', 'participant_set', 'sample', 'sample_set',
-                     'pair', 'pair_set' ]
     subp.add_argument('-t', '--entity-type', choices=etype_choices, default='',
                       required=False, help='Entity type to retrieve ' +
                                            'annotations from.')
