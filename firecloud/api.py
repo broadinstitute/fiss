@@ -1183,7 +1183,7 @@ def get_workspace_acl(namespace, workspace):
     uri = "workspaces/{0}/{1}/acl".format(namespace, workspace)
     return __get(uri)
 
-def update_workspace_acl(namespace, workspace, acl_updates):
+def update_workspace_acl(namespace, workspace, acl_updates, invite_users_not_found=False):
     """Update workspace access control list.
 
     Args:
@@ -1193,12 +1193,13 @@ def update_workspace_acl(namespace, workspace, acl_updates):
             "email" - Firecloud user email
             "accessLevel" - one of "OWNER", "READER", "WRITER", "NO ACCESS"
             Example: {"email":"user1@mail.com", "accessLevel":"WRITER"}
+        invite_users_not_found (bool): true to invite unregistered users, false to ignore
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/updateWorkspaceACL
     """
-    uri = "{0}workspaces/{1}/{2}/acl".format(fcconfig.root_url,
-                                                namespace, workspace)
+    uri = "{0}workspaces/{1}/{2}/acl?inviteUsersNotFound={3}".format(fcconfig.root_url,
+                                                namespace, workspace, str(invite_users_not_found).lower())
     headers = _fiss_agent_header({"Content-type":  "application/json"})
     # FIXME: create __patch method, akin to __get, __delete etc
     return __SESSION.patch(uri, headers=headers, data=json.dumps(acl_updates))
