@@ -139,6 +139,7 @@ setup(
         'pydot',
         'requests[security]',
         'six',
+        'nose',
         'pylint==1.7.2'
     ],
     classifiers = [

@@ -3,6 +3,14 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.16 - Added pair_list HL command; enlarged scope of applicability of
+           sample_list, to not only workspaces but all sample container
+           types: pair, sample_set, workspace, participant; added pair_list
+           HL function and new tests for both [pair,sample]_list; internal
+           HL function __get_entities now paginates by default, to enable
+           more calls to complete robustly; HL tests can now REUSE_SPACE for
+           faster execution during repeated testing
+
 v0.16.15 - Hotfix: Fixed bug preventing gcloud tool installation.
 
 v0.16.14 - Hotfix: Fixed warning messages that would cause errors if executed.

@@ -59,6 +59,12 @@ class TestFISSHighLevel(unittest.TestCase):
         # Set up a temp workspace for duration of tests. And in case a previous
         # test failed, we attempt to unlock & delete before creating anew
         cls.workspace = getuser() + '_FISS_TEST'
+
+        ret = call_func("space_exists", "-p", cls.project, "-w", cls.workspace)
+        if ret == True and os.environ.get("REUSE_SPACE", None):
+            return
+
+        print("\tCreating test workspace ...\n", file=sys.stderr)
         r = fapi.unlock_workspace(cls.project, cls.workspace)
         r = fapi.delete_workspace(cls.project, cls.workspace)
         r = fapi.create_workspace(cls.project, cls.workspace)
@@ -67,7 +73,8 @@ class TestFISSHighLevel(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         print("\nFinishing high-level CLI tests ...\n", file=sys.stderr)
-        r = fapi.delete_workspace(cls.project, cls.workspace)
+        if not os.environ.get("REUSE_SPACE", None):
+            fapi.delete_workspace(cls.project, cls.workspace)
 
     def test_health(self):
         #  Should return a bytes of 'OK'
@@ -174,6 +181,7 @@ class TestFISSHighLevel(unittest.TestCase):
         if r.status_code != 404:
             raise RuntimeError("while determining if SS-NT sample_set exists")
 
+        print("\n\tLoading data entities for tests ...", file=sys.stderr)
         call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "participants.tsv"))
         call_func("entity_import", "-p", self.project, "-w", self.workspace,
@@ -188,6 +196,8 @@ class TestFISSHighLevel(unittest.TestCase):
                    "-f", os.path.join("firecloud", "tests", "pairset_membership.tsv"))
         call_func("entity_import", "-p", self.project, "-w", self.workspace,
                    "-f", os.path.join("firecloud", "tests", "pairset_attr.tsv"))
+
+        print("\t... done loading data ...", file=sys.stderr)
     
     def test_entity_delete(self):
         self.load_entities()
@@ -334,6 +344,50 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(config['outputs'][output_attribute], 'workspace.echoed_results')
         self.assertEqual(config['rootEntityType'], 'sample_set')
         self.assertEqual(config['methodConfigVersion'], 1)
+
+    def test_sample_list(self):
+        self.load_entities()
+
+        # Sample set, by way of using default value for -t
+        result = call_func('sample_list', '-p', self.project,
+                       '-w', self.workspace, '-e', 'SS-NT')
+        self.assertEqual(2000, len(result))
+        self.assertIn('S-0-NT',   result)
+        self.assertIn('S-501-NT', result)
+        self.assertIn('S-1999-NT',result)
+
+        # Pair
+        result = call_func('sample_list', '-p', self.project,
+            '-w', self.workspace, '-e', 'PAIR-3', '-t', 'pair')
+        self.assertEqual(2, len(result))
+        self.assertIn('S-3-TP',   result)
+        self.assertIn('S-3-NT', result)
+
+        # Participant
+        result = call_func('sample_list', '-p', self.project,
+            '-w', self.workspace, '-e', 'P-23', '-t', 'participant')
+        self.assertEqual(2, len(result))
+        self.assertIn('S-23-NT', result)
+        self.assertIn('S-23-TP', result)
+
+        # Workspace, by way of using all defaults (no entity or type args)
+        result = call_func('sample_list','-p',self.project,'-w',self.workspace)
+        self.assertEqual(4000, len(result))
+        self.assertIn('S-0-TP',    result)
+        self.assertIn('S-1000-TP', result)
+        self.assertIn('S-1999-TP', result)
+        self.assertIn('S-999-NT',  result)
+        self.assertIn('S-1999-NT', result)
+
+    def test_pair_list(self):
+        self.load_entities()
+
+        result = call_func('pair_list', '-p', self.project,
+                       '-w', self.workspace)
+        self.assertEqual(10, len(result))
+        self.assertIn('PAIR-1',  result)
+        self.assertIn('PAIR-5',  result)
+        self.assertIn('PAIR-10', result)
 
 def main():
     nose.main()

@@ -6,12 +6,9 @@ SHELL=/bin/bash
 __FILE__=$(lastword $(MAKEFILE_LIST))
 __PATH__=$(abspath $(dir $(__FILE__)))
 ROOT=$(__PATH__)
-PYTHON_HOME=$(shell $(ROOT)/util/findPython.sh)
+PYTHON_HOME=$(shell $(ROOT)/util/findPython.sh python$(PYTHON_VER))
 PYLINT=$(ROOT)/util/pylint_wrap.sh
 
-ifeq ($(MAKELEVEL),0)
-$(info Using Python from $(PYTHON_HOME))
-endif
 DEST=$(PYTHON_HOME)
 BIN_DIR=$(DEST)/bin                 # Python virtual environment here
 PYTHON=$(DEST)/bin/python$(PYTHON_VER)
@@ -20,6 +17,8 @@ VERBOSITY_NOSE=3
 VERBOSITY_FISS=0
 HIGHLEVEL_TESTS=--tests=firecloud/tests/highlevel_tests.py
 LOWLEVEL_TESTS=--tests=firecloud/tests/lowlevel_tests.py
+
+$(info Now using Python from $(PYTHON))
 
 help:
 	@echo
@@ -54,7 +53,13 @@ WHICH=
 test_one:
 	@# Example: make test_one WHICH=space_lock_unlock
 	@# Example: make test_one WHICH=ping VERBOSITY_FISS=1 (shows API calls)
+	@# Example: make test_one WHICH=sample_list REUSE_SPACE=true (see below)
 	@$(MAKE) invoke_tests TESTS=$(HIGHLEVEL_TESTS):TestFISSHighLevel.test_$(WHICH)
+
+# By default the tests create, populate & eventually delete a custom workspace.
+# To change this, set REUSE_SPACE to any value, either here or on CLI; then,
+# after running tests the space will be kept AND subsequent invocations will
+# run faster by not re-creating the space and/or re-loading data into it
 
 invoke_tests:
 	@FISS_TEST_VERBOSITY=$(VERBOSITY_FISS) \
