@@ -228,6 +228,24 @@ def entity_import(args):
     return _batch_load(project, workspace, headerline, entity_data, chunk_size)
 
 @fiss_cmd
+def set_export(args):
+    '''Return a list of lines in TSV form that would suffice to reconstitute a
+       container (set) entity, if passed to entity_import.  The first line in
+       the list is the header, and subsequent lines are the container members.
+    '''
+
+    r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
+    fapi._check_response_code(r, 200)
+    set_type = args.entity_type
+    set_name = args.entity
+    member_type = set_type.split('_')[0]
+    members = r.json()['attributes'][member_type+'s']['items']
+
+    result = ["membership:{}_id\t{}_id".format(set_type, member_type)]
+    result += ["%s\t%s" % (set_name, m['entityName']) for m in members ]
+    return result
+
+@fiss_cmd
 def entity_types(args):
     """ List entity types in a workspace """
     r = fapi.list_entity_types(args.project, args.workspace)
@@ -251,10 +269,14 @@ def entity_list(args):
 #
 #     print(r.content)
 
-def __get_entities(args, kind, page_size=1000):
+def __entity_names(entities):
+    return [ entity['name'] for entity in entities ]
+
+def __get_entities(args, kind, page_size=1000, handler=__entity_names):
+
     entities = _entity_paginator(args.project, args.workspace, kind,
                                                 page_size=page_size)
-    return [ entity['name'] for entity in entities ]
+    return handler(entities)
 
 @fiss_cmd
 def participant_list(args):
@@ -1510,6 +1532,14 @@ def runnable(args):
 # Utilities
 #################################################
 
+def _make_set_export_cmd(subparsers, parent_parsers, type, prefix):
+    subp = subparsers.add_parser(prefix + '_export',
+            parents = parent_parsers,
+            description='Export a %s entity from a given workspace, returning '\
+            'a list of lines in TSV form which completely defines the %s and '\
+            'is suitable for reloading with entity_import.' % (type, type))
+    subp.set_defaults(func=set_export, entity_type=type)
+
 def _confirm_prompt(message, prompt="\nAre you sure? [y/yes (default: no)]: ",
                     affirmations=("Y", "Yes", "yes", "y")):
     """
@@ -1869,6 +1899,12 @@ def main(argv=None):
                       help='Maximum entities to import per api call')
     subp.set_defaults(func=entity_import)
 
+    # Export data (set/container entity) from workspace
+    export_cmd_args = [workspace_parent, entity_parent]
+    _make_set_export_cmd(subparsers, export_cmd_args, 'sample_set', 'sset')
+    _make_set_export_cmd(subparsers, export_cmd_args, 'pair_set', 'pset')
+    _make_set_export_cmd(subparsers, export_cmd_args, 'participant_set','ptset')
+
     # List of entity types in a workspace
     subp = subparsers.add_parser(
         'entity_types', parents=[workspace_parent],
@@ -1902,7 +1938,7 @@ def main(argv=None):
         'pair_list',
         parents=[workspace_parent],
         description='Return the list of pairs within a given container, ' \
-            'which by default is the workspace; otherwise, the pairs within'\
+            'which by default is the workspace; otherwise, the pairs within '\
             'the named entity will be listed.  If an entity is named but no '\
             'type is given, then pair_set will be assumed. The containers '\
             'supported are: pair, pair_set, participant, workspace')
@@ -1917,7 +1953,7 @@ def main(argv=None):
         'sample_list',
         parents=[workspace_parent],
         description='Return the list of samples within a given container, ' \
-            'which by default is the workspace; otherwise, the samples within'\
+            'which by default is the workspace; otherwise, the samples within '\
             'the named entity will be listed.  If an entity is named but no '\
             'type is not given, then sample_set is assumed. The containers '\
             'supported are:\n'\

@@ -12,6 +12,8 @@ from firecloud.fiss import main as fiss_func
 from firecloud.fiss import main_as_cli as fiss_cli
 from firecloud import fccore
 from firecloud import api as fapi
+from firecloud.errors import *
+
 if sys.version_info > (3,):
     from io import StringIO
 else:
@@ -431,6 +433,41 @@ class TestFISSHighLevel(unittest.TestCase):
         result = call_func(*(args + ('-e', 'P-1350', '-t', 'participant')))
         self.assertEqual(1, len(result))
         self.assertIn('P-1350', result)
+
+    def test_set_export(self):
+
+        self.load_entities()
+        args = ('-p', self.project, '-w', self.workspace)
+
+        # Sample set
+        result = call_func(*(('sset_export', '-e', 'SS-TP') + args))
+        self.assertEqual(2001, len(result))
+        self.assertEqual('membership:sample_set_id\tsample_id', result[0])
+        self.assertEqual('SS-TP\tS-0-TP', result[1])
+        self.assertEqual('SS-TP\tS-999-TP', result[1000])
+        self.assertEqual('SS-TP\tS-1999-TP', result[2000])
+
+        # Pair set
+        result = call_func(*(('pset_export', '-e', 'PAIRSET-1') + args))
+        self.assertEqual(6, len(result))
+        self.assertEqual('membership:pair_set_id\tpair_id', result[0])
+        self.assertEqual('PAIRSET-1\tPAIR-2', result[2])
+        self.assertEqual('PAIRSET-1\tPAIR-5', result[5])
+        self.assertEqual('PAIRSET-1\tPAIR-1', result[1])
+
+        # Participant set
+        result = call_func(*(('ptset_export', '-e', 'PARTICIP_SET_2') + args))
+        self.assertEqual(11, len(result))
+        self.assertEqual('membership:participant_set_id\tparticipant_id', result[0])
+        self.assertEqual('PARTICIP_SET_2\tP-12', result[2])
+        self.assertEqual('PARTICIP_SET_2\tP-15', result[5])
+        self.assertEqual('PARTICIP_SET_2\tP-20', result[10])
+
+        # Non-existent sample set
+        try:
+            result = call_func(*(('sset_export', '-e', '_No_SuCh_SeT_') + args))
+        except FireCloudServerError as e:
+            self.assertEqual(e.code, 404)
 
 def main():
     nose.main()
