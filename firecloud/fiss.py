@@ -1103,7 +1103,7 @@ def mop(args):
             bucket_files = bucket_files.decode()
 
     except subprocess.CalledProcessError as e:
-        eprint("Error retrieving files from bucket: " + e)
+        eprint("Error retrieving files from bucket: " + str(e))
         return 1
 
     bucket_files = set(bucket_files.strip().split('\n'))
@@ -1179,8 +1179,10 @@ def mop(args):
         print("Deleting files with gsutil...")
     gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     # Pipe the deleteable_files into gsutil
-    result = gsrm_proc.communicate(input='\n'.join(deleteable_files))[0]
+    result = gsrm_proc.communicate(input='\n'.join(deleteable_files).encode())[0]
     if args.verbose:
+        if type(result) == bytes:
+            result = result.decode()
         print(result.rstrip())
     return 0
 
