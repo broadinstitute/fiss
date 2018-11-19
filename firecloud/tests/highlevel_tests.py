@@ -12,6 +12,8 @@ from firecloud.fiss import main as fiss_func
 from firecloud.fiss import main_as_cli as fiss_cli
 from firecloud import fccore
 from firecloud import api as fapi
+from firecloud.errors import *
+
 if sys.version_info > (3,):
     from io import StringIO
 else:
@@ -59,6 +61,12 @@ class TestFISSHighLevel(unittest.TestCase):
         # Set up a temp workspace for duration of tests. And in case a previous
         # test failed, we attempt to unlock & delete before creating anew
         cls.workspace = getuser() + '_FISS_TEST'
+
+        ret = call_func("space_exists", "-p", cls.project, "-w", cls.workspace)
+        if ret == True and os.environ.get("REUSE_SPACE", None):
+            return
+
+        print("\tCreating test workspace ...\n", file=sys.stderr)
         r = fapi.unlock_workspace(cls.project, cls.workspace)
         r = fapi.delete_workspace(cls.project, cls.workspace)
         r = fapi.create_workspace(cls.project, cls.workspace)
@@ -67,7 +75,8 @@ class TestFISSHighLevel(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         print("\nFinishing high-level CLI tests ...\n", file=sys.stderr)
-        r = fapi.delete_workspace(cls.project, cls.workspace)
+        if not os.environ.get("REUSE_SPACE", None):
+            fapi.delete_workspace(cls.project, cls.workspace)
 
     def test_health(self):
         #  Should return a bytes of 'OK'
@@ -166,28 +175,28 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(result[name], value)
 
     def load_entities(self):
-        # To potentially save time, check if entities already exist
-        r = fapi.get_entity(self.project, self.workspace, "sample_set", "SS-NT")
-        if r.status_code == 200:
+        # To potentially save time, sanity check if entities already exist
+        r1 = fapi.get_entity(self.project, self.workspace, "sample_set", "SS-TP")
+        r2 = fapi.get_entity(self.project, self.workspace, "participant_set", "PARTICIP_SET_2")
+        if r1.status_code == 200 and r2.status_code == 200:
             return
 
-        if r.status_code != 404:
-            raise RuntimeError("while determining if SS-NT sample_set exists")
+        if r1.status_code not in [404,200] or r2.status_code not in [404,200]:
+            raise RuntimeError("while checking for sample_set/participant_set")
 
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "participants.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "samples.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "sset_membership.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "sset.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "pairs.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "pairset_membership.tsv"))
-        call_func("entity_import", "-p", self.project, "-w", self.workspace,
-                   "-f", os.path.join("firecloud", "tests", "pairset_attr.tsv"))
+        print("\n\tLoading data entities for tests ...", file=sys.stderr)
+        args =("entity_import", "-p", self.project, "-w", self.workspace)
+        datapath = os.path.join("firecloud", "tests")
+        call_func(*(args + ("-f", os.path.join(datapath, "participants.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "particip_set_members.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "particip_set.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "samples.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "sset_membership.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "sset.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "pairs.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "pairset_membership.tsv"))))
+        call_func(*(args + ("-f", os.path.join(datapath, "pairset_attr.tsv"))))
+        print("\t... done loading data ...", file=sys.stderr)
     
     def test_entity_delete(self):
         self.load_entities()
@@ -334,6 +343,131 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(config['outputs'][output_attribute], 'workspace.echoed_results')
         self.assertEqual(config['rootEntityType'], 'sample_set')
         self.assertEqual(config['methodConfigVersion'], 1)
+
+    def test_sample_list(self):
+
+        self.load_entities()
+        args = ('sample_list', '-p', self.project, '-w', self.workspace)
+
+        # Sample set, by way of using default value for -t
+        result = call_func(*(args + ('-e', 'SS-TP')))
+        self.assertEqual(2000, len(result))
+        self.assertIn('S-0-TP',   result)
+        self.assertIn('S-501-TP', result)
+        self.assertIn('S-1999-TP',result)
+
+        # Single sample (silly, but FISS aims to tolerate such)
+        result = call_func(*(args + ('-e', 'S-1000-TP', '-t', 'sample')))
+        self.assertEqual(1, len(result))
+        self.assertIn('S-1000-TP', result)
+
+        # Pair
+        result = call_func(*(args + ('-e', 'PAIR-3', '-t', 'pair')))
+        self.assertEqual(2, len(result))
+        self.assertIn('S-3-TP',   result)
+        self.assertIn('S-3-NT', result)
+
+        # Participant
+        result = call_func(*(args + ('-e', 'P-23', '-t', 'participant')))
+        self.assertEqual(2, len(result))
+        self.assertIn('S-23-NT', result)
+        self.assertIn('S-23-TP', result)
+
+        # Workspace, by way of using all defaults (no entity or type args)
+        result = call_func(*args)
+        self.assertEqual(4000, len(result))
+        self.assertIn('S-0-TP',    result)
+        self.assertIn('S-1000-TP', result)
+        self.assertIn('S-1999-TP', result)
+        self.assertIn('S-999-NT',  result)
+        self.assertIn('S-1999-NT', result)
+
+    def test_pair_list(self):
+
+        self.load_entities()
+        args = ('pair_list', '-p', self.project, '-w', self.workspace)
+
+        # Workspace
+        result = call_func(*args)
+        self.assertEqual(10, len(result))
+        self.assertIn('PAIR-1',  result)
+        self.assertIn('PAIR-5',  result)
+        self.assertIn('PAIR-10', result)
+
+        # Participant
+        result = call_func(*(args + ('-e', 'P-9', '-t', 'participant')))
+        self.assertEqual(1, len(result))
+        self.assertIn('PAIR-9', result)
+
+        # Pair set, by way of using default value for -t
+        result = call_func(*(args + ('-e', 'PAIRSET-1')))
+        self.assertEqual(5, len(result))
+        self.assertEqual(sorted(result),
+           ['PAIR-1', 'PAIR-2', 'PAIR-3', 'PAIR-4', 'PAIR-5'])
+
+        # Single pair (silly, but FISS aims to tolerate such)
+        result = call_func(*(args + ('-e', 'PAIR-4', '-t', 'pair')))
+        self.assertEqual(1, len(result))
+        self.assertIn('PAIR-4', result)
+
+    def test_participant_list(self):
+
+        self.load_entities()
+        args = ('participant_list', '-p', self.project, '-w', self.workspace)
+
+        # Workspace
+        result = call_func(*args)
+        self.assertEqual(2000, len(result))
+        self.assertIn('P-0',  result)
+        self.assertIn('P-1000',  result)
+        self.assertIn('P-1999', result)
+
+        # Participant set, by way of using default value for -t
+        result = call_func(*(args + ('-e', 'PARTICIP_SET_2')))
+        self.assertEqual(10, len(result))
+        self.assertIn('P-11',  result)
+        self.assertIn('P-15',  result)
+        self.assertIn('P-20',  result)
+
+        # Single participant (silly, but FISS aims to tolerate such)
+        result = call_func(*(args + ('-e', 'P-1350', '-t', 'participant')))
+        self.assertEqual(1, len(result))
+        self.assertIn('P-1350', result)
+
+    def test_set_export(self):
+
+        self.load_entities()
+        args = ('-p', self.project, '-w', self.workspace)
+
+        # Sample set
+        result = call_func(*(('sset_export', '-e', 'SS-TP') + args))
+        self.assertEqual(2001, len(result))
+        self.assertEqual('membership:sample_set_id\tsample_id', result[0])
+        self.assertEqual('SS-TP\tS-0-TP', result[1])
+        self.assertEqual('SS-TP\tS-999-TP', result[1000])
+        self.assertEqual('SS-TP\tS-1999-TP', result[2000])
+
+        # Pair set
+        result = call_func(*(('pset_export', '-e', 'PAIRSET-1') + args))
+        self.assertEqual(6, len(result))
+        self.assertEqual('membership:pair_set_id\tpair_id', result[0])
+        self.assertEqual('PAIRSET-1\tPAIR-2', result[2])
+        self.assertEqual('PAIRSET-1\tPAIR-5', result[5])
+        self.assertEqual('PAIRSET-1\tPAIR-1', result[1])
+
+        # Participant set
+        result = call_func(*(('ptset_export', '-e', 'PARTICIP_SET_2') + args))
+        self.assertEqual(11, len(result))
+        self.assertEqual('membership:participant_set_id\tparticipant_id', result[0])
+        self.assertEqual('PARTICIP_SET_2\tP-12', result[2])
+        self.assertEqual('PARTICIP_SET_2\tP-15', result[5])
+        self.assertEqual('PARTICIP_SET_2\tP-20', result[10])
+
+        # Non-existent sample set
+        try:
+            result = call_func(*(('sset_export', '-e', '_No_SuCh_SeT_') + args))
+        except FireCloudServerError as e:
+            self.assertEqual(e.code, 404)
 
 def main():
     nose.main()
