@@ -17,6 +17,7 @@ import argparse
 import subprocess
 import re
 import collections
+from difflib import unified_diff
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
 from firecloud import api as fapi
@@ -565,6 +566,27 @@ def config_get(args):
                       sort_keys=True, ensure_ascii=False)
 
 @fiss_cmd
+def config_diff(args):
+    """Compare method configuration definitions across workspaces. Ignores
+       methodConfigVersion if the verbose argument is not set"""
+    config_1 = config_get(args).splitlines()
+    args.project = args.Project
+    args.workspace = args.Workspace
+    cfg_1_name = args.config
+    if args.Config is not None:
+        args.config = args.Config
+    if args.Namespace is not None:
+        args.namespace = args.Namespace
+    config_2 = config_get(args).splitlines()
+    if not args.verbose:
+        config_1 = skip_cfg_ver(config_1)
+        config_2 = skip_cfg_ver(config_2)
+    return list(unified_diff(config_1, config_2, cfg_1_name, args.config, lineterm=''))
+
+def skip_cfg_ver(cfg):
+    return [line for line in cfg if not line.startswith('    "methodConfigVersion": ')]
+
+@fiss_cmd
 def config_put(args):
     '''Install a valid method configuration into a workspace, in one of several
        ways: from a JSON file containing a config definition (both file names
@@ -1081,7 +1103,7 @@ def mop(args):
             bucket_files = bucket_files.decode()
 
     except subprocess.CalledProcessError as e:
-        eprint("Error retrieving files from bucket: " + e)
+        eprint("Error retrieving files from bucket: " + str(e))
         return 1
 
     bucket_files = set(bucket_files.strip().split('\n'))
@@ -1157,8 +1179,10 @@ def mop(args):
         print("Deleting files with gsutil...")
     gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     # Pipe the deleteable_files into gsutil
-    result = gsrm_proc.communicate(input='\n'.join(deleteable_files))[0]
+    result = gsrm_proc.communicate(input='\n'.join(deleteable_files).encode())[0]
     if args.verbose:
+        if type(result) == bytes:
+            result = result.decode()
         print(result.rstrip())
     return 0
 
@@ -2077,6 +2101,21 @@ def main(argv=None):
     subp.add_argument('-p', '--project', default=fcconfig.project,
                       help=proj_help, required=proj_required)
     subp.set_defaults(func=config_get)
+    
+    subp = subparsers.add_parser('config_diff',
+        description='Compare method configuration definitions across workspaces',
+        parents=[conf_parent])
+    subp.add_argument('-w', '--workspace', help='First Workspace name',
+                      default=fcconfig.workspace, required=workspace_required)
+    subp.add_argument('-p', '--project', default=fcconfig.project,
+                      help="First " + proj_help, required=proj_required)
+    subp.add_argument('-C', '--Config', help="Second method config name")
+    subp.add_argument('-N', '--Namespace', help="Second method config namespace")
+    subp.add_argument('-W', '--Workspace', help='Second Workspace name',
+                      default=fcconfig.workspace, required=workspace_required)
+    subp.add_argument('-P', '--Project', default=fcconfig.project,
+                      help="Second " + proj_help, required=proj_required)
+    subp.set_defaults(func=config_diff)
 
     subp = subparsers.add_parser('config_copy', description=
         'Copy a method config to a new name/space/namespace/project, ' +

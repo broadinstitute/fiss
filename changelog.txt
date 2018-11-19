@@ -3,11 +3,18 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.19 - Added config_diff HL command, HL command mop updated to work in
+           Python 3 and fail with proper error message when workspace bucket is
+           inaccessible.
+
+v0.16.18 - Added HL export commands for sample, pair and participant sets.
+
 v0.16.17 - HL pair_list and participant_list cmds now operate on containers,
            as done for sample_list in previous release; with pair_list
            supporting pair, pair_set, participant and workspace; and
            participant_list supporting participant, participant_set,
            and workspace; extended HL tests accordingly
+
 v0.16.16 - Added pair_list HL command; enlarged scope of applicability of
            sample_list, to not only workspaces but all sample container
            types: pair, sample_set, workspace, participant; added pair_list
