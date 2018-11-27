@@ -753,18 +753,21 @@ def get_repository_config(namespace, config, snapshot_id):
     uri = "configurations/{0}/{1}/{2}".format(namespace, config, snapshot_id)
     return __get(uri)
 
-def get_repository_method(namespace, method, snapshot_id):
+def get_repository_method(namespace, method, snapshot_id, wdl_only=False):
     """Get a method definition from the method repository.
 
     Args:
         namespace (str): Methods namespace
         method (str): method name
         version (int): snapshot_id of the method
+        wdl_only (bool): Exclude metadata
 
     Swagger:
-        UNDOCUMENTED
+        https://api.firecloud.org/#!/Method_Repository/get_api_methods_namespace_name_snapshotId
     """
-    uri = "methods/{0}/{1}/{2}".format(namespace, method, snapshot_id)
+    uri = "methods/{0}/{1}/{2}?onlyPayload={3}".format(namespace, method,
+                                                       snapshot_id,
+                                                       str(wdl_only).lower())
     return __get(uri)
 
 def update_repository_method(namespace, method, synopsis, wdl, doc=None,
