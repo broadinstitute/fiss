@@ -3,6 +3,11 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.20 - Updated LL command get_repository_method with documentation link and
+           new parameter wdl_only; new HL commands config_wdl and meth_wdl
+           use the updated LL command to retrieve WDL from the workspace config
+           and method repository respectively.
+
 v0.16.19 - Added config_diff HL command, HL command mop updated to work in
            Python 3 and fail with proper error message when workspace bucket is
            inaccessible.

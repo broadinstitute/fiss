@@ -419,6 +419,14 @@ def meth_delete(args):
     return 0
 
 @fiss_cmd
+def meth_wdl(args):
+    ''' Retrieve WDL for given version of a repository method'''
+    r = fapi.get_repository_method(args.namespace, args.method,
+                                   args.snapshot_id, True)
+    fapi._check_response_code(r, 200)
+    return r.text
+
+@fiss_cmd
 def meth_acl(args):
     ''' Retrieve access control list for given version of a repository method'''
     r = fapi.get_repository_method_acl(args.namespace, args.method,
@@ -564,6 +572,20 @@ def config_get(args):
     # Setting ensure_ascii to False ensures unicode string returns
     return json.dumps(r.json(), indent=4, separators=(',', ': '),
                       sort_keys=True, ensure_ascii=False)
+
+@fiss_cmd
+def config_wdl(args):
+    """ Retrieve the WDL for a method config in a workspace, send stdout """
+    r = fapi.get_workspace_config(args.project, args.workspace,
+                                  args.namespace, args.config)
+    fapi._check_response_code(r, 200)
+    
+    method = r.json()["methodRepoMethod"]
+    args.namespace   = method["methodNamespace"]
+    args.method      = method["methodName"]
+    args.snapshot_id = method["methodVersion"]
+    
+    return meth_wdl(args)
 
 @fiss_cmd
 def config_diff(args):
@@ -2046,6 +2068,12 @@ def main(argv=None):
         description='Redact method from the methods repository',
         parents=[meth_parent, snapshot_parent])
     subp.set_defaults(func=meth_delete)
+    
+    # Retreive the WDL of a method
+    subp = subparsers.add_parser('meth_wdl',
+        description='Retrieve the WDL of a method',
+        parents=[meth_parent, snapshot_parent])
+    subp.set_defaults(func=meth_wdl)
 
     # Access control list operations (upon methods)
     # Get ACL
@@ -2101,6 +2129,15 @@ def main(argv=None):
     subp.add_argument('-p', '--project', default=fcconfig.project,
                       help=proj_help, required=proj_required)
     subp.set_defaults(func=config_get)
+    
+    subp = subparsers.add_parser('config_wdl',
+        description='Retrieve method configuration WDL',
+        parents=[conf_parent])
+    subp.add_argument('-w', '--workspace', help='Workspace name',
+                      default=fcconfig.workspace, required=workspace_required)
+    subp.add_argument('-p', '--project', default=fcconfig.project,
+                      help=proj_help, required=proj_required)
+    subp.set_defaults(func=config_wdl)
     
     subp = subparsers.add_parser('config_diff',
         description='Compare method configuration definitions across workspaces',
