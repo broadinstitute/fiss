@@ -19,7 +19,7 @@ from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
 
 import google.auth
-from google.auth.exceptions import DefaultCredentialsError
+from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.auth.transport.requests import AuthorizedSession
 
 from firecloud.errors import FireCloudServerError
@@ -52,10 +52,10 @@ def _fiss_agent_header(headers=None):
         try:
             __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
                                                                'https://www.googleapis.com/auth/userinfo.email'])[0])
-        except DefaultCredentialsError as dce:
+        except (DefaultCredentialsError, RefreshError) as gae:
             if os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine/'):
                 raise
-            logging.warning("Unable to determine application credentials")
+            logging.warning("Unable to determine/refresh application credentials")
             try:
                 subprocess.check_call(['gcloud', 'auth', 'application-default',
                                        'login', '--no-launch-browser'])
@@ -68,7 +68,7 @@ def _fiss_agent_header(headers=None):
                 else:
                     logging.exception("%s returned %d", cpe.cmd,
                                       cpe.returncode)
-                raise dce
+                raise gae
 
     fiss_headers = {"User-Agent" : FISS_USER_AGENT}
     if headers is not None:
