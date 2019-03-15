@@ -5,7 +5,7 @@ Terms used below:  HL = high level interface, LL = low level interface
 
 v0.16.21 - api.py will attempt to update credentials on a refresh error; typo
            fixes to several HL command descriptions; setup.py now requires a
-           minimum version of setuptools (40.3.0).
+           minimum version of setuptools (40.3.0); added Groups API to LL.
 
 v0.16.20 - Updated LL command get_repository_method with documentation link and
            new parameter wdl_only; new HL commands config_wdl and meth_wdl
