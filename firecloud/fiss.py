@@ -437,7 +437,7 @@ def meth_acl(args):
 
 @fiss_cmd
 def meth_set_acl(args):
-    """ Assign an ACL role to a list of users for a worklow. """
+    """ Assign an ACL role to a list of users for a workflow. """
     acl_updates = [{"user": user, "role": args.role} for user in args.users]
 
     id = args.snapshot_id
@@ -2084,7 +2084,7 @@ def main(argv=None):
 
     # Set ACL
     subp = subparsers.add_parser('meth_set_acl',
-        description='Show users and roles in workspace',
+        description='Assign an ACL role to a list of users for a workflow',
         parents=[meth_parent, acl_parent])
     subp.add_argument('-i', '--snapshot-id',
                       help="Snapshot ID (version) of method/config")
@@ -2098,7 +2098,7 @@ def main(argv=None):
     subp.set_defaults(func=meth_list)
 
     subp = subparsers.add_parser('meth_exists',
-        description='Determine if named workflow exists in metho repository')
+        description='Determine if named workflow exists in method repository')
     subp.add_argument('name', help='name of method to search for In repository')
     subp.set_defaults(func=meth_exists)
 

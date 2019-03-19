@@ -51,6 +51,11 @@ class TestFISSLowLevel(unittest.TestCase):
     def test_abort_submission(self):
         """Test abort_submission()."""
         pass
+    
+    @unittest.skip("Not Implemented")
+    def test_add_user_to_group(self):
+        """Test add_user_to_group()."""
+        pass
 
     def test_clone_workspace(self):
         """Test clone_workspace()."""
@@ -82,6 +87,11 @@ class TestFISSLowLevel(unittest.TestCase):
     def test_copy_entities(self):
         """Test copy_entities()."""
         pass
+    
+    @unittest.skip("Not Implemented")
+    def test_create_group(self):
+        """Test create_group()."""
+        pass
 
     @unittest.skip("Not Implemented")
     def test_create_submission(self):
@@ -96,6 +106,11 @@ class TestFISSLowLevel(unittest.TestCase):
     @unittest.skip("Not Implemented")
     def test_delete_entity(self):
         """Test delete_entity()."""
+        pass
+    
+    @unittest.skip("Not Implemented")
+    def test_delete_group(self):
+        """Test delete_group()."""
         pass
 
     @unittest.skip("Not Implemented")
@@ -178,6 +193,16 @@ class TestFISSLowLevel(unittest.TestCase):
     @unittest.skip("Not Implemented")
     def test_get_entity(self):
         """Test get_entity()."""
+        pass
+    
+    @unittest.skip("Not Implemented")
+    def test_get_group(self):
+        """Test get_group()."""
+        pass
+    
+    @unittest.skip("Not Implemented")
+    def test_get_groups(self):
+        """Test get_groups()."""
         pass
 
     @unittest.skip("Not Implemented")
@@ -319,10 +344,20 @@ class TestFISSLowLevel(unittest.TestCase):
     def test_overwrite_workspace_config(self):
         """Test overwrite_workspace_config()."""
         pass
+    
+    @unittest.skip("Not Implemented")
+    def test_remove_user_from_group(self):
+        """Test remove_user_from_group()."""
+        pass
 
     @unittest.skip("Not Implemented")
     def test_rename_workspace_config(self):
         """Test rename_workspace_config()."""
+        pass
+    
+    @unittest.skip("Not Implemented")
+    def test_request_access_to_group(self):
+        """Test request_access_to_group()."""
         pass
 
     def test_unlock_workspace(self):

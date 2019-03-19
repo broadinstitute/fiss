@@ -19,7 +19,7 @@ from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
 
 import google.auth
-from google.auth.exceptions import DefaultCredentialsError
+from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.auth.transport.requests import AuthorizedSession
 
 from firecloud.errors import FireCloudServerError
@@ -52,10 +52,10 @@ def _fiss_agent_header(headers=None):
         try:
             __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
                                                                'https://www.googleapis.com/auth/userinfo.email'])[0])
-        except DefaultCredentialsError as dce:
+        except (DefaultCredentialsError, RefreshError) as gae:
             if os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine/'):
                 raise
-            logging.warning("Unable to determine application credentials")
+            logging.warning("Unable to determine/refresh application credentials")
             try:
                 subprocess.check_call(['gcloud', 'auth', 'application-default',
                                        'login', '--no-launch-browser'])
@@ -68,7 +68,7 @@ def _fiss_agent_header(headers=None):
                 else:
                     logging.exception("%s returned %d", cpe.cmd,
                                       cpe.returncode)
-                raise dce
+                raise gae
 
     fiss_headers = {"User-Agent" : FISS_USER_AGENT}
     if headers is not None:
@@ -1331,3 +1331,91 @@ def _attr_lrem(attr, value):
         "attributeName"      : attr,
         "addUpdateAttribute" : value
     }
+
+#####################
+### 1.8 Groups
+#####################
+
+def get_groups():
+    """Get the list of the groups that the caller is a member of
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/getGroups
+    """
+    return __get('groups')
+
+def get_group(group):
+    """View the members in a group (must be an Admin of the group)
+
+    Args:
+        group (str): Group name
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/getGroup
+    """
+    uri = "groups/{0}".format(group)
+    return __get(uri)
+
+def delete_group(group):
+    """Delete a group that the caller owns
+
+    Args:
+        group (str): Group name
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/deleteGroup
+    """
+    uri = "groups/{0}".format(group)
+    return __delete(uri)
+
+def create_group(group):
+    """Create a new group
+
+    Args:
+        group (str): Group name
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/createGroup
+    """
+    uri = "groups/{0}".format(group)
+    return __post(uri)
+
+def add_user_to_group(group, role, email):
+    """Add a user to a group the caller owns
+
+    Args:
+        group (str): Group name
+        role (str) : Role of user for group; either 'member' or 'admin'
+        email (str): Email of user or group to add
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/addUserToGroup
+    """
+    uri = "groups/{0}/{1}/{2}".format(group, role, email)
+    return __put(uri)
+
+def remove_user_from_group(group, role, email):
+    """Remove a user from a group the caller owns
+
+    Args:
+        group (str): Group name
+        role (str) : Role of user for group; either 'member' or 'admin'
+        email (str): Email of user or group to remove
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/removeUserFromGroup
+    """
+    uri = "groups/{0}/{1}/{2}".format(group, role, email)
+    return __delete(uri)
+
+def request_access_to_group(group):
+    """Request access to a group
+
+    Args:
+        group (str): Group name
+    
+    Swagger:
+        https://api.firecloud.org/#!/Groups/requestAccessToGroup
+    """
+    uri = "groups/{0}/requestAccess".format(group)
+    return __post(uri)
