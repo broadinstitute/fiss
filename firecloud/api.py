@@ -465,7 +465,7 @@ def update_entity(namespace, workspace, etype, ename, updates):
 ### 1.2 Method Configurations
 ###############################
 
-def list_workspace_configs(namespace, workspace):
+def list_workspace_configs(namespace, workspace, allRepos=False):
     """List method configurations in workspace.
 
     Args:
@@ -477,7 +477,7 @@ def list_workspace_configs(namespace, workspace):
         DUPLICATE: https://api.firecloud.org/#!/Workspaces/listWorkspaceMethodConfigs
     """
     uri = "workspaces/{0}/{1}/methodconfigs".format(namespace, workspace)
-    return __get(uri)
+    return __get(uri, params={'allRepos': allRepos})
 
 def create_workspace_config(namespace, workspace, body):
     """Create method configuration in workspace.
@@ -678,24 +678,33 @@ def copy_config_to_repo(namespace, workspace, from_cnamespace,
 ### 1.3 Method Repository
 ###########################
 
-def list_repository_methods(name=None):
-    """List methods in the methods repository.
+def list_repository_methods(namespace=None, name=None, snapshotId=None):
+    """List method(s) in the methods repository.
+
+    Args:
+        namespace (str): Method Repository namespace
+        name (str): method name
+        snapshotId (int): method snapshot ID
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/listMethodRepositoryMethods
     """
-    params = dict()
-    if name:
-        params['name'] = name
+    params = {k:v for (k,v) in locals().items() if v is not None}
     return __get("methods", params=params)
 
-def list_repository_configs():
+def list_repository_configs(namespace=None, name=None, snapshotId=None):
     """List configurations in the methods repository.
+
+    Args:
+        namespace (str): Method Repository namespace
+        name (str): config name
+        snapshotId (int): config snapshot ID
 
     Swagger:
         https://api.firecloud.org/#!/Method_Repository/listMethodRepositoryConfigurations
     """
-    return __get("configurations")
+    params = {k:v for (k,v) in locals().items() if v is not None}
+    return __get("configurations", params=params)
 
 def get_config_template(namespace, method, version):
     """Get the configuration template for a method.
@@ -703,7 +712,7 @@ def get_config_template(namespace, method, version):
     The method should exist in the methods repository.
 
     Args:
-        namespace (str): Methods namespace
+        namespace (str): Method's namespace
         method (str): method name
         version (int): snapshot_id of the method
 
