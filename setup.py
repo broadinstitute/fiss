@@ -135,7 +135,7 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'google-auth=>1.6.3',
+        'google-auth>=1.6.3',
         'pydot',
         'requests[security]',
         'setuptools>=40.3.0',
