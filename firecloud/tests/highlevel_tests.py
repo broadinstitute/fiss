@@ -63,7 +63,7 @@ class TestFISSHighLevel(unittest.TestCase):
         cls.workspace = getuser() + '_FISS_TEST'
 
         ret = call_func("space_exists", "-p", cls.project, "-w", cls.workspace)
-        if ret == True and os.environ.get("REUSE_SPACE", None):
+        if ret and os.environ.get("REUSE_SPACE", None):
             return
 
         print("\tCreating test workspace ...\n", file=sys.stderr)

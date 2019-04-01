@@ -439,26 +439,30 @@ def meth_acl(args):
 def meth_set_acl(args):
     """ Assign an ACL role to a list of users for a workflow. """
     acl_updates = [{"user": user, "role": args.role} \
-                   for user in set(expand_fc_groups(args.users))]
+                   for user in set(expand_fc_groups(args.users)) \
+                   if user != fapi.whoami()]
 
     id = args.snapshot_id
     if not id:
         # get the latest snapshot_id for this method from the methods repo
-        r = fapi.list_repository_methods()
+        r = fapi.list_repository_methods(namespace=args.namespace,
+                                         name=args.method)
         fapi._check_response_code(r, 200)
-        versions = [m for m in r.json()
-                         if m['name'] == args.method and m['namespace'] == args.namespace]
+        versions = r.json()
         if len(versions) == 0:
             if fcconfig.verbosity:
-                eprint("method {0}/{1} not found".format(args.namespace, args.method))
+                eprint("method {0}/{1} not found".format(args.namespace,
+                                                         args.method))
             return 1
         latest = sorted(versions, key=lambda m: m['snapshotId'])[-1]
         id = latest['snapshotId']
 
-    r = fapi.update_repository_method_acl(args.namespace, args.method, id, acl_updates)
+    r = fapi.update_repository_method_acl(args.namespace, args.method, id,
+                                          acl_updates)
     fapi._check_response_code(r, 200)
     if fcconfig.verbosity:
-        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.method, id))
+        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.method,
+                                                   id))
     return 0
 
 def expand_fc_groups(users):
@@ -602,6 +606,36 @@ def config_acl(args):
     fapi._check_response_code(r, 200)
     acls = sorted(r.json(), key=lambda k: k['user'])
     return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
+
+@fiss_cmd
+def config_set_acl(args):
+    """ Assign an ACL role to a list of users for a config. """
+    acl_updates = [{"user": user, "role": args.role} \
+                   for user in set(expand_fc_groups(args.users)) \
+                   if user != fapi.whoami()]
+
+    id = args.snapshot_id
+    if not id:
+        # get the latest snapshot_id for this method from the methods repo
+        r = fapi.list_repository_configs(namespace=args.namespace,
+                                         name=args.config)
+        fapi._check_response_code(r, 200)
+        versions = r.json()
+        if len(versions) == 0:
+            if fcconfig.verbosity:
+                eprint("Configuration {0}/{1} not found".format(args.namespace,
+                                                                args.config))
+            return 1
+        latest = sorted(versions, key=lambda c: c['snapshotId'])[-1]
+        id = latest['snapshotId']
+
+    r = fapi.update_repository_config_acl(args.namespace, args.config, id,
+                                          acl_updates)
+    fapi._check_response_code(r, 200)
+    if fcconfig.verbosity:
+        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.config,
+                                                   id))
+    return 0
 
 @fiss_cmd
 def config_get(args):
@@ -2249,16 +2283,12 @@ def main(argv=None):
     #        pushed into a separate function and/or auto-generated
 
     # Set ACL
-    # cacl_parser = subparsers.add_parser('config_set_acl',
-    #                           description='Set roles for config')
-    # cacl_parser.add_argument('namespace', help='Method namespace')
-    # cacl_parser.add_argument('name', help='Config name')
-    # cacl_parser.add_argument('snapshot_id', help='Snapshot ID')
-    # cacl_parser.add_argument('role', help='ACL role',
-    #                      choices=['OWNER', 'READER', 'NO ACCESS'])
-    # cacl_parser.add_argument('users', metavar='user', help='Firecloud username',
-    #                          nargs='+')
-    # cacl_parser.set_defaults(func=meth_set_acl)
+    subp = subparsers.add_parser('config_set_acl', description='Assign an ' +
+                                 'ACL role to a list of users for a  config',
+                                 parents=[conf_parent, acl_parent])
+    subp.add_argument('-i', '--snapshot-id',
+                      help="Snapshot ID (version) of method/config")
+    subp.set_defaults(func=config_set_acl)
 
     # Status
     subp = subparsers.add_parser('health',

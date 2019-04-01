@@ -20,7 +20,8 @@ from six import string_types
 
 import google.auth
 from google.auth.exceptions import DefaultCredentialsError, RefreshError
-from google.auth.transport.requests import AuthorizedSession
+from google.auth.transport.requests import AuthorizedSession, Request
+from google.oauth2 import id_token
 
 from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
@@ -31,6 +32,7 @@ FISS_USER_AGENT = "FISS/" + __version__
 
 # Set Global Authorized Session
 __SESSION = None
+__USER_ID = None
 
 # Suppress warnings about project ID
 logging.getLogger('google.auth').setLevel(logging.ERROR)
@@ -38,20 +40,18 @@ logging.getLogger('google.auth').setLevel(logging.ERROR)
 #################################################
 # Utilities
 #################################################
-def _fiss_agent_header(headers=None):
-    """ Return request headers for fiss.
-        Inserts FISS as the User-Agent.
-        Initializes __SESSION if it hasn't been set.
-
-    Args:
-        headers (dict): Include additional headers as key-value pairs
-
-    """
+def _set_session():
+    """ Sets global __SESSION and __USER_ID if they haven't been set """
     global __SESSION
+    global __USER_ID
+    
     if __SESSION is None:
         try:
             __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
                                                                'https://www.googleapis.com/auth/userinfo.email'])[0])
+            health()
+            __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
+                                                     Request(session=__SESSION))['email']
         except (DefaultCredentialsError, RefreshError) as gae:
             if os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine/'):
                 raise
@@ -69,6 +69,17 @@ def _fiss_agent_header(headers=None):
                     logging.exception("%s returned %d", cpe.cmd,
                                       cpe.returncode)
                 raise gae
+
+def _fiss_agent_header(headers=None):
+    """ Return request headers for fiss.
+        Inserts FISS as the User-Agent.
+        Initializes __SESSION if it hasn't been set.
+
+    Args:
+        headers (dict): Include additional headers as key-value pairs
+
+    """
+    _set_session()
 
     fiss_headers = {"User-Agent" : FISS_USER_AGENT}
     if headers is not None:
@@ -129,6 +140,11 @@ def _check_response_code(response, codes):
         codes = [codes]
     if response.status_code not in codes:
         raise FireCloudServerError(response.status_code, response.content)
+
+def whoami():
+    """ Return __USER_ID """
+    _set_session()
+    return __USER_ID
 
 ##############################################################
 # 1. Orchestration API calls, see https://api.firecloud.org/
