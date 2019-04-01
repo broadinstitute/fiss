@@ -28,7 +28,7 @@ class InstallCommand(install):
                              '').startswith('Google App Engine/') \
                and gcloud_default_path not in os.environ["PATH"].split(os.pathsep) \
                and which('gcloud') is None
-    
+
     sub_commands = install.sub_commands + [('install_gcloud', needs_gcloud)]
 
 class InstallGcloudCommand(Command):
@@ -41,9 +41,9 @@ class InstallGcloudCommand(Command):
         self.curl = None
         self.bash = None
         self.package_index = None
-        
+
     def finalize_options(self):
-        
+
         if platform.system() != "Windows":
             self.curl = which('curl')
             self.bash = which('bash')
@@ -54,7 +54,7 @@ class InstallGcloudCommand(Command):
             self.gcloud_url = "https://dl.google.com/dl/cloudsdk/channels/" \
                               "rapid/GoogleCloudSDKInstaller.exe"
         self.package_index = PackageIndex()
-    
+
     # Copied from setuptools.command.easy_install.easy_install
     @contextlib.contextmanager
     def _tmpdir(self):
@@ -80,7 +80,7 @@ class InstallGcloudCommand(Command):
                 except subprocess.CalledProcessError as cpe:
                     log.warn(u' '.join(cpe.cmd) + u":\n\t" +
                              cpe.output.decode('utf-8'))
-                
+
         elif self.curl is not None and self.bash is not None:
             try:
                 script = subprocess.check_output([self.curl, "-s", "-S",
@@ -107,7 +107,7 @@ class InstallGcloudCommand(Command):
 
     def get_inputs(self):
         return []
-    
+
     def get_outputs(self):
         return []
 
@@ -135,7 +135,7 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'google-auth==1.4.2',
+        'google-auth>=1.6.3',
         'pydot',
         'requests[security]',
         'setuptools>=40.3.0',
