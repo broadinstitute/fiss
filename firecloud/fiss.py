@@ -2177,7 +2177,7 @@ def main(argv=None):
 
     subp = subparsers.add_parser('meth_exists',
         description='Determine if named workflow exists in method repository')
-    subp.add_argument('method', help='name of method to search for In repository')
+    subp.add_argument('method', help='name of method to search for in repository')
     subp.set_defaults(func=meth_exists)
 
     # Configuration: list
