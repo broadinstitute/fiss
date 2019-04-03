@@ -78,14 +78,15 @@ reinstall:
 uninstall:
 	$(PIP) uninstall -y firecloud
 
-publish:
-	$(PYTHON) setup.py sdist upload && \
+publish: clean
+	$(PYTHON) setup.py sdist && \
+	twine upload dist/* && \
 	rm -rf build dist *.egg-info
 
 image:
 	docker build -t broadgdac/fiss .
 
 clean:
-	rm -rf build dist *.egg-info *~ */*~ *.pyc */*.pyc
+	rm -rf build dist .eggs *.egg-info *~ */*~ *.pyc */*.pyc
 
 .PHONY: help test test_cli test_one install release publish clean lintify

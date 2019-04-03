@@ -309,11 +309,10 @@ class TestFISSLowLevel(unittest.TestCase):
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
-    @unittest.skip("Not Implemented")
     def test_list_workspace_configs(self):
-        """Test get_configs()."""
-        r =  fapi.get_configs(self.test_namespace,
-                                self.workspace)
+        """Test list_workspace_configs()."""
+        r =  fapi.list_workspace_configs(self.project,
+                                         self.workspace)
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 

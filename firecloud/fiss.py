@@ -438,32 +438,72 @@ def meth_acl(args):
 @fiss_cmd
 def meth_set_acl(args):
     """ Assign an ACL role to a list of users for a workflow. """
-    acl_updates = [{"user": user, "role": args.role} for user in args.users]
+    acl_updates = [{"user": user, "role": args.role} \
+                   for user in set(expand_fc_groups(args.users)) \
+                   if user != fapi.whoami()]
 
     id = args.snapshot_id
     if not id:
         # get the latest snapshot_id for this method from the methods repo
-        r = fapi.list_repository_methods()
+        r = fapi.list_repository_methods(namespace=args.namespace,
+                                         name=args.method)
         fapi._check_response_code(r, 200)
-        versions = [m for m in r.json()
-                         if m['name'] == args.method and m['namespace'] == args.namespace]
+        versions = r.json()
         if len(versions) == 0:
             if fcconfig.verbosity:
-                eprint("method {0}/{1} not found".format(args.namespace, args.method))
+                eprint("method {0}/{1} not found".format(args.namespace,
+                                                         args.method))
             return 1
         latest = sorted(versions, key=lambda m: m['snapshotId'])[-1]
         id = latest['snapshotId']
 
-    r = fapi.update_repository_method_acl(args.namespace, args.method, id, acl_updates)
+    r = fapi.update_repository_method_acl(args.namespace, args.method, id,
+                                          acl_updates)
     fapi._check_response_code(r, 200)
     if fcconfig.verbosity:
-        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.method, id))
+        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.method,
+                                                   id))
     return 0
+
+def expand_fc_groups(users):
+    """ If user is a firecloud group, return all members of the group.
+    Caveat is that only group admins may do this.
+    """
+    groups = None
+    for user in users:
+        fcgroup = None
+        if '@' not in user:
+            fcgroup = user
+        elif user.lower().endswith('@firecloud.org'):
+            if groups is None:
+                r = fapi.get_groups()
+                fapi._check_response_code(r, 200)
+                groups = {group['groupEmail'].lower():group['groupName'] \
+                          for group in r.json() if group['role'] == 'Admin'}
+            if user.lower() not in groups:
+                if fcconfig.verbosity:
+                    eprint("You do not have access to the members of {}".format(user))
+                yield user
+                continue
+            else:
+                fcgroup = groups[user.lower()]
+        else:
+            yield user
+            continue
+        r = fapi.get_group(fcgroup)
+        fapi._check_response_code(r, 200)
+        fcgroup_data = r.json()
+        for admin in fcgroup_data['adminsEmails']:
+            yield admin
+        for member in fcgroup_data['membersEmails']:
+            yield member
 
 @fiss_cmd
 def meth_list(args):
     """ List workflows in the methods repository """
-    r = fapi.list_repository_methods(name=args.name)
+    r = fapi.list_repository_methods(namespace=args.namespace,
+                                     name=args.method,
+                                     snapshotId=args.snapshot_id)
     fapi._check_response_code(r, 200)
 
     # Parse the JSON for the workspace + namespace
@@ -481,6 +521,8 @@ def meth_list(args):
 @fiss_cmd
 def meth_exists(args):
     '''Determine whether a given workflow is present in methods repo'''
+    args.namespace = None
+    args.snapshot_id = None
     return len(meth_list(args)) != 0
 
 @fiss_cmd
@@ -519,7 +561,7 @@ def config_stop(args):
 
 @fiss_cmd
 def config_list(args):
-    """ List configurations in the methods repository or a workspace. """
+    """ List configuration(s) in the methods repository or a workspace. """
     verbose = fcconfig.verbosity
     if args.workspace:
         if verbose:
@@ -532,7 +574,9 @@ def config_list(args):
     else:
         if verbose:
             print("Retrieving method configs from method repository")
-        r = fapi.list_repository_configs()
+        r = fapi.list_repository_configs(namespace=args.namespace,
+                                         name=args.config,
+                                         snapshotId=args.snapshot_id)
         fapi._check_response_code(r, 200)
 
     # Parse the JSON for the workspace + namespace
@@ -562,6 +606,36 @@ def config_acl(args):
     fapi._check_response_code(r, 200)
     acls = sorted(r.json(), key=lambda k: k['user'])
     return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
+
+@fiss_cmd
+def config_set_acl(args):
+    """ Assign an ACL role to a list of users for a config. """
+    acl_updates = [{"user": user, "role": args.role} \
+                   for user in set(expand_fc_groups(args.users)) \
+                   if user != fapi.whoami()]
+
+    id = args.snapshot_id
+    if not id:
+        # get the latest snapshot_id for this method from the methods repo
+        r = fapi.list_repository_configs(namespace=args.namespace,
+                                         name=args.config)
+        fapi._check_response_code(r, 200)
+        versions = r.json()
+        if len(versions) == 0:
+            if fcconfig.verbosity:
+                eprint("Configuration {0}/{1} not found".format(args.namespace,
+                                                                args.config))
+            return 1
+        latest = sorted(versions, key=lambda c: c['snapshotId'])[-1]
+        id = latest['snapshotId']
+
+    r = fapi.update_repository_config_acl(args.namespace, args.config, id,
+                                          acl_updates)
+    fapi._check_response_code(r, 200)
+    if fcconfig.verbosity:
+        print("Updated ACL for {0}/{1}:{2}".format(args.namespace, args.config,
+                                                   id))
+    return 0
 
 @fiss_cmd
 def config_get(args):
@@ -2093,22 +2167,31 @@ def main(argv=None):
     # List available methods
     subp = subparsers.add_parser('meth_list',
                                  description='List available workflows')
-    subp.add_argument('-n', '--name', default=None,required=False,
+    subp.add_argument('-m', '--method', default=None,
                       help='name of single workflow to search for (optional)')
+    subp.add_argument('-n', '--namespace', default=None,
+                      help='name of single workflow to search for (optional)')
+    subp.add_argument('-i', '--snapshot-id', default=None,
+                      help="Snapshot ID (version) of method/config")
     subp.set_defaults(func=meth_list)
 
     subp = subparsers.add_parser('meth_exists',
         description='Determine if named workflow exists in method repository')
-    subp.add_argument('name', help='name of method to search for In repository')
+    subp.add_argument('method', help='name of method to search for in repository')
     subp.set_defaults(func=meth_exists)
 
     # Configuration: list
     subp = subparsers.add_parser(
         'config_list', description='List available configurations')
-    subp.add_argument('-w', '--workspace', help='Workspace name',
-                      default=fcconfig.workspace, required=False)
+    subp.add_argument('-w', '--workspace', help='Workspace name')
     subp.add_argument('-p', '--project', default=fcconfig.project,
-                      help=proj_help, required=proj_required)
+                      help=proj_help)
+    subp.add_argument('-c', '--config', default=None,
+                      help='name of single workflow to search for (optional)')
+    subp.add_argument('-n', '--namespace', default=None,
+                      help='name of single workflow to search for (optional)')
+    subp.add_argument('-i', '--snapshot-id', default=None,
+                      help="Snapshot ID (version) of config (optional)")
     subp.set_defaults(func=config_list)
 
     # Configuration: delete
@@ -2200,16 +2283,12 @@ def main(argv=None):
     #        pushed into a separate function and/or auto-generated
 
     # Set ACL
-    # cacl_parser = subparsers.add_parser('config_set_acl',
-    #                           description='Set roles for config')
-    # cacl_parser.add_argument('namespace', help='Method namespace')
-    # cacl_parser.add_argument('name', help='Config name')
-    # cacl_parser.add_argument('snapshot_id', help='Snapshot ID')
-    # cacl_parser.add_argument('role', help='ACL role',
-    #                      choices=['OWNER', 'READER', 'WRITER', 'NO ACCESS'])
-    # cacl_parser.add_argument('users', metavar='user', help='Firecloud username',
-    #                          nargs='+')
-    # cacl_parser.set_defaults(func=meth_set_acl)
+    subp = subparsers.add_parser('config_set_acl', description='Assign an ' +
+                                 'ACL role to a list of users for a  config',
+                                 parents=[conf_parent, acl_parent])
+    subp.add_argument('-i', '--snapshot-id',
+                      help="Snapshot ID (version) of method/config")
+    subp.set_defaults(func=config_set_acl)
 
     # Status
     subp = subparsers.add_parser('health',

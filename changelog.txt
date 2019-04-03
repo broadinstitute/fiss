@@ -3,6 +3,13 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.22 - LL: enabled namespace, name, and snapshot ID filtering for
+           repository listings, new command whoami returns user id; HL: updated
+           listing calls to enable new filters, added capability to set method
+           ACLs for groups, new command set_config_acl for setting ACLs on
+           configs in the methods repo; google-auth updated to use current
+           release.
+
 v0.16.21 - api.py will attempt to update credentials on a refresh error; typo
            fixes to several HL command descriptions; setup.py now requires a
            minimum version of setuptools (40.3.0); added Groups API to LL.
