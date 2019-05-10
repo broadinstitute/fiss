@@ -465,11 +465,10 @@ def meth_set_acl(args):
                                                    id))
     return 0
 
-def expand_fc_groups(users):
+def expand_fc_groups(users, groups=None, seen=set()):
     """ If user is a firecloud group, return all members of the group.
     Caveat is that only group admins may do this.
     """
-    groups = None
     for user in users:
         fcgroup = None
         if '@' not in user:
@@ -490,13 +489,24 @@ def expand_fc_groups(users):
         else:
             yield user
             continue
+        
+        # Avoid infinite loops due to nested groups
+        if fcgroup in seen:
+            continue
+        
         r = fapi.get_group(fcgroup)
-        fapi._check_response_code(r, 200)
+        fapi._check_response_code(r, [200, 403])
+        if r.status_code == 403:
+            if fcconfig.verbosity:
+                eprint("You do not have access to the members of {}".format(fcgroup))
+            continue
         fcgroup_data = r.json()
-        for admin in fcgroup_data['adminsEmails']:
+        seen.add(fcgroup)
+        for admin in expand_fc_groups(fcgroup_data['adminsEmails'], groups, seen):
             yield admin
-        for member in fcgroup_data['membersEmails']:
+        for member in expand_fc_groups(fcgroup_data['membersEmails'], groups, seen):
             yield member
+    
 
 @fiss_cmd
 def meth_list(args):
