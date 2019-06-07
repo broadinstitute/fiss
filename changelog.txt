@@ -3,6 +3,15 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.23 - LL: get_entities_tsv updated with ability to specify ordered
+           attributes and data model, upload_entities and upload_entities_tsv
+           updated to enable use of flexible data model API; HL: added back
+           entity_tsv with updated logic to detect if content is text to print
+           or an archive for download and support for specifying ordered
+           attributes and data model, entity_import updated to specify data
+           model; group expansion (used for giving method/config ACLs to
+           groups) made recursive to handle nested groups.
+
 v0.16.22 - LL: enabled namespace, name, and snapshot ID filtering for
            repository listings, new command whoami returns user id; HL: updated
            listing calls to enable new filters, added capability to set method
