@@ -221,12 +221,14 @@ def entity_import(args):
     project = args.project
     workspace = args.workspace
     chunk_size = args.chunk_size
+    model = args.model
 
     with open(args.tsvfile) as tsvf:
         headerline = tsvf.readline().strip()
         entity_data = [l.rstrip('\n') for l in tsvf]
 
-    return _batch_load(project, workspace, headerline, entity_data, chunk_size)
+    return _batch_load(project, workspace, headerline, entity_data, chunk_size,
+                       model)
 
 @fiss_cmd
 def set_export(args):
@@ -262,13 +264,30 @@ def entity_list(args):
 
 # REMOVED: This now returns a *.zip* file containing two tsvs, which is far
 # less useful for FISS users...
-# def entity_tsv(args):
-#     """ Get list of entities in TSV format. """
-#     r = fapi.get_entities_tsv(args.project, args.workspace,
-#                               args.entity_type)
-#     fapi._check_response_code(r, 200)
-#
-#     print(r.content)
+@fiss_cmd
+def entity_tsv(args):
+    """ Get list of entities in TSV format. Download files for which the
+    encoding is undetected (e.g. ZIP archives). """
+    r = fapi.get_entities_tsv(args.project, args.workspace,
+                              args.entity_type, args.attrs, args.model)
+    fapi._check_response_code(r, 200)
+    if r.apparent_encoding is not None:
+        return r.content.decode(r.apparent_encoding)
+    else:
+        content = r.headers['Content-Disposition'].split('; ')[-1].split('=')
+        if len(content) == 2 and content[0] == 'filename':
+            filename = content[1]
+            if os.path.exists(filename) and (args.yes or not _confirm_prompt(
+                                   'This will overwrite {}'.format(filename))):
+                return
+            with open(filename, 'wb') as outfile:
+                for chunk in r:
+                    outfile.write(chunk)
+            print('Downloaded {}.'.format(filename))
+            return
+        else:
+            eprint("Unable to determine name of file to download.")
+            return 1
 
 def __entity_names(entities):
     return [ entity['name'] for entity in entities ]
@@ -465,11 +484,10 @@ def meth_set_acl(args):
                                                    id))
     return 0
 
-def expand_fc_groups(users):
+def expand_fc_groups(users, groups=None, seen=set()):
     """ If user is a firecloud group, return all members of the group.
     Caveat is that only group admins may do this.
     """
-    groups = None
     for user in users:
         fcgroup = None
         if '@' not in user:
@@ -490,13 +508,24 @@ def expand_fc_groups(users):
         else:
             yield user
             continue
+        
+        # Avoid infinite loops due to nested groups
+        if fcgroup in seen:
+            continue
+        
         r = fapi.get_group(fcgroup)
-        fapi._check_response_code(r, 200)
+        fapi._check_response_code(r, [200, 403])
+        if r.status_code == 403:
+            if fcconfig.verbosity:
+                eprint("You do not have access to the members of {}".format(fcgroup))
+            continue
         fcgroup_data = r.json()
-        for admin in fcgroup_data['adminsEmails']:
+        seen.add(fcgroup)
+        for admin in expand_fc_groups(fcgroup_data['adminsEmails'], groups, seen):
             yield admin
-        for member in fcgroup_data['membersEmails']:
+        for member in expand_fc_groups(fcgroup_data['membersEmails'], groups, seen):
             yield member
+    
 
 @fiss_cmd
 def meth_list(args):
@@ -1726,7 +1755,7 @@ def __cmd_to_func(cmd):
         func = None
     return func
 
-def _valid_headerline(l):
+def _valid_headerline(l, model='firecloud'):
     """return true if the given string is a valid loadfile header"""
 
     if not l:
@@ -1739,9 +1768,12 @@ def _valid_headerline(l):
         return False
 
     if tsplit[0] in ('entity', 'update'):
-        return tsplit[1] in ('participant_id', 'participant_set_id',
-                             'sample_id', 'sample_set_id',
-                             'pair_id', 'pair_set_id')
+        if model == 'flexible':
+            return tsplit[1].endswith('_id')
+        else:
+            return tsplit[1] in ('participant_id', 'participant_set_id',
+                                 'sample_id', 'sample_set_id',
+                                 'pair_id', 'pair_set_id')
     elif tsplit[0] == 'membership':
         if len(headers) < 2:
             return False
@@ -1750,7 +1782,8 @@ def _valid_headerline(l):
     else:
         return False
 
-def _batch_load(project, workspace, headerline, entity_data, chunk_size=500):
+def _batch_load(project, workspace, headerline, entity_data, chunk_size=500,
+                model='firecloud'):
     """ Submit a large number of entity updates in batches of chunk_size """
 
 
@@ -1759,11 +1792,11 @@ def _batch_load(project, workspace, headerline, entity_data, chunk_size=500):
 
     # Parse the entity type from the first cell, e.g. "entity:sample_id"
     # First check that the header is valid
-    if not _valid_headerline(headerline):
+    if not _valid_headerline(headerline, model):
         eprint("Invalid loadfile header:\n" + headerline)
         return 1
 
-    update_type = "membership" if headerline.startswith("membership") else "entitie"
+    update_type = "membership" if headerline.startswith("membership") else "entity"
     etype = headerline.split('\t')[0].split(':')[1].replace("_id", "")
 
     # Split entity_data into chunks
@@ -1778,7 +1811,7 @@ def _batch_load(project, workspace, headerline, entity_data, chunk_size=500):
         this_data = headerline + '\n' + '\n'.join(entity_data[i:i+chunk_size])
 
         # Now push the entity data to firecloud
-        r = fapi.upload_entities(project, workspace, this_data)
+        r = fapi.upload_entities(project, workspace, this_data, model)
         fapi._check_response_code(r, 200)
 
     return 0
@@ -2017,6 +2050,9 @@ def main(argv=None):
                       help='Tab-delimited loadfile')
     subp.add_argument('-C', '--chunk-size', default=500, type=int,
                       help='Maximum entities to import per api call')
+    subp.add_argument('-m', '--model', default='firecloud',
+                      choices=['firecloud', 'flexible'], help='Data Model ' +
+                      'type. "%(default)s" (default) or "flexible"')
     subp.set_defaults(func=entity_import)
 
     # Export data (set/container entity) from workspace
@@ -2037,6 +2073,19 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.set_defaults(func=entity_list)
 
+    # List of entities in a workspace
+    subp = subparsers.add_parser(
+        'entity_tsv', description='Get list of entities in TSV format. ' +
+        'Download files for which the encoding is undetected (e.g. ZIP ' +
+        'archives).',
+        parents=[workspace_parent, etype_parent])
+    subp.add_argument('-a', '--attrs', nargs='*',
+                      help='list of ordered attribute names')
+    subp.add_argument('-m', '--model', default='firecloud',
+                      choices=['firecloud', 'flexible'], help='Data Model ' +
+                      'type. "%(default)s" (default) or "flexible"')
+    subp.set_defaults(func=entity_tsv)
+    
     # List of participants
     subp = subparsers.add_parser(
         'participant_list',
