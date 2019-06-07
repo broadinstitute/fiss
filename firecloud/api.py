@@ -181,25 +181,30 @@ def list_entity_types(namespace, workspace):
     uri = "workspaces/{0}/{1}/entities".format(namespace, workspace)
     return __get(uri, headers=headers)
 
-def upload_entities(namespace, workspace, entity_data):
+def upload_entities(namespace, workspace, entity_data, model='firecloud'):
     """Upload entities from tab-delimited string.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         entity_data (str): TSV string describing entites
+        model (str): Data Model type. "firecloud" (default) or "flexible"
 
     Swagger:
         https://api.firecloud.org/#!/Entities/importEntities
+        https://api.firecloud.org/#!/Entities/flexibleImportEntities
     """
     body = urlencode({"entities" : entity_data})
     headers = _fiss_agent_header({
         'Content-type':  "application/x-www-form-urlencoded"
     })
-    uri = "workspaces/{0}/{1}/importEntities".format(namespace, workspace)
+    endpoint = 'importEntities'
+    if model == 'flexible':
+        endpoint = 'flexibleImportEntities'
+    uri = "workspaces/{0}/{1}/{2}".format(namespace, workspace, endpoint)
     return __post(uri, headers=headers, data=body)
 
-def upload_entities_tsv(namespace, workspace, entities_tsv):
+def upload_entities_tsv(namespace, workspace, entities_tsv, model='firecloud'):
     """Upload entities from a tsv loadfile.
 
     File-based wrapper for api.upload_entities().
@@ -216,6 +221,7 @@ def upload_entities_tsv(namespace, workspace, entities_tsv):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         entities_tsv (file): FireCloud loadfile, see format above
+        model (str): Data Model type. "firecloud" (default) or "flexible"
     """
     if isinstance(entities_tsv, string_types):
         with open(entities_tsv, "r") as tsv:
@@ -224,7 +230,7 @@ def upload_entities_tsv(namespace, workspace, entities_tsv):
         entity_data = entities_tsv.getvalue()
     else:
         raise ValueError('Unsupported input type.')
-    return upload_entities(namespace, workspace, entity_data)
+    return upload_entities(namespace, workspace, entity_data, model)
 
 def copy_entities(from_namespace, from_workspace, to_namespace,
                   to_workspace, etype, enames, link_existing_entities=False):
@@ -272,22 +278,27 @@ def get_entities(namespace, workspace, etype):
     uri = "workspaces/{0}/{1}/entities/{2}".format(namespace, workspace, etype)
     return __get(uri)
 
-def get_entities_tsv(namespace, workspace, etype):
+def get_entities_tsv(namespace, workspace, etype, attrs=None, model="firecloud"):
     """List entities of given type in a workspace as a TSV.
 
-    Identical to get_entities(), but the response is a TSV.
+    Similar to get_entities(), but the response is a TSV.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
         etype (str): Entity type
+        attrs (list): list of ordered attribute names to be in downloaded tsv
+        model (str): Data Model type. "firecloud" (default) or "flexible"
 
     Swagger:
-        https://api.firecloud.org/#!/Entities/browserDownloadEntitiesTSV
+        https://api.firecloud.org/#!/Entities/downloadEntitiesTSV
     """
+    params = {'model': model}
+    if attrs is not None:
+        params['attributeNames'] = ','.join(attrs)
     uri = "workspaces/{0}/{1}/entities/{2}/tsv".format(namespace,
                                                 workspace, etype)
-    return __get(uri)
+    return __get(uri, params=params)
 
 def get_entity(namespace, workspace, etype, ename):
     """Request entity information.

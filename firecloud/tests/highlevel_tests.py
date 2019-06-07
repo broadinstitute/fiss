@@ -208,6 +208,15 @@ class TestFISSHighLevel(unittest.TestCase):
             ret = call_cli("sset_list", "-p", self.project,
                            "-w", self.workspace)            
         self.assertNotIn("SS-NT", output)
+    
+    def test_entity_tsv(self):
+        self.load_entities()
+        
+        with Capturing() as output:
+            ret = call_cli('entity_tsv', "-p", self.project, "-w", self.workspace,
+                           '-t', 'participant')
+        self.assertEqual(0, ret)
+        self.assertEqual(2002, len(output))
 
     def test_attr_sample_set(self):
         self.load_entities()
