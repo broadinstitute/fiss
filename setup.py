@@ -124,6 +124,7 @@ setup(
     author = 'Broad Institute CGA Genome Data Analysis Center',
     author_email = 'gdac@broadinstitute.org',
     long_description = _LONG_DESCRIPTION,
+    long_description_content_type='text/plain',
     license = "BSD 3-Clause License",
     url = 'https://github.com/broadinstitute/fiss',
     entry_points = {
