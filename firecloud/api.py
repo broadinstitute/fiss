@@ -52,6 +52,8 @@ def _set_session():
             health()
             __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
                                                      Request(session=__SESSION))['email']
+        except AttributeError:
+            __USER_ID = __SESSION.credentials.service_account_email
         except (DefaultCredentialsError, RefreshError) as gae:
             if os.getenv('SERVER_SOFTWARE', '').startswith('Google App Engine/'):
                 raise
