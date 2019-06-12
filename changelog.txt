@@ -3,6 +3,10 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.24 - Hotfix: corrected error in api.py due to difference in user ID
+           location when run from a Google Cloud VM; setup.py updated to
+           explicitly designate long_description_content_type as text/plain.
+
 v0.16.23 - LL: get_entities_tsv updated with ability to specify ordered
            attributes and data model, upload_entities and upload_entities_tsv
            updated to enable use of flexible data model API; HL: added back
