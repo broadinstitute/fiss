@@ -1218,6 +1218,8 @@ def mop(args):
 
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
+    submission_ids = []
+    filtered_bucket_files = set()
     try:
         gsutil_args = ['gsutil', 'ls', 'gs://' + bucket + '/**']
         if args.verbose:
@@ -1226,12 +1228,29 @@ def mop(args):
         # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
         if type(bucket_files) == bytes:
             bucket_files = bucket_files.decode()
+        
+        #List of user submission within this workspace. To ensure deletion of files in the submission directories only
+        user_submission = fapi.list_submissions(args.project, args.workspace)
+        
+        for item in user_submission.json():
+            sub_id = item['submissionId']
+            submission_ids.append(sub_id)
+        
+        bucket_files = set(bucket_files.strip().split('\n'))
+        for submission_id in submission_ids:
+            for bucket_file in bucket_files:
+                if submission_id in bucket_file:
+                     filtered_bucket_files.add(bucket_file)
+
+        
+        bucket_files = filtered_bucket_files
+        
 
     except subprocess.CalledProcessError as e:
         eprint("Error retrieving files from bucket: " + str(e))
         return 1
 
-    bucket_files = set(bucket_files.strip().split('\n'))
+   
     if args.verbose:
         num = len(bucket_files)
         if args.verbose:
