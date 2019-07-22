@@ -1216,10 +1216,8 @@ def mop(args):
         if isinstance(value, string_types) and value.startswith(bucket_prefix):
             referenced_files.add(value)
 
-    # TODO: Make this more efficient with a native api call?
+     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
-    submission_ids = []
-    filtered_bucket_files = set()
     try:
         gsutil_args = ['gsutil', 'ls', 'gs://' + bucket + '/**']
         if args.verbose:
@@ -1229,23 +1227,22 @@ def mop(args):
         if type(bucket_files) == bytes:
             bucket_files = bucket_files.decode()
         
-        #List of user submission within this workspace. To ensure deletion of files in the submission directories only
-        user_submission = fapi.list_submissions(args.project, args.workspace)
-        
-        for item in user_submission.json():
-            sub_id = item['submissionId']
-            submission_ids.append(sub_id)
-        
-        bucket_files = set(bucket_files.strip().split('\n'))
-        for submission_id in submission_ids:
-            for bucket_file in bucket_files:
-                if submission_id in bucket_file:
-                     filtered_bucket_files.add(bucket_file)
+        # Now make a call to the API for the user's submission information.
+        user_submission_request = fapi.list_submissions(args.project, args.workspace)
 
+        # Check if API call was successful, in the case of failure, the function will return an error 
+        fapi._check_response_code(user_submission_request, 200)
+      
+        # Sort user submission ids for future bucket file verification
+        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
         
-        bucket_files = filtered_bucket_files
+        # Check to see if bucket file path contain the user's submission id
+        # to ensure deletion of files in the submission directories only.
+        # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
+        # and stores values in a 4 length array: ['gs:', '  ' , 'bucket_Id', submission_id] 
+        # to extract the submission id from the 4th element (index 3) of the array
+        bucket_files = set(bucket_file for bucket_file in bucket_files.strip().split('\n') if bucket_file.split('/', 4)[3] in submission_ids)
         
-
     except subprocess.CalledProcessError as e:
         eprint("Error retrieving files from bucket: " + str(e))
         return 1
