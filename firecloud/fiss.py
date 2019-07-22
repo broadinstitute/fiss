@@ -1216,7 +1216,7 @@ def mop(args):
         if isinstance(value, string_types) and value.startswith(bucket_prefix):
             referenced_files.add(value)
 
-    # TODO: Make this more efficient with a native api call?
+     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
     try:
         gsutil_args = ['gsutil', 'ls', 'gs://' + bucket + '/**']
@@ -1226,12 +1226,28 @@ def mop(args):
         # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
         if type(bucket_files) == bytes:
             bucket_files = bucket_files.decode()
+        
+        # Now make a call to the API for the user's submission information.
+        user_submission_request = fapi.list_submissions(args.project, args.workspace)
 
+        # Check if API call was successful, in the case of failure, the function will return an error 
+        fapi._check_response_code(user_submission_request, 200)
+      
+        # Sort user submission ids for future bucket file verification
+        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
+        
+        # Check to see if bucket file path contain the user's submission id
+        # to ensure deletion of files in the submission directories only.
+        # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
+        # and stores values in a 4 length array: ['gs:', '  ' , 'bucket_Id', submission_id] 
+        # to extract the submission id from the 4th element (index 3) of the array
+        bucket_files = set(bucket_file for bucket_file in bucket_files.strip().split('\n') if bucket_file.split('/', 4)[3] in submission_ids)
+        
     except subprocess.CalledProcessError as e:
         eprint("Error retrieving files from bucket: " + str(e))
         return 1
 
-    bucket_files = set(bucket_files.strip().split('\n'))
+   
     if args.verbose:
         num = len(bucket_files)
         if args.verbose:
