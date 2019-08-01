@@ -13,6 +13,7 @@ import time
 from inspect import getsourcelines
 from traceback import print_tb as print_traceback
 from io import open
+from fnmatch import fnmatchcase
 import argparse
 import subprocess
 import re
@@ -1307,6 +1308,17 @@ def mop(args):
         # keep stdout, stderr, and output
         if filename in ('stderr', 'stdout', 'output'):
             return False
+        # Only delete specified unreferenced files
+        if args.include:
+            for glob in args.include:
+                if fnmatchcase(filename, glob):
+                    return True
+            return False
+        # Don't delete specified unreferenced files
+        if args.exclude:
+            for glob in args.exclude:
+                if fnmatchcase(filename, glob):
+                    return False
 
         return True
 
@@ -2458,6 +2470,14 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.add_argument('--dry-run', action='store_true',
                       help='Show deletions that would be performed')
+    group = subp.add_mutually_exclusive_group()
+    group.add_argument('-i', '--include', nargs='+', metavar="glob",
+                       help="Only delete unreferenced files matching the " +
+                            "given UNIX glob-style pattern(s)")
+    group.add_argument('-x', '--exclude', nargs='+', metavar="glob",
+                       help="Only delete unreferenced files that don't match" +
+                            " the given UNIX glob-style pattern(s)")
+    
     subp.set_defaults(func=mop)
 
     subp = subparsers.add_parser('noop',
