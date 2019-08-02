@@ -13,6 +13,7 @@ import time
 from inspect import getsourcelines
 from traceback import print_tb as print_traceback
 from io import open
+from fnmatch import fnmatchcase
 import argparse
 import subprocess
 import re
@@ -1209,7 +1210,7 @@ def mop(args):
     workspace_name = workspace['workspace']['name']
 
     if args.verbose:
-        print("{0} -- {1}".format(workspace_name, bucket_prefix))
+        print("{} -- {}".format(workspace_name, bucket_prefix))
 
     referenced_files = set()
     for value in workspace['workspace']['attributes'].values():
@@ -1219,23 +1220,47 @@ def mop(args):
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
     try:
-        gsutil_args = ['gsutil', 'ls', 'gs://' + bucket + '/**']
+        gsutil_args = ['gsutil', 'ls', '-l', bucket_prefix + '/**']
         if args.verbose:
             print(' '.join(gsutil_args))
-        bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.PIPE)
+        bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.STDOUT)
         # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
         if type(bucket_files) == bytes:
             bucket_files = bucket_files.decode()
+        
+        # Store size of each file in bucket to report recovered space
+        bucket_file_sizes = {}
+        for listing in bucket_files.split('\n'):
+            listing = listing.strip().split('  ')
+            if len(listing) != 3:
+                break
+            bucket_file_sizes[listing[2]] = int(listing[0])
+        
+        # Now make a call to the API for the user's submission information.
+        user_submission_request = fapi.list_submissions(args.project, args.workspace)
 
+        # Check if API call was successful, in the case of failure, the function will return an error 
+        fapi._check_response_code(user_submission_request, 200)
+      
+        # Sort user submission ids for future bucket file verification
+        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
+        
+        # Check to see if bucket file path contain the user's submission id
+        # to ensure deletion of files in the submission directories only.
+        # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
+        # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
+        # to extract the submission id from the 4th element (index 3) of the array
+        bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
+        
     except subprocess.CalledProcessError as e:
-        eprint("Error retrieving files from bucket: " + str(e))
+        eprint("Error retrieving files from bucket:" +
+               "\n\t{}\n\t{}".format(str(e), e.output))
         return 1
 
-    bucket_files = set(bucket_files.strip().split('\n'))
     if args.verbose:
         num = len(bucket_files)
         if args.verbose:
-            print("Found {0} files in bucket {1}".format(num, bucket))
+            print("Found {} files in bucket {}".format(num, bucket))
 
     # Now build a set of files that are referenced in the bucket
     # 1. Get a list of the entity types in the workspace
@@ -1260,7 +1285,7 @@ def mop(args):
 
     if args.verbose:
         num = len(referenced_files)
-        print("Found {0} referenced files in workspace {1}".format(num, workspace_name))
+        print("Found {} referenced files in workspace {}".format(num, workspace_name))
 
     # Set difference shows files in bucket that aren't referenced
     unreferenced_files = bucket_files - referenced_files
@@ -1268,43 +1293,77 @@ def mop(args):
     # Filter out files like .logs and rc.txt
     def can_delete(f):
         '''Return true if this file should not be deleted in a mop.'''
+        filename = f.rsplit('/', 1)[-1]
         # Don't delete logs
-        if f.endswith('.log'):
+        if filename.endswith('.log'):
             return False
         # Don't delete return codes from jobs
-        if f.endswith('-rc.txt'):
+        if filename.endswith('-rc.txt'):
             return False
-        # Don't delete tool's exec.sh
-        if f.endswith('exec.sh'):
+        if filename == "rc":
             return False
+        # Don't delete tool's exec.sh or script
+        if filename in ('exec.sh', 'script'):
+            return False
+        # keep stdout, stderr, and output
+        if filename in ('stderr', 'stdout', 'output'):
+            return False
+        # Only delete specified unreferenced files
+        if args.include:
+            for glob in args.include:
+                if fnmatchcase(filename, glob):
+                    return True
+            return False
+        # Don't delete specified unreferenced files
+        if args.exclude:
+            for glob in args.exclude:
+                if fnmatchcase(filename, glob):
+                    return False
 
         return True
 
-    deleteable_files = [f for f in unreferenced_files if can_delete(f)]
+    deletable_files = [f for f in unreferenced_files if can_delete(f)]
 
-    if len(deleteable_files) == 0:
+    if len(deletable_files) == 0:
         if args.verbose:
             print("No files to mop in " + workspace['workspace']['name'])
         return 0
+    
+    units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+    def human_readable_size(size_in_bytes):
+        '''Takes a bytes value and returns a human-readable string with an
+        appropriate unit conversion'''
+        reduce_count = 0
+        while size_in_bytes >= 1024.0 and reduce_count < 5:
+            size_in_bytes /= 1024.0
+            reduce_count += 1
+        size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
+        return "{} {}".format(size_str, units[reduce_count])
+    
+    deletable_size = human_readable_size(sum(bucket_file_sizes[f]
+                                             for f in deletable_files))
 
     if args.verbose or args.dry_run:
-        print("Found {0} files to delete:\n".format(len(deleteable_files))
-               + "\n".join(deleteable_files ) + '\n')
+        print("Found {} files to delete:\n".format(len(deletable_files)) +
+              "\n".join("{}  {}".format(human_readable_size(bucket_file_sizes[f]).rjust(11), f)
+                        for f in deletable_files) +
+              '\nTotal Size: {}\n'.format(deletable_size))
 
-    message = "WARNING: Delete {0} files in {1} ({2})".format(
-        len(deleteable_files), bucket_prefix, workspace['workspace']['name'])
+    message = "WARNING: Delete {} files totaling {} in {} ({})".format(
+        len(deletable_files), deletable_size, bucket_prefix,
+        workspace['workspace']['name'])
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         return 0
 
-    # Pipe the deleteable_files into gsutil rm to remove them
+    # Pipe the deletable_files into gsutil rm to remove them
     gsrm_args = ['gsutil', '-m', 'rm', '-I']
     PIPE = subprocess.PIPE
     STDOUT=subprocess.STDOUT
     if args.verbose:
         print("Deleting files with gsutil...")
     gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    # Pipe the deleteable_files into gsutil
-    result = gsrm_proc.communicate(input='\n'.join(deleteable_files).encode())[0]
+    # Pipe the deletable_files into gsutil
+    result = gsrm_proc.communicate(input='\n'.join(deletable_files).encode())[0]
     if args.verbose:
         if type(result) == bytes:
             result = result.decode()
@@ -1314,7 +1373,7 @@ def mop(args):
 @fiss_cmd
 def noop(args):
     if args.verbose:
-        proj  = getattr(args, "project","unspecified")
+        proj  = getattr(args, "project", "unspecified")
         space = getattr(args, "workspace", "unspecified")
         print('fiss no-op command: Project=%s, Space=%s' % (proj, space))
     return 0
@@ -2411,6 +2470,14 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.add_argument('--dry-run', action='store_true',
                       help='Show deletions that would be performed')
+    group = subp.add_mutually_exclusive_group()
+    group.add_argument('-i', '--include', nargs='+', metavar="glob",
+                       help="Only delete unreferenced files matching the " +
+                            "given UNIX glob-style pattern(s)")
+    group.add_argument('-x', '--exclude', nargs='+', metavar="glob",
+                       help="Only delete unreferenced files that don't match" +
+                            " the given UNIX glob-style pattern(s)")
+    
     subp.set_defaults(func=mop)
 
     subp = subparsers.add_parser('noop',
