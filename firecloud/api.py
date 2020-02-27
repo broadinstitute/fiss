@@ -1034,7 +1034,7 @@ def list_submissions(namespace, workspace):
     return __get(uri)
 
 def create_submission(wnamespace, workspace, cnamespace, config,
-                      entity, etype, expression=None, use_callcache=True):
+                      entity=None, etype=None, expression=None, use_callcache=True):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -1058,10 +1058,14 @@ def create_submission(wnamespace, workspace, cnamespace, config,
     body = {
         "methodConfigurationNamespace" : cnamespace,
         "methodConfigurationName" : config,
-         "entityType" : etype,
-         "entityName" : entity,
          "useCallCache" : use_callcache
     }
+
+    if etype:
+        body['entityType'] = etype
+
+    if entity:
+        body['entityName'] = entity
 
     if expression:
         body['expression'] = expression
