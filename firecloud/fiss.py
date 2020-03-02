@@ -567,6 +567,10 @@ def config_start(args):
         args.namespace = fcconfig.method_ns
     if not args.namespace:
         raise RuntimeError("namespace not provided, or configured by default")
+    
+    # If no entity name is given, unset entity_type
+    if args.entity is None:
+        args.entity_type = None
 
     r = fapi.create_submission(args.project, args.workspace,args.namespace,
                             args.config, args.entity, args.entity_type,
@@ -2497,12 +2501,14 @@ def main(argv=None):
     # Invoke a method configuration
     subp = subparsers.add_parser('config_start',
         description='Start running workflow in a given space',
-        parents=[workspace_parent, conf_parent, entity_parent])
+        parents=[workspace_parent, conf_parent])
+    subp.add_argument('-e', '--entity', help="Entity name (required if " +
+                      "executing on an entity)")
     # Duplicate entity type here since we want sample_set to be default
     subp.add_argument('-t', '--entity-type', default='sample_set',
                       choices=etype_choices,
-                      help='Entity type to assign null values, if attribute ' +
-                           'is missing. Default: %(default)s')
+                      help='Entity type of specified entity. Not used if no ' +
+                      'entity is named. Default: %(default)s')
     expr_help = "(optional) Entity expression to use when entity type " \
                 "doesn't match the method configuration." \
                 "Example: 'this.samples'"
