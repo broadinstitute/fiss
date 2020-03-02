@@ -147,7 +147,7 @@ def space_clone(args):
         return 1
 
     r = fapi.clone_workspace(args.project, args.workspace, args.to_project,
-                                                            args.to_workspace)
+                             args.to_workspace, args.copyFilesWithPrefix)
     fapi._check_response_code(r, 201)
 
     if fcconfig.verbosity:
@@ -2100,6 +2100,8 @@ def main(argv=None):
                  'be different from the workspace being cloned'
     subp = subparsers.add_parser('space_clone', description=clone_desc,
                                  parents=[workspace_parent, dest_space_parent])
+    subp.add_argument('-f', '--copyFilesWithPrefix', help='Specify a prefix ' +
+                      'of bucket objects to copy to the destination workspace')
     subp.set_defaults(func=space_clone)
 
     # Import data into a workspace

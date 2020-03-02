@@ -1246,7 +1246,7 @@ def update_workspace_acl(namespace, workspace, acl_updates, invite_users_not_fou
     return __SESSION.patch(uri, headers=headers, data=json.dumps(acl_updates))
 
 def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
-                    authorizationDomain=""):
+                    authorizationDomain="", copyFilesWithPrefix=None):
     """Clone a FireCloud workspace.
 
     A clone is a shallow copy of a FireCloud workspace, enabling
@@ -1258,6 +1258,7 @@ def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
         to_namespace (str):  project to which target workspace belongs
         to_workspace (str): Target workspace's name
         authorizationDomain: (str) required authorization domains
+        copyFilesWithPrefix: (str) prefix of bucket objects to copy to the destination workspace
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/cloneWorkspace
@@ -1277,6 +1278,9 @@ def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
         "attributes": dict(),
         "authorizationDomain": authDomain,
     }
+    
+    if copyFilesWithPrefix is not None:
+        body["copyFilesWithPrefix"] = copyFilesWithPrefix
 
     uri = "workspaces/{0}/{1}/clone".format(from_namespace, from_workspace)
     return __post(uri, json=body)
