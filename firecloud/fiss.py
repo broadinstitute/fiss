@@ -147,7 +147,7 @@ def space_clone(args):
         return 1
 
     r = fapi.clone_workspace(args.project, args.workspace, args.to_project,
-                                                            args.to_workspace)
+                             args.to_workspace, args.copyFilesWithPrefix)
     fapi._check_response_code(r, 201)
 
     if fcconfig.verbosity:
@@ -567,6 +567,10 @@ def config_start(args):
         args.namespace = fcconfig.method_ns
     if not args.namespace:
         raise RuntimeError("namespace not provided, or configured by default")
+    
+    # If no entity name is given, unset entity_type
+    if args.entity is None:
+        args.entity_type = None
 
     r = fapi.create_submission(args.project, args.workspace,args.namespace,
                             args.config, args.entity, args.entity_type,
@@ -2100,6 +2104,8 @@ def main(argv=None):
                  'be different from the workspace being cloned'
     subp = subparsers.add_parser('space_clone', description=clone_desc,
                                  parents=[workspace_parent, dest_space_parent])
+    subp.add_argument('-f', '--copyFilesWithPrefix', help='Specify a prefix ' +
+                      'of bucket objects to copy to the destination workspace')
     subp.set_defaults(func=space_clone)
 
     # Import data into a workspace
@@ -2495,12 +2501,14 @@ def main(argv=None):
     # Invoke a method configuration
     subp = subparsers.add_parser('config_start',
         description='Start running workflow in a given space',
-        parents=[workspace_parent, conf_parent, entity_parent])
+        parents=[workspace_parent, conf_parent])
+    subp.add_argument('-e', '--entity', help="Entity name (required if " +
+                      "executing on an entity)")
     # Duplicate entity type here since we want sample_set to be default
     subp.add_argument('-t', '--entity-type', default='sample_set',
                       choices=etype_choices,
-                      help='Entity type to assign null values, if attribute ' +
-                           'is missing. Default: %(default)s')
+                      help='Entity type of specified entity. Not used if no ' +
+                      'entity is named. Default: %(default)s')
     expr_help = "(optional) Entity expression to use when entity type " \
                 "doesn't match the method configuration." \
                 "Example: 'this.samples'"
