@@ -88,17 +88,21 @@ def _fiss_agent_header(headers=None):
         fiss_headers.update(headers)
     return fiss_headers
 
-def __get(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
+def __get(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header()
+    if not root_url:
+        root_url = fcconfig.root_url
     r = __SESSION.get(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         print('FISSFC call: %s' % r.url, file=sys.stderr)
     return r
 
-def __post(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
+def __post(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header({"Content-type":  "application/json"})
+    if not root_url:
+        root_url = fcconfig.root_url
     r = __SESSION.post(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         info = r.url
@@ -108,9 +112,11 @@ def __post(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
         print('FISSFC call: POST %s' % info, file=sys.stderr)
     return r
 
-def __put(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
+def __put(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header()
+    if not root_url:
+        root_url = fcconfig.root_url
     r = __SESSION.put(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
         info = r.url
@@ -120,9 +126,11 @@ def __put(methcall, headers=None, root_url=fcconfig.root_url, **kwargs):
         print('FISSFC call: PUT %s' % info, file=sys.stderr)
     return r
 
-def __delete(methcall, headers=None, root_url=fcconfig.root_url):
+def __delete(methcall, headers=None, root_url=None):
     if not headers:
         headers = _fiss_agent_header()
+    if not root_url:
+        root_url = fcconfig.root_url
     r = __SESSION.delete(urljoin(root_url, methcall), headers=headers)
     if fcconfig.verbosity > 1:
         print('FISSFC call: DELETE %s' % r.url, file=sys.stderr)
