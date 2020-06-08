@@ -1374,6 +1374,84 @@ def mop(args):
         print(result.rstrip())
     return 0
 
+def _call_gsstat(object_list):
+    """
+    Call gsutil stat on a list of objects and return list of ones that can't be
+    found.
+    """
+    gsstat_args = ['gsutil', '-m', 'stat'] + object_list
+    no_stats = list()
+    try:
+        gsstats = subprocess.check_output(gsstat_args, universal_newlines=True,
+                                          stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        # Account for gsutil stat bug that doesn't emit newlines after missing
+        # or inaccessible objects
+        gsstats = re.sub(r"\B(No URLs matched: |You aren't authorized to read |gs://)",
+                         r"\n\1", e.output)
+    except:
+        raise
+
+    for line in gsstats.split('\n'):
+        if line.startswith("No URLs matched: "):
+            no_stats.append("{}\tNot Found".format(line[17:]))
+        if line.startswith("You aren't authorized to read "):
+            no_stats.append("{}\tNot Authorized".format(line[30:-11]))
+    return no_stats
+
+@fiss_cmd
+def validate_file_attrs(args):
+    bucket_prefix = "gs://"
+    verbose = fcconfig.verbosity
+    if verbose:
+        eprint("Retrieving workspace information...")
+    r = fapi.get_workspace(args.project, args.workspace)
+    fapi._check_response_code(r, 200)
+    workspace = r.json()
+
+    referenced_files = set()
+    # Get all workspace file attributes
+    for value in workspace['workspace']['attributes'].values():
+        if isinstance(value, str) and value.startswith(bucket_prefix):
+            referenced_files.add(value)
+
+    # Now build a set of files that are referenced in the bucket
+    # 1. Get a list of the entity types in the workspace
+    r = fapi.list_entity_types(args.project, args.workspace)
+    fapi._check_response_code(r, 200)
+    entity_types = r.json().keys()
+
+    # 2. For each entity type, request all the entities
+    for etype in entity_types:
+        if verbose:
+            eprint("Getting annotations for " + etype + " entities...")
+        # use the paginated version of the query
+        entities = _entity_paginator(args.project, args.workspace, etype,
+                                     page_size=1000, filter_terms=None,
+                                     sort_direction="asc")
+
+        for entity in entities:
+            for value in entity['attributes'].values():
+                if isinstance(value, str) and value.startswith(bucket_prefix):
+                    referenced_files.add(value)
+
+    sorted_files = sorted(referenced_files)
+    chunk_size = 100
+    total_files = len(sorted_files)
+    no_stats = list()
+    if verbose:
+        eprint("Total files:", total_files)
+    for idx in range(0, total_files, chunk_size):
+        if total_files - idx <= chunk_size:
+            if verbose:
+                eprint("checking", idx + 1, "to", total_files)
+            no_stats += _call_gsstat(sorted_files[idx:])
+        else:
+            if verbose:
+                eprint("checking", idx + 1, "to", idx + chunk_size)
+            no_stats += _call_gsstat(sorted_files[idx:idx+chunk_size])
+    return no_stats
+
 @fiss_cmd
 def noop(args):
     if args.verbose:
@@ -2485,6 +2563,13 @@ def main(argv=None):
                             " the given UNIX glob-style pattern(s)")
     
     subp.set_defaults(func=mop)
+    
+    # List all invalid file attributes of a workspaces and its entities
+    subp = subparsers.add_parser('validate_file_attrs',
+                                 parents=[workspace_parent],
+                                 description='List all invalid file ' + \
+                                 'attributes of a workspaces and its entities')
+    subp.set_defaults(func=validate_file_attrs)
 
     subp = subparsers.add_parser('noop',
                                  description='Simple no-op command, for ' +
