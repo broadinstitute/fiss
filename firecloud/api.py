@@ -91,7 +91,7 @@ def _fiss_agent_header(headers=None):
 def __get(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header()
-    if not root_url:
+    if root_url is None:
         root_url = fcconfig.root_url
     r = __SESSION.get(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
@@ -101,7 +101,7 @@ def __get(methcall, headers=None, root_url=None, **kwargs):
 def __post(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header({"Content-type":  "application/json"})
-    if not root_url:
+    if root_url is None:
         root_url = fcconfig.root_url
     r = __SESSION.post(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
@@ -115,7 +115,7 @@ def __post(methcall, headers=None, root_url=None, **kwargs):
 def __put(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header()
-    if not root_url:
+    if root_url is None:
         root_url = fcconfig.root_url
     r = __SESSION.put(urljoin(root_url, methcall), headers=headers, **kwargs)
     if fcconfig.verbosity > 1:
@@ -129,7 +129,7 @@ def __put(methcall, headers=None, root_url=None, **kwargs):
 def __delete(methcall, headers=None, root_url=None):
     if not headers:
         headers = _fiss_agent_header()
-    if not root_url:
+    if root_url is None:
         root_url = fcconfig.root_url
     r = __SESSION.delete(urljoin(root_url, methcall), headers=headers)
     if fcconfig.verbosity > 1:

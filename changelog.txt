@@ -5,7 +5,9 @@ Terms used below:  HL = high level interface, LL = low level interface
 
 v0.16.27 - HL: added new function validate_file_attrs, which takes all
            file attributes in a given workspace and entities contained within
-           and checks if they exist/the user has access to them.
+           and checks if they exist/the user has access to them; LL: Bugfix,
+           default root_url of API can now be set via CLI or interactively;
+           previously it could only be effectively modified via .fissconfig.
 
 v0.16.26 - LL: added copyFilesWithPrefix parameter to clone_workspace,
            create_submission no longer includes entity name and type in its
