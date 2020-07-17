@@ -41,7 +41,7 @@ def fiss_cmd(function):
 def space_list(args):
     ''' List accessible workspaces, in TSV form: <namespace><TAB>workspace'''
 
-    r = fapi.list_workspaces()
+    r = fapi.list_workspaces(fields="workspace.name,workspace.namespace")
     fapi._check_response_code(r, 200)
 
     spaces = []
@@ -191,7 +191,7 @@ def space_set_acl(args):
 @fiss_cmd
 def space_search(args):
     """ Search for workspaces matching certain criteria """
-    r = fapi.list_workspaces()
+    r = fapi.list_workspaces(fields="workspace.name,workspace.namespace,workspace.bucketName")
     fapi._check_response_code(r, 200)
 
     # Parse the JSON for workspace + namespace; then filter by

@@ -1155,13 +1155,22 @@ def get_submission_queue():
 ### 1.7 Workspaces
 #####################
 
-def list_workspaces():
+def list_workspaces(fields=None):
     """Request list of FireCloud workspaces.
+
+    Args:
+        fields (str): a comma-delimited list of values that limits the
+            response payload to include only those keys and exclude other
+            keys (e.g., to include {"workspace": {"attributes": {...}}},
+            specify "workspace.attributes").
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/listWorkspaces
     """
-    return __get("workspaces")
+    if fields is None:
+        return __get("workspaces")
+    else:
+        return __get("workspaces", params={"fields": fields})
 
 def create_workspace(namespace, name, authorizationDomain="", attributes=None):
     """Create a new FireCloud Workspace.
