@@ -68,7 +68,7 @@ def space_exists(args):
     #      ...
     #   fi
     try:
-        r = fapi.get_workspace(args.project, args.workspace)
+        r = fapi.get_workspace(args.project, args.workspace, fields="workspace.name")
         fapi._check_response_code(r, 200)
         exists = True
     except FireCloudServerError as e:
@@ -873,7 +873,7 @@ def attr_get(args):
         for k in ["samples", "participants", "pairs"]:
             attrs.pop(k, None)
     else:
-        r = fapi.get_workspace(args.project, args.workspace)
+        r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
         attrs = r.json()['workspace']['attributes']
 
@@ -1047,7 +1047,7 @@ def attr_copy(args):
         return 1
 
     # First get the workspace attributes of the source workspace
-    r = fapi.get_workspace(args.project, args.workspace)
+    r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
     fapi._check_response_code(r, 200)
 
     # Parse the attributes
@@ -1206,7 +1206,8 @@ def mop(args):
     # First retrieve the workspace to get bucket information
     if args.verbose:
         print("Retrieving workspace information...")
-    r = fapi.get_workspace(args.project, args.workspace)
+    fields = "workspace.bucketName,workspace.name,workspace.attributes"
+    r = fapi.get_workspace(args.project, args.workspace, fields=fields)
     fapi._check_response_code(r, 200)
     workspace = r.json()
     bucket = workspace['workspace']['bucketName']
@@ -1405,7 +1406,7 @@ def validate_file_attrs(args):
     verbose = fcconfig.verbosity
     if verbose:
         eprint("Retrieving workspace information...")
-    r = fapi.get_workspace(args.project, args.workspace)
+    r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
     fapi._check_response_code(r, 200)
     workspace = r.json()
 
@@ -1622,7 +1623,7 @@ def config_validate(args):
             entity_d = entity_r.json()
 
     # also get the workspace info
-    w = fapi.get_workspace(args.project, args.workspace)
+    w = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
     fapi._check_response_code(w, 200)
     workspace_d = w.json()
 
