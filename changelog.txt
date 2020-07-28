@@ -3,6 +3,10 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.28 - LL: added fields parameter to list_workspaces; HL: space_list and
+           space_search updated to use fields parameter in call to
+           list_workspaces, proj_list fixed to enable py3 compatibility. 
+
 v0.16.27 - HL: added new function validate_file_attrs, which takes all
            file attributes in a given workspace and entities contained within
            and checks if they exist/the user has access to them; LL: Bugfix,
