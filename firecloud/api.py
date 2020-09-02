@@ -1219,18 +1219,25 @@ def delete_workspace(namespace, workspace):
     uri = "workspaces/{0}/{1}".format(namespace, workspace)
     return __delete(uri)
 
-def get_workspace(namespace, workspace):
+def get_workspace(namespace, workspace, fields=None):
     """Request FireCloud Workspace information.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
+        fields (str): a comma-delimited list of values that limits the
+            response payload to include only those keys and exclude other
+            keys (e.g., to include {"workspace": {"attributes": {...}}},
+            specify "workspace.attributes").
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/getWorkspace
     """
     uri = "workspaces/{0}/{1}".format(namespace, workspace)
-    return __get(uri)
+    if fields is None:
+        return __get(uri)
+    else:
+        return __get(uri, params={"fields": fields})
 
 def get_workspace_acl(namespace, workspace):
     """Request FireCloud access aontrol list for workspace.
