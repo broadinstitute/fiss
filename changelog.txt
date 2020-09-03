@@ -3,6 +3,13 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.29 - LL: added fields parameter to get_workspace; HL: space_exists,
+           attr_get, attr_copy, mop, validate_file_attrs, and config_validate
+           updated to use fields parameter in call to get_workspace; py3 fixes:
+           easy_install removed from setup.py to enable compatibility with
+           latest setuptools, tempfile generated in fccore.edit_text now opens
+           in mode 'w' instead of 'w+b' to work with both py2 and py3 str.
+
 v0.16.28 - LL: added fields parameter to list_workspaces; HL: space_list and
            space_search updated to use fields parameter in call to
            list_workspaces, proj_list fixed to enable py3 compatibility. 
