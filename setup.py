@@ -145,7 +145,7 @@ setup(
         'google-auth>=1.6.3',
         'pydot',
         'requests[security]',
-        'setuptools>=40.3.0, <=50.0.0',
+        'setuptools>=40.3.0',
         'six',
         'nose',
         'pylint==1.7.2'
