@@ -1,16 +1,22 @@
 import os
+import sys
 import platform
 import contextlib
 import tempfile
 import subprocess
+from distutils import log
+from shutil import rmtree
 from setuptools import setup, find_packages, Command
 from setuptools.command.install import install
 from setuptools.package_index import PackageIndex
-from setuptools.command.easy_install import six, rmtree_safe, rmtree, log
 from firecloud.__about__ import __version__
 from firecloud import which
 _README           = os.path.join(os.path.dirname(__file__), 'README')
 _LONG_DESCRIPTION = open(_README).read()
+
+# Workaround for http://bugs.python.org/issue24672
+linux_py2_ascii = platform.system() == 'Linux' and sys.version_info.major == 2
+rmtree_safe = str if linux_py2_ascii else lambda x: x
 
 class InstallCommand(install):
     def needs_gcloud(self):
@@ -58,7 +64,7 @@ class InstallGcloudCommand(Command):
     # Copied from setuptools.command.easy_install.easy_install
     @contextlib.contextmanager
     def _tmpdir(self):
-        tmpdir = tempfile.mkdtemp(prefix=six.u("install_gcloud-"))
+        tmpdir = tempfile.mkdtemp(prefix="install_gcloud-".encode('utf-8').decode('utf-8'))
         try:
             # cast to str as workaround for #709 and #710 and #712
             yield str(tmpdir)

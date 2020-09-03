@@ -189,7 +189,7 @@ __EDITOR__ = os.environ.get('EDITOR','vi')
 
 def edit_text(text=None):
     # Edit block of text in a single string, returning the edited result
-    tf = tempfile.NamedTemporaryFile(suffix=".tmp")
+    tf = tempfile.NamedTemporaryFile(suffix=".tmp", mode='w')
     if text:
         tf.write(text)
         tf.flush()
