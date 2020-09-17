@@ -491,6 +491,9 @@ def expand_fc_groups(users, groups=None, seen=set()):
     """
     for user in users:
         fcgroup = None
+        if user.lower() == 'public':
+            yield 'public'
+            continue
         if '@' not in user:
             fcgroup = user
         elif user.lower().endswith('@firecloud.org'):
