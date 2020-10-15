@@ -1228,6 +1228,7 @@ def mop(args):
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
     try:
+        # TODO add option to retrieve md5 info to check for duplicates
         gsutil_args = ['gsutil', 'ls', '-l', bucket_prefix + '/**']
         if args.verbose:
             print(' '.join(gsutil_args))
@@ -1237,6 +1238,7 @@ def mop(args):
             bucket_files = bucket_files.decode()
         
         # Store size of each file in bucket to report recovered space
+        # TODO also store md5
         bucket_file_sizes = {}
         for listing in bucket_files.split('\n'):
             listing = listing.strip().split('  ')
@@ -1258,6 +1260,7 @@ def mop(args):
         # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
         # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
         # to extract the submission id from the 4th element (index 3) of the array
+        # TODO do we want to limit only to submissions? (probably we do and this is fine)
         bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
         
     except subprocess.CalledProcessError as e:
@@ -1296,6 +1299,7 @@ def mop(args):
         print("Found {} referenced files in workspace {}".format(num, workspace_name))
 
     # Set difference shows files in bucket that aren't referenced
+    # TODO add logic for optional duplicate reduction using md5 info
     unreferenced_files = bucket_files - referenced_files
 
     # Filter out files like .logs and rc.txt
@@ -2565,7 +2569,10 @@ def main(argv=None):
     group.add_argument('-x', '--exclude', nargs='+', metavar="glob",
                        help="Only delete unreferenced files that don't match" +
                             " the given UNIX glob-style pattern(s)")
-    
+    # TODO add args for: 
+    #  - keep a copy of all duplicate files (even if not in data model)
+    #  - generate csv of files to be deleted
+
     subp.set_defaults(func=mop)
     
     # List all invalid file attributes of a workspaces and its entities
