@@ -1205,6 +1205,15 @@ def health(args):
     fapi._check_response_code(r, 200)
     return r.content
 
+class BucketFile:
+    """Class to store bucket file info."""
+    def __init__(self, file_path, size):
+        self.file_path = file_path
+        self.file_name = file_path.split('/')[-1]
+        self.submission_id = file_path.split('/', 4)[3]
+        self.size = size
+        self.md5 = None
+
 @fiss_cmd
 def mop(args):
     ''' Clean up unreferenced data in a workspace'''
@@ -1241,12 +1250,14 @@ def mop(args):
         
         # Store size of each file in bucket to report recovered space
         # TODO also store md5
-        bucket_file_sizes = {}
+        bucket_files = {}
         for listing in bucket_files.split('\n'):
             listing = listing.strip().split('  ')
             if len(listing) != 3:
                 break
-            bucket_file_sizes[listing[2]] = int(listing[0])
+            file_path = listing[2]
+            file_size = int(listing[0])
+            bucket_files[file_name] = BucketFile(file_path, file_size)
         
         # Now make a call to the API for the user's submission information.
         user_submission_request = fapi.list_submissions(args.project, args.workspace)
@@ -1263,8 +1274,8 @@ def mop(args):
         # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
         # to extract the submission id from the 4th element (index 3) of the array
         # TODO do we want to limit only to submissions? (probably we do and this is fine)
-        bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
-        
+        bucket_files = set(bucket_file for bucket_file in bucket_files if bucket_file.submission_id in submission_ids)
+
     except subprocess.CalledProcessError as e:
         eprint("Error retrieving files from bucket:" +
                "\n\t{}\n\t{}".format(str(e), e.output))
@@ -2591,6 +2602,9 @@ def main(argv=None):
                       help='Show deletions that would be performed')
     subp.add_argument('--make-manifest', action='store_true',
                       help='Generate csv of all bucket files and which will be deleted')
+    subp.add_argument('--keep-one', action='store_true',
+                      help='Keep one copy of all duplicated files even if ' +
+                           'not referenced in data model')
     group = subp.add_mutually_exclusive_group()
     group.add_argument('-i', '--include', nargs='+', metavar="glob",
                        help="Only delete unreferenced files matching the " +
