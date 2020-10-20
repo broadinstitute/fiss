@@ -26,6 +26,8 @@ from firecloud import fccore
 from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
+import pandas as pd
+from datetime import date
 
 fcconfig = fccore.config_parse()
 
@@ -1210,7 +1212,7 @@ def mop(args):
     if args.verbose:
         print("Retrieving workspace information...")
     fields = "workspace.bucketName,workspace.name,workspace.attributes"
-    r = fapi.get_workspace(args.project, args.workspace, fields=fields)
+    r = fapi.get_workspace(args.project, args.workspace)
     fapi._check_response_code(r, 200)
     workspace = r.json()
     bucket = workspace['workspace']['bucketName']
@@ -1364,6 +1366,33 @@ def mop(args):
     message = "WARNING: Delete {} files totaling {} in {} ({})".format(
         len(deletable_files), deletable_size, bucket_prefix,
         workspace['workspace']['name'])
+    #NEW CODE
+    if args.make_manifest:
+        print("hi")
+        all_files_list = []
+        for full_path in bucket_files:
+            if full_path in deletable_files:
+                to_delete = True
+            else: 
+                to_delete = False
+            md5 = "md5"
+            size_bytes = human_readable_size(bucket_file_sizes[full_path]).rjust(11)
+            if full_path in referenced_files:
+                is_in_data_table = True
+            else:
+                is_in_data_table = False
+            latest_time_modified = "today"
+            file_dict = {'full_path': full_path,
+                   'to_delete': to_delete,
+                   'md5': md5,
+                   'size_bytes': size_bytes,
+                   'is_in_data_table': is_in_data_table,
+                   'latest_time_modified': latest_time_modified}
+            all_files_list.append(file_dict)
+        today = date.today().strftime('%Y_%m_%d')
+        df = pd.DataFrame(data=all_files_list)
+        df.to_csv(f'mop_manifest_{today}.csv', index=False) 
+
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         return 0
 
@@ -1373,9 +1402,10 @@ def mop(args):
     STDOUT=subprocess.STDOUT
     if args.verbose:
         print("Deleting files with gsutil...")
-    gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    # Pipe the deletable_files into gsutil
-    result = gsrm_proc.communicate(input='\n'.join(deletable_files).encode())[0]
+    #AHHHH I don't want to delete
+    # gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    # # Pipe the deletable_files into gsutil
+    # result = gsrm_proc.communicate(input='\n'.join(deletable_files).encode())[0]
     if args.verbose:
         if type(result) == bytes:
             result = result.decode()
