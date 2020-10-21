@@ -27,7 +27,7 @@ from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
 import pandas as pd
-from datetime import date
+from datetime import datetime
 
 fcconfig = fccore.config_parse()
 
@@ -1368,7 +1368,6 @@ def mop(args):
         workspace['workspace']['name'])
     #NEW CODE
     if args.make_manifest:
-        print("hi")
         all_files_list = []
         for full_path in bucket_files:
             if full_path in deletable_files:
@@ -1376,7 +1375,7 @@ def mop(args):
             else: 
                 to_delete = False
             md5 = "md5"
-            size_bytes = human_readable_size(bucket_file_sizes[full_path]).rjust(11)
+            size_bytes = human_readable_size(bucket_file_sizes[full_path])
             if full_path in referenced_files:
                 is_in_data_table = True
             else:
@@ -1389,9 +1388,9 @@ def mop(args):
                    'is_in_data_table': is_in_data_table,
                    'latest_time_modified': latest_time_modified}
             all_files_list.append(file_dict)
-        today = date.today().strftime('%Y_%m_%d')
+        today = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
         df = pd.DataFrame(data=all_files_list)
-        df.to_csv(f'mop_manifest_{today}.csv', index=False) 
+        df.to_csv(f'mop_manifest_{args.project}_{args.workspace}_{today}.csv', index=False) 
 
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         return 0
@@ -1402,10 +1401,9 @@ def mop(args):
     STDOUT=subprocess.STDOUT
     if args.verbose:
         print("Deleting files with gsutil...")
-    #AHHHH I don't want to delete
-    # gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    # # Pipe the deletable_files into gsutil
-    # result = gsrm_proc.communicate(input='\n'.join(deletable_files).encode())[0]
+    gsrm_proc = subprocess.Popen(gsrm_args, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    # Pipe the deletable_files into gsutil
+    result = gsrm_proc.communicate(input='\n'.join(deletable_files).encode())[0]
     if args.verbose:
         if type(result) == bytes:
             result = result.decode()
@@ -2592,6 +2590,8 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.add_argument('--dry-run', action='store_true',
                       help='Show deletions that would be performed')
+    subp.add_argument('--make-manifest', action='store_true',
+                      help='Generate csv of all bucket files and which will be deleted')
     group = subp.add_mutually_exclusive_group()
     group.add_argument('-i', '--include', nargs='+', metavar="glob",
                        help="Only delete unreferenced files matching the " +
