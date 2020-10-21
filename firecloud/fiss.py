@@ -19,7 +19,9 @@ import subprocess
 import re
 import collections
 import pandas as pd
+from datetime import datetime
 from difflib import unified_diff
+from google.cloud import storage
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
 from firecloud import api as fapi
@@ -27,10 +29,7 @@ from firecloud import fccore
 from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
-import pandas as pd
-from datetime import datetime
 
-from google.cloud import storage
 
 fcconfig = fccore.config_parse()
 
@@ -1257,7 +1256,10 @@ def list_bucket_files(bucket_name, verbose):
         if not filename.endswith('/'):  # if this is not a directory
             md5 = blob.md5_hash
             size = blob.size
+
+            # note both of these are type datetime.datetime
             time_created = blob.time_created
+            time_updated = blob.updated
 
             full_file_path = "gs://" + bucket_name + "/" + filename
             # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
@@ -1266,13 +1268,17 @@ def list_bucket_files(bucket_name, verbose):
             submission_id = full_file_path.split('/', 4)[3]
             file_name = filename.split('/')[-1]
 
+            unique_key = f"{file_name}.{md5}.{size}"
+
             file_dict = {
                 "file_name": file_name,
                 "file_path": full_file_path,
                 "submission_id": submission_id,
                 "size": size,
                 "md5": md5,
-                "time_created": time_created
+                "time_created": time_created,
+                "time_updated": time_updated,
+                "unique_key": unique_key
             }
             bucket_dict[full_file_path] = file_dict
             # bucket_object = BucketFile(full_file_path, size, md5, time_created)
@@ -1283,6 +1289,56 @@ def list_bucket_files(bucket_name, verbose):
 
     return bucket_dict
 
+
+def get_files_to_keep(bucket_dict, referenced_files):
+    # make a dictionary that designates which file to keep for each unique key
+    files_to_keep = dict()  # unique key -> file metadata for file to keep with that unique key
+
+    for this_file_path, this_file_metadata in bucket_dict.items():
+        this_unique_key = this_file_metadata['unique_key']
+
+        # add a field indicating whether this file is referenced in the data table
+        is_in_data_table = this_file_metadata['file_path'] in referenced_files
+        bucket_dict[this_file_path]['is_in_data_table'] = is_in_data_table
+
+        if this_unique_key not in files_to_keep:
+            files_to_keep[this_unique_key] = [this_file_metadata]
+        else:
+            # we have a version of this file already in unique_key. which one should we keep?
+            existing_files = files_to_keep[this_unique_key]  # list
+
+            # is one of these in referenced data? if so, keep that one
+            if this_file_metadata['is_in_data_table']:
+                if any(f['is_in_data_table'] for f in existing_files):
+                    # if any files in existing_files are in the data table
+                    files_to_keep[this_unique_key] = existing_files.append(this_file_metadata)
+                else:
+                    # replace existing list with this file
+                    files_to_keep[this_unique_key] = [this_file_metadata]
+            else:
+                if any(f['is_in_data_table'] for f in existing_files):
+                    # if any files in existing_files are in the data table
+                    # we don't add this file. it's a duplicate that's not referenced.
+                    pass
+                else:
+                    # if nobody is in data table
+                    # get the latest one
+                    # there should only ever be one item in this list
+                    if len(existing_files) > 1:
+                        print('SOMETHING IS WRONG')
+                        exit(1)
+                    existing_file_created = existing_files[0]['time_updated']
+                    this_file_created = this_file_metadata['time_updated']
+                    if existing_file_created > this_file_created:
+                        # existing file is newer
+                        # don't add this file, it's an older, duplicate file
+                        pass
+                    else:
+                        # this file is newer!
+                        # replace existing list with this file
+                        files_to_keep[this_unique_key] = [this_file_metadata]
+
+    return files_to_keep, bucket_dict
 
 @fiss_cmd
 def mop(args):
@@ -1307,7 +1363,6 @@ def mop(args):
         if isinstance(value, string_types) and value.startswith(bucket_prefix):
             referenced_files.add(value)
 
-    # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
     try:
         bucket_dict = list_bucket_files(bucket, args.verbose)
@@ -1360,9 +1415,23 @@ def mop(args):
         num = len(referenced_files)
         print("Found {} referenced files in workspace {}".format(num, workspace_name))
 
+    if args.keep_one:
+        files_to_keep, bucket_dict = get_files_to_keep(bucket_dict, referenced_files)
+
+
+        # df_all_files = pd.DataFrame.from_dict(bucket_dict, orient='index')
+
+
+
+
     # Set difference shows files in bucket that aren't referenced
     # TODO add logic for optional duplicate reduction using md5 info
-    unreferenced_files = eligible_bucket_files - referenced_files
+    if args.keep_one:
+        # define files to delete
+        # check referenced files AND latest for unreferenced dups
+        pass
+    else:
+        unreferenced_files = eligible_bucket_files - referenced_files
 
     # Filter out files like .logs and rc.txt
     def can_delete(f):
@@ -1397,28 +1466,6 @@ def mop(args):
         return True
 
     deletable_files = [f for f in unreferenced_files if can_delete(f)]
-
-    if args.keep_one:
-        deletable_dict = {key: value for key, value in bucket_dict.items() if key in deletable_files}
-
-        df_all_files = pd.DataFrame.from_dict(deletable_dict, orient='index')
-        df_duplicates = df_all_files.groupby(['md5','file_name','size']) \
-            .filter(lambda x: len(x) > 1) \
-            .groupby(['md5','file_name','size']).agg(
-            n_dups=('file_path', 'nunique'),
-            last_updated=('time_created', 'max'),
-            total_size=('size', 'sum'),
-            file_name=('file_name', 'max')
-        )
-
-        print(df_duplicates.columns)
-        duplicated_files = df_duplicates['file_name']
-        print(duplicated_files)
-
-        deletable_duplicates = [f for f in deletable_files if bucket_dict[f]['file_name'] in duplicated_files]
-
-        print(deletable_duplicates)
-        print(df_duplicates)
 
     if len(deletable_files) == 0:
         if args.verbose:
@@ -2672,9 +2719,6 @@ def main(argv=None):
     group.add_argument('-x', '--exclude', nargs='+', metavar="glob",
                        help="Only delete unreferenced files that don't match" +
                             " the given UNIX glob-style pattern(s)")
-    # TODO add args for: 
-    #  - keep a copy of all duplicate files (even if not in data model)
-    #  - generate csv of files to be deleted
 
     subp.set_defaults(func=mop)
     
