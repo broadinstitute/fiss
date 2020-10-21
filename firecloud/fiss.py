@@ -1212,7 +1212,7 @@ def mop(args):
     if args.verbose:
         print("Retrieving workspace information...")
     fields = "workspace.bucketName,workspace.name,workspace.attributes"
-    r = fapi.get_workspace(args.project, args.workspace)
+    r = fapi.get_workspace(args.project, args.workspace, fields=fields)
     fapi._check_response_code(r, 200)
     workspace = r.json()
     bucket = workspace['workspace']['bucketName']
@@ -1366,7 +1366,6 @@ def mop(args):
     message = "WARNING: Delete {} files totaling {} in {} ({})".format(
         len(deletable_files), deletable_size, bucket_prefix,
         workspace['workspace']['name'])
-    #NEW CODE
     if args.make_manifest:
         all_files_list = []
         for full_path in bucket_files:
