@@ -18,6 +18,7 @@ import argparse
 import subprocess
 import re
 import collections
+import pandas as pd
 from difflib import unified_diff
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
@@ -28,6 +29,8 @@ from firecloud.__about__ import __version__
 from firecloud import supervisor
 import pandas as pd
 from datetime import datetime
+
+from google.cloud import storage
 
 fcconfig = fccore.config_parse()
 
@@ -1205,18 +1208,86 @@ def health(args):
     fapi._check_response_code(r, 200)
     return r.content
 
-class BucketFile:
-    """Class to store bucket file info."""
-    def __init__(self, file_path, size):
-        self.file_path = file_path
-        self.file_name = file_path.split('/')[-1]
-        self.submission_id = file_path.split('/', 4)[3]
-        self.size = size
-        self.md5 = None
+# class BucketFile:
+#     """Class to store bucket file info."""
+#     def __init__(self, file_path, size, md5, time_created):
+#         self.file_path = file_path
+#         self.file_name = file_path.split('/')[-1]
+#         # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
+#         # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
+#         # to extract the submission id from the 4th element (index 3) of the array
+#         self.submission_id = file_path.split('/', 4)[3] #if len(file_path.split('/', 4)) > 4 else None
+#         self.size = size
+#         self.md5 = md5
+#         self.time_created = time_created
+
+units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+def human_readable_size(size_in_bytes):
+    '''Takes a bytes value and returns a human-readable string with an
+    appropriate unit conversion'''
+    reduce_count = 0
+    while size_in_bytes >= 1024.0 and reduce_count < 5:
+        size_in_bytes /= 1024.0
+        reduce_count += 1
+    size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
+    return "{} {}".format(size_str, units[reduce_count])
+
+def list_bucket_files(bucket_name, verbose):
+    """Lists all the blobs (files) in the bucket, returns md5 and file size info."""
+    if verbose:
+        print("listing contents of bucket gs://" + bucket_name)
+    
+    # set up storage client
+    storage_client = storage.Client()
+
+    # check if bucket exists
+    try:
+        bucket = storage_client.get_bucket(bucket_name)
+    except:
+        print('Bucket does not exist!')
+        exit(1)
+
+    # Note: Client.list_bucket_files requires at least package version 1.17.0.
+    blobs = storage_client.list_blobs(bucket_name)
+
+    bucket_dict = dict()
+    for blob in blobs:
+        filename = blob.name
+
+        if not filename.endswith('/'):  # if this is not a directory
+            md5 = blob.md5_hash
+            size = blob.size
+            time_created = blob.time_created
+
+            full_file_path = "gs://" + bucket_name + "/" + filename
+            # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
+            # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
+            # to extract the submission id from the 4th element (index 3) of the array
+            submission_id = full_file_path.split('/', 4)[3]
+            file_name = filename.split('/')[-1]
+
+            file_dict = {
+                "file_name": file_name,
+                "file_path": full_file_path,
+                "submission_id": submission_id,
+                "size": size,
+                "md5": md5,
+                "time_created": time_created
+            }
+            bucket_dict[full_file_path] = file_dict
+            # bucket_object = BucketFile(full_file_path, size, md5, time_created)
+            # bucket_dict[full_file_path] = bucket_object
+
+    if verbose:
+        print(f'found {len(bucket_dict)} files')
+
+    return bucket_dict
+
 
 @fiss_cmd
 def mop(args):
     ''' Clean up unreferenced data in a workspace'''
+
     # First retrieve the workspace to get bucket information
     if args.verbose:
         print("Retrieving workspace information...")
@@ -1239,26 +1310,8 @@ def mop(args):
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
     try:
-        # TODO add option to retrieve md5 info to check for duplicates
-        gsutil_args = ['gsutil', 'ls', '-l', bucket_prefix + '/**']
-        if args.verbose:
-            print(' '.join(gsutil_args))
-        bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.STDOUT)
-        # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
-        if type(bucket_files) == bytes:
-            bucket_files = bucket_files.decode()
-        
-        # Store size of each file in bucket to report recovered space
-        # TODO also store md5
-        bucket_files = {}
-        for listing in bucket_files.split('\n'):
-            listing = listing.strip().split('  ')
-            if len(listing) != 3:
-                break
-            file_path = listing[2]
-            file_size = int(listing[0])
-            bucket_files[file_name] = BucketFile(file_path, file_size)
-        
+        bucket_dict = list_bucket_files(bucket, args.verbose)
+
         # Now make a call to the API for the user's submission information.
         user_submission_request = fapi.list_submissions(args.project, args.workspace)
 
@@ -1267,14 +1320,10 @@ def mop(args):
       
         # Sort user submission ids for future bucket file verification
         submission_ids = set(item['submissionId'] for item in user_submission_request.json())
-        
+
         # Check to see if bucket file path contain the user's submission id
         # to ensure deletion of files in the submission directories only.
-        # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
-        # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
-        # to extract the submission id from the 4th element (index 3) of the array
-        # TODO do we want to limit only to submissions? (probably we do and this is fine)
-        bucket_files = set(bucket_file for bucket_file in bucket_files if bucket_file.submission_id in submission_ids)
+        eligible_bucket_files = set(file_dict['file_path'] for file_dict in bucket_dict.values() if file_dict['submission_id'] in submission_ids)
 
     except subprocess.CalledProcessError as e:
         eprint("Error retrieving files from bucket:" +
@@ -1282,7 +1331,7 @@ def mop(args):
         return 1
 
     if args.verbose:
-        num = len(bucket_files)
+        num = len(eligible_bucket_files)
         if args.verbose:
             print("Found {} files in bucket {}".format(num, bucket))
 
@@ -1313,7 +1362,7 @@ def mop(args):
 
     # Set difference shows files in bucket that aren't referenced
     # TODO add logic for optional duplicate reduction using md5 info
-    unreferenced_files = bucket_files - referenced_files
+    unreferenced_files = eligible_bucket_files - referenced_files
 
     # Filter out files like .logs and rc.txt
     def can_delete(f):
@@ -1349,28 +1398,39 @@ def mop(args):
 
     deletable_files = [f for f in unreferenced_files if can_delete(f)]
 
+    if args.keep_one:
+        deletable_dict = {key: value for key, value in bucket_dict.items() if key in deletable_files}
+
+        df_all_files = pd.DataFrame.from_dict(deletable_dict, orient='index')
+        df_duplicates = df_all_files.groupby(['md5','file_name','size']) \
+            .filter(lambda x: len(x) > 1) \
+            .groupby(['md5','file_name','size']).agg(
+            n_dups=('file_path', 'nunique'),
+            last_updated=('time_created', 'max'),
+            total_size=('size', 'sum'),
+            file_name=('file_name', 'max')
+        )
+
+        print(df_duplicates.columns)
+        duplicated_files = df_duplicates['file_name']
+        print(duplicated_files)
+
+        deletable_duplicates = [f for f in deletable_files if bucket_dict[f]['file_name'] in duplicated_files]
+
+        print(deletable_duplicates)
+        print(df_duplicates)
+
     if len(deletable_files) == 0:
         if args.verbose:
             print("No files to mop in " + workspace['workspace']['name'])
         return 0
-    
-    units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
-    def human_readable_size(size_in_bytes):
-        '''Takes a bytes value and returns a human-readable string with an
-        appropriate unit conversion'''
-        reduce_count = 0
-        while size_in_bytes >= 1024.0 and reduce_count < 5:
-            size_in_bytes /= 1024.0
-            reduce_count += 1
-        size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
-        return "{} {}".format(size_str, units[reduce_count])
-    
-    deletable_size = human_readable_size(sum(bucket_file_sizes[f]
+
+    deletable_size = human_readable_size(sum(bucket_dict[f]['size']
                                              for f in deletable_files))
 
     if args.verbose or args.dry_run:
         print("Found {} files to delete:\n".format(len(deletable_files)) +
-              "\n".join("{}  {}".format(human_readable_size(bucket_file_sizes[f]).rjust(11), f)
+              "\n".join("{}  {}".format(human_readable_size(bucket_dict[f]['size']).rjust(11), f)
                         for f in deletable_files) +
               '\nTotal Size: {}\n'.format(deletable_size))
 
