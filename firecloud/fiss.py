@@ -26,6 +26,8 @@ from firecloud import fccore
 from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
+import pandas as pd
+from datetime import datetime
 
 fcconfig = fccore.config_parse()
 
@@ -1364,6 +1366,31 @@ def mop(args):
     message = "WARNING: Delete {} files totaling {} in {} ({})".format(
         len(deletable_files), deletable_size, bucket_prefix,
         workspace['workspace']['name'])
+    if args.make_manifest:
+        all_files_list = []
+        for full_path in bucket_files:
+            if full_path in deletable_files:
+                to_delete = True
+            else: 
+                to_delete = False
+            md5 = "md5"
+            size_bytes = human_readable_size(bucket_file_sizes[full_path])
+            if full_path in referenced_files:
+                is_in_data_table = True
+            else:
+                is_in_data_table = False
+            latest_time_modified = "today"
+            file_dict = {'full_path': full_path,
+                   'to_delete': to_delete,
+                   'md5': md5,
+                   'size_bytes': size_bytes,
+                   'is_in_data_table': is_in_data_table,
+                   'latest_time_modified': latest_time_modified}
+            all_files_list.append(file_dict)
+        today = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+        df = pd.DataFrame(data=all_files_list)
+        df.to_csv(f'mop_manifest_{args.project}_{args.workspace}_{today}.csv', index=False) 
+
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         return 0
 
@@ -2562,6 +2589,8 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.add_argument('--dry-run', action='store_true',
                       help='Show deletions that would be performed')
+    subp.add_argument('--make-manifest', action='store_true',
+                      help='Generate csv of all bucket files and which will be deleted')
     group = subp.add_mutually_exclusive_group()
     group.add_argument('-i', '--include', nargs='+', metavar="glob",
                        help="Only delete unreferenced files matching the " +
