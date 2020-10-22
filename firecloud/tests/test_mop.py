@@ -79,16 +79,6 @@ class TestMop(unittest.TestCase):
 
         files_to_keep = get_files_to_keep(test_bucket_dict)
 
-        print('unique keys')
-        print(file_1_metadata['unique_key'])
-        print(file_2_metadata['unique_key'])
-        print(file_3_metadata['unique_key'])
-        print(file_4_metadata['unique_key'])
-        print(file_5_metadata['unique_key'])
-
-        print('files to keep')
-        pprint.pprint(files_to_keep)
-
         # there should be x unique keys in the files_to_keep dict
         self.assertEqual(len(files_to_keep), 3)
 
