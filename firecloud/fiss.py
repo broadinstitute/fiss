@@ -11,14 +11,12 @@ import sys
 import os
 import time
 from inspect import getsourcelines
-from itertools import chain
 from traceback import print_tb as print_traceback
 from io import open
 from fnmatch import fnmatchcase
 import argparse
 import subprocess
 import re
-import collections
 import pandas as pd
 from datetime import datetime
 from difflib import unified_diff
