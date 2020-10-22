@@ -1397,18 +1397,16 @@ def mop(args):
         num = len(referenced_files)
         print("Found {} referenced files in workspace {}".format(num, workspace_name))
 
+    # Retrieve user's submission information
+    user_submission_request = fapi.list_submissions(args.project, args.workspace)
+    # Check if API call was successful, in the case of failure, the function will return an error 
+    fapi._check_response_code(user_submission_request, 200)
+    # Sort user submission ids for future bucket file verification
+    submission_ids = set(item['submissionId'] for item in user_submission_request.json())
+
     # List files present in the bucket
     try:
         bucket_dict = list_bucket_files(bucket, referenced_files, args.verbose)
-
-        # Now make a call to the API for the user's submission information.
-        user_submission_request = fapi.list_submissions(args.project, args.workspace)
-
-        # Check if API call was successful, in the case of failure, the function will return an error 
-        fapi._check_response_code(user_submission_request, 200)
-      
-        # Sort user submission ids for future bucket file verification
-        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
 
         all_bucket_files = set(file_dict['file_path'] for file_dict in bucket_dict.values())
 
