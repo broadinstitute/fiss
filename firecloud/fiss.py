@@ -1297,7 +1297,7 @@ def choose_keepers_from_duplicates(duplicated_files):
     return [most_recently_modified]
 
 def get_files_to_keep(duplicate_files_dict):
-    '''Make a dictionary that designates which file to keep for each unique key.'''
+    '''Make a set of file paths to keep, given an input dictionary of duplicate files.'''
     files_to_keep = []  # list of files to keep
 
     for duplicates_list in duplicate_files_dict.values():
