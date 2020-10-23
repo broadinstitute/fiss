@@ -1207,17 +1207,19 @@ def health(args):
     return r.content
 
 
-units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+# HELPER FUNCTIONS FOR MOP
+
 def human_readable_size(size_in_bytes):
     '''Takes a bytes value and returns a human-readable string with an
     appropriate unit conversion'''
+    units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+
     reduce_count = 0
     while size_in_bytes >= 1024.0 and reduce_count < 5:
         size_in_bytes /= 1024.0
         reduce_count += 1
     size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
     return "{} {}".format(size_str, units[reduce_count])
-
 
 def list_bucket_files(bucket_name, referenced_files, verbose):
     """Lists all the blobs (files) in the bucket, returns md5 and file size info."""
@@ -1279,9 +1281,8 @@ def list_bucket_files(bucket_name, referenced_files, verbose):
 
     return bucket_dict
 
-
-def choose_keepers(duplicated_files):
-    '''Takes a list of duplicated files' metadata and return a list of ones to keep.'''
+def choose_keepers_from_duplicates(duplicated_files):
+    '''Take a list of duplicated files' metadata and return a list of file paths to keep.'''
 
     # if all in list are referenced by data table, keep them all
     if all(f['is_in_data_table'] for f in duplicated_files):
@@ -1295,29 +1296,35 @@ def choose_keepers(duplicated_files):
     most_recently_modified = max(duplicated_files, key=lambda x: x['time_updated'])
     return [most_recently_modified]
 
+def get_files_to_keep(duplicate_files_dict):
+    '''Make a dictionary that designates which file to keep for each unique key.'''
+    files_to_keep = []  # list of files to keep
 
-def get_files_to_keep(bucket_dict):
-    '''Makes a dictionary that designates which file to keep for each unique key.'''
-    files_to_keep = dict()  # unique key -> file metadata for file to keep with that unique key
+    for duplicates_list in duplicate_files_dict.values():
+        if len(duplicates_list) == 1:
+            # there's just one file, no duplicates. keep it.
+            files_to_keep.extend([f['file_path'] for f in duplicates_list])
+        else:
+            # we need to choose which of the duplicate files to keep
+            files_to_keep.extend([f['file_path'] for f in choose_keepers_from_duplicates(duplicates_list)])
+
+    return set(files_to_keep)
+
+def get_duplicate_info(bucket_dict):
+    '''Make a dictionary of unique keys and a list of all file paths that match each key.'''
+    duplicate_files_dict = dict()  # unique key -> file metadata for file to keep with that unique key
 
     for this_file_path, this_file_metadata in bucket_dict.items():
         this_unique_key = this_file_metadata['unique_key']
 
-        if this_unique_key not in files_to_keep:
-            files_to_keep[this_unique_key] = [this_file_metadata]
+        if this_unique_key not in duplicate_files_dict:
+            duplicate_files_dict[this_unique_key] = [this_file_metadata]
         else:
-            # this is a duplicate of a file we already have stored. add it and then decide which to keep.
-            duplicated_files = files_to_keep[this_unique_key] + [this_file_metadata]
+            # this is a duplicate of a file we already have stored
+            duplicate_files_dict[this_unique_key].extend([this_file_metadata])
 
-            keepers = choose_keepers(duplicated_files)
+    return duplicate_files_dict
 
-            files_to_keep[this_unique_key] = keepers
-
-    # once generated, convert files to keep to a set of file paths
-    files_to_keep_list = []
-    for file_metadata_list in files_to_keep.values():
-        files_to_keep_list.extend([f['file_path'] for f in file_metadata_list])
-    return set(files_to_keep_list)
 
 # Filter out files like .logs and rc.txt
 def can_delete(f, include, exclude):
@@ -1424,10 +1431,13 @@ def mop(args):
         if args.verbose:
             print("Found {} submission-related files in bucket {}".format(num, bucket))
 
+    # retrieve information about duplicate files
+    duplicate_files_dict = get_duplicate_info(bucket_dict)
+
     # Set difference shows files in bucket that aren't referenced
     if args.keep_one:
         # define files to keep
-        files_to_keep = get_files_to_keep(bucket_dict)
+        files_to_keep = get_files_to_keep(duplicate_files_dict)
         potential_deletable_files = eligible_bucket_files - files_to_keep
     else:
         potential_deletable_files = eligible_bucket_files - referenced_files
@@ -1458,6 +1468,7 @@ def mop(args):
         for full_path in all_bucket_files:
             file_metadata = bucket_dict[full_path]
             file_metadata['to_delete'] = True if full_path in deletable_files else False
+            file_metadata['is_duplicated'] = True if len(duplicate_files_dict[file_metadata['unique_key']]) > 1 else False
             file_metadata['size_human_readable'] = human_readable_size(file_metadata['size']) if 'size' in file_metadata else None
 
             bucket_dict[full_path] = file_metadata
@@ -1471,6 +1482,7 @@ def mop(args):
                                'file_name',
                                'to_delete',
                                'is_in_data_table',
+                               'is_duplicated',
                                'size',
                                'size_human_readable',
                                'md5',
