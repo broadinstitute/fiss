@@ -1284,11 +1284,7 @@ def list_bucket_files(bucket_name, referenced_files, verbose):
 def choose_keepers_from_duplicates(duplicated_files):
     '''Take a list of duplicated files' metadata and return a list of file paths to keep.'''
 
-    # if all in list are referenced by data table, keep them all
-    if all(f['is_in_data_table'] for f in duplicated_files):
-        return duplicated_files
-
-    # else if only some are in data table, keep only those
+    # if any are in data table, keep only those
     if any(f['is_in_data_table'] for f in duplicated_files):
         return [f for f in duplicated_files if f['is_in_data_table']]
 
@@ -1312,7 +1308,7 @@ def get_files_to_keep(duplicate_files_dict):
 
 def get_duplicate_info(bucket_dict):
     '''Make a dictionary of unique keys and a list of all file paths that match each key.'''
-    duplicate_files_dict = dict()  # unique key -> file metadata for file to keep with that unique key
+    duplicate_files_dict = dict()  # unique key -> list of file_metadata dicts for all files matching that unique key
 
     for this_file_path, this_file_metadata in bucket_dict.items():
         this_unique_key = this_file_metadata['unique_key']
@@ -1360,7 +1356,7 @@ def can_delete(f, include, exclude):
 
 @fiss_cmd
 def mop(args):
-    ''' Clean up unreferenced data in a workspace'''
+    '''Clean up unreferenced data in a workspace'''
 
     # First retrieve the workspace to get bucket information
     if args.verbose:
@@ -1412,19 +1408,14 @@ def mop(args):
     submission_ids = set(item['submissionId'] for item in user_submission_request.json())
 
     # List files present in the bucket
-    try:
-        bucket_dict = list_bucket_files(bucket, referenced_files, args.verbose)
+    bucket_dict = list_bucket_files(bucket, referenced_files, args.verbose)
 
-        all_bucket_files = set(file_dict['file_path'] for file_dict in bucket_dict.values())
+    all_bucket_files = set(file_metadata['file_path'] for file_metadata in bucket_dict.values())
 
-        # Check to see if bucket file path contain the user's submission id
-        # to ensure deletion of files in the submission directories only.
-        eligible_bucket_files = set(file_dict['file_path'] for file_dict in bucket_dict.values() if file_dict['submission_id'] in submission_ids)
+    # Check to see if bucket file path contain the user's submission id
+    # to ensure deletion of files in the submission directories only.
+    eligible_bucket_files = set(file_metadata['file_path'] for file_metadata in bucket_dict.values() if file_metadata['submission_id'] in submission_ids)
 
-    except subprocess.CalledProcessError as e:
-        eprint("Error retrieving files from bucket:" +
-               "\n\t{}\n\t{}".format(str(e), e.output))
-        return 1
 
     if args.verbose:
         num = len(eligible_bucket_files)
@@ -1434,13 +1425,17 @@ def mop(args):
     # retrieve information about duplicate files
     duplicate_files_dict = get_duplicate_info(bucket_dict)
 
-    # Set difference shows files in bucket that aren't referenced
+    # determine which files to keep
     if args.keep_one:
-        # define files to keep
+        # keep a copy of each unique file or newest copy of duplicate files
+        # in addition to all referenced files
         files_to_keep = get_files_to_keep(duplicate_files_dict)
-        potential_deletable_files = eligible_bucket_files - files_to_keep
     else:
-        potential_deletable_files = eligible_bucket_files - referenced_files
+        # default mop keeps only referenced files
+        files_to_keep = referenced_files
+
+    # Set difference shows files in bucket that aren't referenced
+    potential_deletable_files = eligible_bucket_files - files_to_keep
 
     # filter out file types we don't want to delete
     deletable_files = [f for f in potential_deletable_files if can_delete(f, args.include, args.exclude)]
