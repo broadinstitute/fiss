@@ -17,8 +17,10 @@ from fnmatch import fnmatchcase
 import argparse
 import subprocess
 import re
-import collections
+import pandas as pd
+from datetime import datetime
 from difflib import unified_diff
+from google.cloud import storage
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
 from firecloud import api as fapi
@@ -26,8 +28,7 @@ from firecloud import fccore
 from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
-import pandas as pd
-from datetime import datetime
+
 
 fcconfig = fccore.config_parse()
 
@@ -1205,9 +1206,158 @@ def health(args):
     fapi._check_response_code(r, 200)
     return r.content
 
+
+# HELPER FUNCTIONS FOR MOP
+
+def human_readable_size(size_in_bytes):
+    '''Takes a bytes value and returns a human-readable string with an
+    appropriate unit conversion'''
+    units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+
+    reduce_count = 0
+    while size_in_bytes >= 1024.0 and reduce_count < 5:
+        size_in_bytes /= 1024.0
+        reduce_count += 1
+    size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
+    return "{} {}".format(size_str, units[reduce_count])
+
+def list_bucket_files(bucket_name, referenced_files, verbose):
+    """Lists all the blobs (files) in the bucket, returns md5 and file size info."""
+    if verbose:
+        print("listing contents of bucket gs://" + bucket_name)
+    
+    # set up storage client
+    storage_client = storage.Client()
+
+    # check if bucket exists
+    try:
+        bucket = storage_client.get_bucket(bucket_name)
+    except:
+        print('Bucket does not exist!')
+        exit(1)
+
+    # Note: Client.list_bucket_files requires at least package version 1.17.0.
+    blobs = storage_client.list_blobs(bucket_name)
+
+    bucket_dict = dict()
+    for blob in blobs:
+        filename = blob.name
+
+        if not filename.endswith('/'):  # if this is not a directory
+            md5 = blob.md5_hash
+            size = blob.size
+
+            # note both of these are type datetime.datetime
+            time_created = blob.time_created
+            time_updated = blob.updated
+
+            full_file_path = "gs://" + bucket_name + "/" + filename
+            # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
+            # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
+            # to extract the submission id from the 4th element (index 3) of the array
+            submission_id = full_file_path.split('/', 4)[3]
+            file_name = filename.split('/')[-1]
+
+            unique_key = f"{file_name}.{md5}.{size}"
+
+            # add a field indicating whether this file is referenced in the data table
+            is_in_data_table = full_file_path in referenced_files
+
+            file_metadata = {
+                "file_name": file_name,
+                "file_path": full_file_path,
+                "submission_id": submission_id,
+                "size": size,
+                "md5": md5,
+                "time_created": time_created,
+                "time_updated": time_updated,
+                "unique_key": unique_key,
+                "is_in_data_table": is_in_data_table
+            }
+            bucket_dict[full_file_path] = file_metadata
+
+    if verbose:
+        print(f'Found {len(bucket_dict)} files in bucket {bucket_name}')
+
+    return bucket_dict
+
+def choose_keepers_from_duplicates(duplicated_files):
+    '''Take a list of duplicated files' metadata and return a list of file paths to keep.'''
+
+    # if any are in data table, keep only those
+    if any(f['is_in_data_table'] for f in duplicated_files):
+        return [f for f in duplicated_files if f['is_in_data_table']]
+
+    # else if none in data table, keep newest
+    most_recently_modified = max(duplicated_files, key=lambda x: x['time_updated'])
+    return [most_recently_modified]
+
+def get_files_to_keep(duplicate_files_dict):
+    '''Make a set of file paths to keep, given an input dictionary of duplicate files.'''
+    files_to_keep = []  # list of files to keep
+
+    for duplicates_list in duplicate_files_dict.values():
+        if len(duplicates_list) == 1:
+            # there's just one file, no duplicates. keep it.
+            files_to_keep.extend([f['file_path'] for f in duplicates_list])
+        else:
+            # we need to choose which of the duplicate files to keep
+            files_to_keep.extend([f['file_path'] for f in choose_keepers_from_duplicates(duplicates_list)])
+
+    return set(files_to_keep)
+
+def get_duplicate_info(bucket_dict):
+    '''Make a dictionary of unique keys and a list of all file paths that match each key.'''
+    duplicate_files_dict = dict()  # unique key -> list of file_metadata dicts for all files matching that unique key
+
+    for this_file_path, this_file_metadata in bucket_dict.items():
+        this_unique_key = this_file_metadata['unique_key']
+
+        if this_unique_key not in duplicate_files_dict:
+            duplicate_files_dict[this_unique_key] = [this_file_metadata]
+        else:
+            # this is a duplicate of a file we already have stored
+            duplicate_files_dict[this_unique_key].extend([this_file_metadata])
+
+    return duplicate_files_dict
+
+
+# Filter out files like .logs and rc.txt
+def can_delete(f, include, exclude):
+    '''Return true if this file should not be deleted in a mop.'''
+    filename = f.rsplit('/', 1)[-1]
+    # Don't delete logs
+    if filename.endswith('.log'):
+        return False
+    # Don't delete return codes from jobs
+    if filename.endswith('-rc.txt'):
+        return False
+    if filename == "rc":
+        return False
+    # Don't delete tool's exec.sh or script
+    if filename in ('exec.sh', 'script'):
+        return False
+    # keep stdout, stderr, and output
+    if filename in ('stderr', 'stdout', 'output'):
+        return False
+    # Only delete specified unreferenced files
+    if include:
+        for glob in include:
+            if fnmatchcase(filename, glob):
+                return True
+        return False
+    # Don't delete specified unreferenced files
+    if exclude:
+        for glob in exclude:
+            if fnmatchcase(filename, glob):
+                return False
+
+    return True
+
 @fiss_cmd
 def mop(args):
-    ''' Clean up unreferenced data in a workspace'''
+    '''Clean up unreferenced data in a workspace'''
+
     # First retrieve the workspace to get bucket information
     if args.verbose:
         print("Retrieving workspace information...")
@@ -1222,65 +1372,16 @@ def mop(args):
     if args.verbose:
         print("{} -- {}".format(workspace_name, bucket_prefix))
 
+    # Build a set of bucket files that are referenced in the workspace attributes and data table
     referenced_files = set()
+    # 0. Add any files that are in workspace attributes
     for value in workspace['workspace']['attributes'].values():
         if isinstance(value, string_types) and value.startswith(bucket_prefix):
             referenced_files.add(value)
-
-    # TODO: Make this more efficient with a native api call?
-    # # Now run a gsutil ls to list files present in the bucket
-    try:
-        # TODO add option to retrieve md5 info to check for duplicates
-        gsutil_args = ['gsutil', 'ls', '-l', bucket_prefix + '/**']
-        if args.verbose:
-            print(' '.join(gsutil_args))
-        bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.STDOUT)
-        # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
-        if type(bucket_files) == bytes:
-            bucket_files = bucket_files.decode()
-        
-        # Store size of each file in bucket to report recovered space
-        # TODO also store md5
-        bucket_file_sizes = {}
-        for listing in bucket_files.split('\n'):
-            listing = listing.strip().split('  ')
-            if len(listing) != 3:
-                break
-            bucket_file_sizes[listing[2]] = int(listing[0])
-        
-        # Now make a call to the API for the user's submission information.
-        user_submission_request = fapi.list_submissions(args.project, args.workspace)
-
-        # Check if API call was successful, in the case of failure, the function will return an error 
-        fapi._check_response_code(user_submission_request, 200)
-      
-        # Sort user submission ids for future bucket file verification
-        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
-        
-        # Check to see if bucket file path contain the user's submission id
-        # to ensure deletion of files in the submission directories only.
-        # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
-        # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
-        # to extract the submission id from the 4th element (index 3) of the array
-        # TODO do we want to limit only to submissions? (probably we do and this is fine)
-        bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
-        
-    except subprocess.CalledProcessError as e:
-        eprint("Error retrieving files from bucket:" +
-               "\n\t{}\n\t{}".format(str(e), e.output))
-        return 1
-
-    if args.verbose:
-        num = len(bucket_files)
-        if args.verbose:
-            print("Found {} files in bucket {}".format(num, bucket))
-
-    # Now build a set of files that are referenced in the bucket
     # 1. Get a list of the entity types in the workspace
     r = fapi.list_entity_types(args.project, args.workspace)
     fapi._check_response_code(r, 200)
     entity_types = r.json().keys()
-
     # 2. For each entity type, request all the entities
     for etype in entity_types:
         if args.verbose:
@@ -1289,7 +1390,6 @@ def mop(args):
         entities = _entity_paginator(args.project, args.workspace, etype,
                               page_size=1000, filter_terms=None,
                               sort_direction="asc")
-
         for entity in entities:
             for value in entity['attributes'].values():
                 if isinstance(value, string_types) and value.startswith(bucket_prefix):
@@ -1300,96 +1400,90 @@ def mop(args):
         num = len(referenced_files)
         print("Found {} referenced files in workspace {}".format(num, workspace_name))
 
+    # Retrieve user's submission information
+    user_submission_request = fapi.list_submissions(args.project, args.workspace)
+    # Check if API call was successful, in the case of failure, the function will return an error 
+    fapi._check_response_code(user_submission_request, 200)
+    # Sort user submission ids for future bucket file verification
+    submission_ids = set(item['submissionId'] for item in user_submission_request.json())
+
+    # List files present in the bucket
+    bucket_dict = list_bucket_files(bucket, referenced_files, args.verbose)
+
+    all_bucket_files = set(file_metadata['file_path'] for file_metadata in bucket_dict.values())
+
+    # Check to see if bucket file path contain the user's submission id
+    # to ensure deletion of files in the submission directories only.
+    eligible_bucket_files = set(file_metadata['file_path'] for file_metadata in bucket_dict.values() if file_metadata['submission_id'] in submission_ids)
+
+
+    if args.verbose:
+        num = len(eligible_bucket_files)
+        if args.verbose:
+            print("Found {} submission-related files in bucket {}".format(num, bucket))
+
+    # retrieve information about duplicate files
+    duplicate_files_dict = get_duplicate_info(bucket_dict)
+
+    # determine which files to keep
+    if args.keep_one:
+        # keep a copy of each unique file or newest copy of duplicate files
+        # in addition to all referenced files
+        files_to_keep = get_files_to_keep(duplicate_files_dict)
+    else:
+        # default mop keeps only referenced files
+        files_to_keep = referenced_files
+
     # Set difference shows files in bucket that aren't referenced
-    # TODO add logic for optional duplicate reduction using md5 info
-    unreferenced_files = bucket_files - referenced_files
+    potential_deletable_files = eligible_bucket_files - files_to_keep
 
-    # Filter out files like .logs and rc.txt
-    def can_delete(f):
-        '''Return true if this file should not be deleted in a mop.'''
-        filename = f.rsplit('/', 1)[-1]
-        # Don't delete logs
-        if filename.endswith('.log'):
-            return False
-        # Don't delete return codes from jobs
-        if filename.endswith('-rc.txt'):
-            return False
-        if filename == "rc":
-            return False
-        # Don't delete tool's exec.sh or script
-        if filename in ('exec.sh', 'script'):
-            return False
-        # keep stdout, stderr, and output
-        if filename in ('stderr', 'stdout', 'output'):
-            return False
-        # Only delete specified unreferenced files
-        if args.include:
-            for glob in args.include:
-                if fnmatchcase(filename, glob):
-                    return True
-            return False
-        # Don't delete specified unreferenced files
-        if args.exclude:
-            for glob in args.exclude:
-                if fnmatchcase(filename, glob):
-                    return False
-
-        return True
-
-    deletable_files = [f for f in unreferenced_files if can_delete(f)]
+    # filter out file types we don't want to delete
+    deletable_files = [f for f in potential_deletable_files if can_delete(f, args.include, args.exclude)]
 
     if len(deletable_files) == 0:
         if args.verbose:
             print("No files to mop in " + workspace['workspace']['name'])
         return 0
-    
-    units = ['bytes', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
-    def human_readable_size(size_in_bytes):
-        '''Takes a bytes value and returns a human-readable string with an
-        appropriate unit conversion'''
-        reduce_count = 0
-        while size_in_bytes >= 1024.0 and reduce_count < 5:
-            size_in_bytes /= 1024.0
-            reduce_count += 1
-        size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
-        return "{} {}".format(size_str, units[reduce_count])
-    
-    deletable_size = human_readable_size(sum(bucket_file_sizes[f]
+
+    deletable_size = human_readable_size(sum(bucket_dict[f]['size']
                                              for f in deletable_files))
 
     if args.verbose or args.dry_run:
         print("Found {} files to delete:\n".format(len(deletable_files)) +
-              "\n".join("{}  {}".format(human_readable_size(bucket_file_sizes[f]).rjust(11), f)
+              "\n".join("{}  {}".format(human_readable_size(bucket_dict[f]['size']).rjust(11), f)
                         for f in deletable_files) +
-              '\nTotal Size: {}\n'.format(deletable_size))
+              '\nTotal size of deletable files: {}\n'.format(deletable_size))
 
     message = "WARNING: Delete {} files totaling {} in {} ({})".format(
         len(deletable_files), deletable_size, bucket_prefix,
         workspace['workspace']['name'])
+
     if args.make_manifest:
-        all_files_list = []
-        for full_path in bucket_files:
-            if full_path in deletable_files:
-                to_delete = True
-            else: 
-                to_delete = False
-            md5 = "md5"
-            size_bytes = human_readable_size(bucket_file_sizes[full_path])
-            if full_path in referenced_files:
-                is_in_data_table = True
-            else:
-                is_in_data_table = False
-            latest_time_modified = "today"
-            file_dict = {'full_path': full_path,
-                   'to_delete': to_delete,
-                   'md5': md5,
-                   'size_bytes': size_bytes,
-                   'is_in_data_table': is_in_data_table,
-                   'latest_time_modified': latest_time_modified}
-            all_files_list.append(file_dict)
-        today = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-        df = pd.DataFrame(data=all_files_list)
-        df.to_csv(f'mop_manifest_{args.project}_{args.workspace}_{today}.csv', index=False) 
+        # add deletability and human size readable fields to master dictionary
+        for full_path in all_bucket_files:
+            file_metadata = bucket_dict[full_path]
+            file_metadata['to_delete'] = True if full_path in deletable_files else False
+            file_metadata['is_duplicated'] = True if len(duplicate_files_dict[file_metadata['unique_key']]) > 1 else False
+            file_metadata['size_human_readable'] = human_readable_size(file_metadata['size']) if 'size' in file_metadata else None
+
+            bucket_dict[full_path] = file_metadata
+
+        # save manifest file
+        today = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        cleanup_type = 'mop_keep-one' if args.keep_one else 'mop'
+        manifest_save_name = f'{cleanup_type}_manifest_{args.project}_{args.workspace}_{today}.csv'
+
+        fields_for_manifest = ['file_path',
+                               'file_name',
+                               'to_delete',
+                               'is_in_data_table',
+                               'is_duplicated',
+                               'size',
+                               'size_human_readable',
+                               'md5',
+                               'time_updated']
+        df = pd.DataFrame.from_dict(bucket_dict, orient='index', columns=fields_for_manifest).sort_values(by=['to_delete','file_path'], ascending=[False, False])
+        df.to_csv(manifest_save_name, index=False) 
 
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         return 0
@@ -2591,6 +2685,9 @@ def main(argv=None):
                       help='Show deletions that would be performed')
     subp.add_argument('--make-manifest', action='store_true',
                       help='Generate csv of all bucket files and which will be deleted')
+    subp.add_argument('--keep-one', action='store_true',
+                      help='Keep one copy of all duplicated files even if ' +
+                           'not referenced in data model')
     group = subp.add_mutually_exclusive_group()
     group.add_argument('-i', '--include', nargs='+', metavar="glob",
                        help="Only delete unreferenced files matching the " +
@@ -2598,9 +2695,6 @@ def main(argv=None):
     group.add_argument('-x', '--exclude', nargs='+', metavar="glob",
                        help="Only delete unreferenced files that don't match" +
                             " the given UNIX glob-style pattern(s)")
-    # TODO add args for: 
-    #  - keep a copy of all duplicate files (even if not in data model)
-    #  - generate csv of files to be deleted
 
     subp.set_defaults(func=mop)
     
