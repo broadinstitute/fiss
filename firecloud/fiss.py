@@ -17,6 +17,7 @@ from fnmatch import fnmatchcase
 import argparse
 import subprocess
 import re
+import warnings
 import pandas as pd
 from datetime import datetime
 from difflib import unified_diff
@@ -28,6 +29,10 @@ from firecloud import fccore
 from firecloud.errors import *
 from firecloud.__about__ import __version__
 from firecloud import supervisor
+
+
+# supress that annoying message about using ADC from google
+warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
 
 
 fcconfig = fccore.config_parse()
@@ -1233,7 +1238,7 @@ def list_bucket_files(bucket_name, referenced_files, verbose):
     try:
         bucket = storage_client.get_bucket(bucket_name)
     except:
-        print('Bucket does not exist!')
+        print(f'Bucket {bucket_name} does not exist!')
         exit(1)
 
     # Note: Client.list_bucket_files requires at least package version 1.17.0.
@@ -1241,9 +1246,9 @@ def list_bucket_files(bucket_name, referenced_files, verbose):
 
     bucket_dict = dict()
     for blob in blobs:
-        filename = blob.name
+        blob_name = blob.name
 
-        if not filename.endswith('/'):  # if this is not a directory
+        if not blob_name.endswith('/'):  # if this is not a directory
             md5 = blob.md5_hash
             size = blob.size
 
@@ -1251,12 +1256,12 @@ def list_bucket_files(bucket_name, referenced_files, verbose):
             time_created = blob.time_created
             time_updated = blob.updated
 
-            full_file_path = "gs://" + bucket_name + "/" + filename
+            full_file_path = "gs://" + bucket_name + "/" + blob_name
             # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
             # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
             # to extract the submission id from the 4th element (index 3) of the array
             submission_id = full_file_path.split('/', 4)[3]
-            file_name = filename.split('/')[-1]
+            file_name = blob_name.split('/')[-1]
 
             unique_key = f"{file_name}.{md5}.{size}"
 
@@ -1281,30 +1286,25 @@ def list_bucket_files(bucket_name, referenced_files, verbose):
 
     return bucket_dict
 
-def choose_keepers_from_duplicates(duplicated_files):
-    '''Take a list of duplicated files' metadata and return a list of file paths to keep.'''
+def delete_files(bucket_name, files_to_delete, verbose):
+    '''Delete files in a GCP bucket. Input is a list of full file paths to delete.'''
+    # extract blob_name (full path minus bucket name)
+    blob_names = [full_path.replace("gs://" + bucket_name + "/", "") for full_path in files_to_delete]
 
-    # if any are in data table, keep only those
-    if any(f['is_in_data_table'] for f in duplicated_files):
-        return [f for f in duplicated_files if f['is_in_data_table']]
+    # set up storage client
+    storage_client = storage.Client()
 
-    # else if none in data table, keep newest
-    most_recently_modified = max(duplicated_files, key=lambda x: x['time_updated'])
-    return [most_recently_modified]
+    bucket = storage_client.bucket(bucket_name)
+    if verbose:
+        print(f"Preparing to delete {len(blob_names)} files from bucket {bucket_name}")
+    blobs = [bucket.blob(blob_name) for blob_name in blob_names]
 
-def get_files_to_keep(duplicate_files_dict):
-    '''Make a set of file paths to keep, given an input dictionary of duplicate files.'''
-    files_to_keep = []  # list of files to keep
+    if verbose:
+        print(f"Deleting {len(blobs)} files from bucket {bucket_name}")
+    bucket.delete_blobs(blobs)
 
-    for duplicates_list in duplicate_files_dict.values():
-        if len(duplicates_list) == 1:
-            # there's just one file, no duplicates. keep it.
-            files_to_keep.extend([f['file_path'] for f in duplicates_list])
-        else:
-            # we need to choose which of the duplicate files to keep
-            files_to_keep.extend([f['file_path'] for f in choose_keepers_from_duplicates(duplicates_list)])
-
-    return set(files_to_keep)
+    if verbose:
+        print(f"Successfully deleted {len(blobs)} from bucket.")
 
 def get_duplicate_info(bucket_dict):
     '''Make a dictionary of unique keys and a list of all file paths that match each key.'''
@@ -1343,13 +1343,13 @@ def can_delete(f, include, exclude):
     # Only delete specified unreferenced files
     if include:
         for glob in include:
-            if fnmatchcase(filename, glob):
+            if fnmatchcase(f, glob):
                 return True
         return False
     # Don't delete specified unreferenced files
     if exclude:
         for glob in exclude:
-            if fnmatchcase(filename, glob):
+            if fnmatchcase(f, glob):
                 return False
 
     return True
@@ -1425,20 +1425,11 @@ def mop(args):
     # retrieve information about duplicate files
     duplicate_files_dict = get_duplicate_info(bucket_dict)
 
-    # determine which files to keep
-    if args.keep_one:
-        # keep a copy of each unique file or newest copy of duplicate files
-        # in addition to all referenced files
-        files_to_keep = get_files_to_keep(duplicate_files_dict)
-    else:
-        # default mop keeps only referenced files
-        files_to_keep = referenced_files
-
     # Set difference shows files in bucket that aren't referenced
-    potential_deletable_files = eligible_bucket_files - files_to_keep
+    unreferenced_files = eligible_bucket_files - referenced_files
 
     # filter out file types we don't want to delete
-    deletable_files = [f for f in potential_deletable_files if can_delete(f, args.include, args.exclude)]
+    deletable_files = [f for f in unreferenced_files if can_delete(f, args.include, args.exclude)]
 
     if len(deletable_files) == 0:
         if args.verbose:
@@ -1470,8 +1461,7 @@ def mop(args):
 
         # save manifest file
         today = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        cleanup_type = 'mop_keep-one' if args.keep_one else 'mop'
-        manifest_save_name = f'{cleanup_type}_manifest_{args.project}_{args.workspace}_{today}.csv'
+        manifest_save_name = f'mop_manifest_{args.project}_{args.workspace}_{today}.csv'
 
         fields_for_manifest = ['file_path',
                                'file_name',
@@ -1488,6 +1478,8 @@ def mop(args):
     if args.dry_run or (not args.yes and not _confirm_prompt(message)):
         return 0
 
+    # use GCP client library to delete files
+    result = delete_files(bucket, deletable_files, args.verbose)
     # Pipe the deletable_files into gsutil rm to remove them
     gsrm_args = ['gsutil', '-m', 'rm', '-I']
     PIPE = subprocess.PIPE
@@ -2685,9 +2677,6 @@ def main(argv=None):
                       help='Show deletions that would be performed')
     subp.add_argument('--make-manifest', action='store_true',
                       help='Generate csv of all bucket files and which will be deleted')
-    subp.add_argument('--keep-one', action='store_true',
-                      help='Keep one copy of all duplicated files even if ' +
-                           'not referenced in data model')
     group = subp.add_mutually_exclusive_group()
     group.add_argument('-i', '--include', nargs='+', metavar="glob",
                        help="Only delete unreferenced files matching the " +
