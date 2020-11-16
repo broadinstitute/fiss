@@ -1322,38 +1322,6 @@ def get_duplicate_info(bucket_dict):
     return duplicate_files_dict
 
 
-# Filter out files like .logs and rc.txt
-def can_delete(f, include, exclude):
-    '''Return true if this file should not be deleted in a mop.'''
-    filename = f.rsplit('/', 1)[-1]
-    # Don't delete logs
-    if filename.endswith('.log'):
-        return False
-    # Don't delete return codes from jobs
-    if filename.endswith('-rc.txt'):
-        return False
-    if filename == "rc":
-        return False
-    # Don't delete tool's exec.sh or script
-    if filename in ('exec.sh', 'script'):
-        return False
-    # keep stdout, stderr, and output
-    if filename in ('stderr', 'stdout', 'output'):
-        return False
-    # Only delete specified unreferenced files
-    if include:
-        for glob in include:
-            if fnmatchcase(f, glob):
-                return True
-        return False
-    # Don't delete specified unreferenced files
-    if exclude:
-        for glob in exclude:
-            if fnmatchcase(f, glob):
-                return False
-
-    return True
-
 @fiss_cmd
 def mop(args):
     '''Clean up unreferenced data in a workspace'''
@@ -1427,6 +1395,38 @@ def mop(args):
 
     # Set difference shows files in bucket that aren't referenced
     unreferenced_files = eligible_bucket_files - referenced_files
+
+    # Filter out files like .logs and rc.txt
+    def can_delete(f, include, exclude):
+        '''Return true if this file should not be deleted in a mop.'''
+        filename = f.rsplit('/', 1)[-1]
+        # Don't delete logs
+        if filename.endswith('.log'):
+            return False
+        # Don't delete return codes from jobs
+        if filename.endswith('-rc.txt'):
+            return False
+        if filename == "rc":
+            return False
+        # Don't delete tool's exec.sh or script
+        if filename in ('exec.sh', 'script'):
+            return False
+        # keep stdout, stderr, and output
+        if filename in ('stderr', 'stdout', 'output'):
+            return False
+        # Only delete specified unreferenced files
+        if include:
+            for glob in include:
+                if fnmatchcase(f, glob):
+                    return True
+            return False
+        # Don't delete specified unreferenced files
+        if exclude:
+            for glob in exclude:
+                if fnmatchcase(f, glob):
+                    return False
+
+        return True
 
     # filter out file types we don't want to delete
     deletable_files = [f for f in unreferenced_files if can_delete(f, args.include, args.exclude)]
