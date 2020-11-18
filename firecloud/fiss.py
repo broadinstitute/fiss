@@ -1226,13 +1226,13 @@ def human_readable_size(size_in_bytes):
     size_str = "{:.2f}".format(size_in_bytes) if reduce_count > 0 else str(size_in_bytes)
     return "{} {}".format(size_str, units[reduce_count])
 
-def list_bucket_files(bucket_name, referenced_files, verbose):
+def list_bucket_files(project, bucket_name, referenced_files, verbose):
     """Lists all the blobs (files) in the bucket, returns md5 and file size info."""
     if verbose:
         print("listing contents of bucket gs://" + bucket_name)
     
     # set up storage client
-    storage_client = storage.Client()
+    storage_client = storage.Client(project=project)
 
     # check if bucket exists
     try:
@@ -1376,7 +1376,7 @@ def mop(args):
     submission_ids = set(item['submissionId'] for item in user_submission_request.json())
 
     # List files present in the bucket
-    bucket_dict = list_bucket_files(bucket, referenced_files, args.verbose)
+    bucket_dict = list_bucket_files(args.project, bucket, referenced_files, args.verbose)
 
     all_bucket_files = set(file_metadata['file_path'] for file_metadata in bucket_dict.values())
 
