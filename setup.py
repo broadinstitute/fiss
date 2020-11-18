@@ -144,6 +144,7 @@ setup(
     install_requires = [
         'google-auth>=1.6.3',
         'google-cloud-storage>=1.20.0',
+        'pandas==0.25.3',
         'pydot',
         'requests[security]',
         'setuptools>=40.3.0',
