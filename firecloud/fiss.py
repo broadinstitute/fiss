@@ -859,26 +859,33 @@ def attr_get(args):
     a special __header__ entry is optionally added to the result. '''
 
     if args.entity_type and args.entity:
-        r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
-        fapi._check_response_code(r, 200)
-        attrs = r.json()['attributes']
-        # It is wrong for the members of container objects to appear as metadata
-        # (attributes) attached to the container, as it conflates fundamentally
-        # different things: annotation vs membership. This can be seen by using
-        # a suitcase model of reasoning: ATTRIBUTES are METADATA like the weight
-        # & height of the suitcase, the shipping label and all of its passport
-        # stamps; while MEMBERS are the actual CONTENTS INSIDE the suitcase.
-        # This conflation also contradicts the design & docs (which make a clear
-        # distinction between MEMBERSHIP and UPDATE loadfiles).  For this reason
-        # a change has been requested of the FireCloud dev team (via forum), and
-        # until it is implemented we will elide "list of members" attributes here
-        # (but later may provide a way for users to request such, if wanted)
-        for k in ["samples", "participants", "pairs"]:
-            attrs.pop(k, None)
-    else:
+        if args.entity_type == "ref":       # return referenceData (b37 or hg38) attributes
+            r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
+            fapi._check_response_code(r, 200)
+            all_attrs = r.json()['workspace']['attributes']
+            attrs = {k:all_attrs[k] for k in all_attrs if re.search(f'referenceData_{args.entity}', k)}
+        else:                               # return named entity attributes
+            r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
+            fapi._check_response_code(r, 200)
+            attrs = r.json()['attributes']
+            # It is wrong for the members of container objects to appear as metadata
+            # (attributes) attached to the container, as it conflates fundamentally
+            # different things: annotation vs membership. This can be seen by using
+            # a suitcase model of reasoning: ATTRIBUTES are METADATA like the weight
+            # & height of the suitcase, the shipping label and all of its passport
+            # stamps; while MEMBERS are the actual CONTENTS INSIDE the suitcase.
+            # This conflation also contradicts the design & docs (which make a clear
+            # distinction between MEMBERSHIP and UPDATE loadfiles).  For this reason
+            # a change has been requested of the FireCloud dev team (via forum), and
+            # until it is implemented we will elide "list of members" attributes here
+            # (but later may provide a way for users to request such, if wanted)
+            for k in ["samples", "participants", "pairs"]:
+                attrs.pop(k, None)
+    else:                       # return only workspace attrs (no referenceData)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
-        attrs = r.json()['workspace']['attributes']
+        all_attrs = r.json()['workspace']['attributes']
+        attrs = {k:all_attrs[k] for k in all_attrs if not re.search('referenceData', k)}
 
     if args.attributes:         # return a subset of attributes, if requested
         attrs = {k:attrs[k] for k in set(attrs).intersection(args.attributes)}
@@ -897,7 +904,7 @@ def attr_get(args):
             object_id = u'entity:%s_id' % args.entity_type
             result['__header__'] = [object_id] + list(attrs.keys())
         else:
-            result = attrs                  # Workspace attributes
+            result = attrs                  # Workspace attributes (no referenceData attributes)
     else:
         result = {}
 
@@ -2031,7 +2038,7 @@ def main(argv=None):
     workspace_required = not bool(fcconfig.workspace)
     etype_required = not bool(fcconfig.entity_type)
     etype_choices = ['participant', 'participant_set', 'sample', 'sample_set',
-                     'pair', 'pair_set' ]
+                     'pair', 'pair_set', 'ref']
 
     # Initialize core parser (TODO: Add longer description)
     usage  = 'fissfc [OPTIONS] [CMD [-h | arg ...]]'
