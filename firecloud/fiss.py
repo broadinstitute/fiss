@@ -864,6 +864,8 @@ def attr_get(args):
             fapi._check_response_code(r, 200)
             all_attrs = r.json()['workspace']['attributes']
             attrs = {k:all_attrs[k] for k in all_attrs if re.search(f'referenceData_{args.entity}', k)}
+            if not attrs:
+                print(f"The given reference, {args.entity},is not in workspace. Try another option: hg38 or b37")
         else:                               # return named entity attributes
             r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
             fapi._check_response_code(r, 200)
@@ -2547,7 +2549,7 @@ def main(argv=None):
                     'If no entity Type+Name is given, workspace-level ' +
                     'attributes will be listed.')
     # FIXME: this should explain that default entity is workspace
-    subp.add_argument('-e', '--entity', help="Entity name")
+    subp.add_argument('-e', '--entity', help="Entity name. For referenceData: hg38 or b37")
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
                       required=etype_required, default=fcconfig.entity_type,
                       help=etype_help)
