@@ -866,7 +866,7 @@ def attr_get(args):
             attrs = {k:all_attrs[k] for k in all_attrs if re.search(f'referenceData_{args.entity}', k)}
             if not attrs:
                 print(f"The given reference, {args.entity}, is not in workspace. Try another option: hg38 or b37")
-        else:                           # return named entity attributes
+        else:                           # return named entity attrs
             r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
             fapi._check_response_code(r, 200)
             attrs = r.json()['attributes']
@@ -883,12 +883,12 @@ def attr_get(args):
             # (but later may provide a way for users to request such, if wanted)
             for k in ["samples", "participants", "pairs"]:
                 attrs.pop(k, None)
-    elif args.ws_attrs:                 # return workspace attrs (no referenceData)
+    elif args.ws_attrs:                 # return all workspace attrs (no referenceData attrs)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
         all_attrs = r.json()['workspace']['attributes']
         attrs = {k:all_attrs[k] for k in all_attrs if not re.search('referenceData', k)}
-    else:                               # return all attributes (workspace + referenceData)
+    else:                               # return all attributes (workspace + referenceData attrs)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
         attrs = r.json()['workspace']['attributes']
