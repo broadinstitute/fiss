@@ -1,4 +1,4 @@
-FROM python:2.7.15-slim
+FROM python:3.8.5-slim
 
 COPY . /fiss
 
