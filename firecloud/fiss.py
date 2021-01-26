@@ -859,19 +859,21 @@ def attr_get(args):
     a special __header__ entry is optionally added to the result. '''
 
     if args.entity_type and args.entity:
-        if args.entity_type == "ref":       # return referenceData (b37 or hg38) attributes
+        if args.entity_type == "ref":       # return referenceData attributes
             r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
             fapi._check_response_code(r, 200)
-            all_attrs = r.json()['workspace']['attributes']
-            # check for referenceData (b37 or hg38) in workspace
-            attrs = {k:all_attrs[k] for k in all_attrs if re.search(f'referenceData_', k)}
+            ws_attrs = r.json()['workspace']['attributes']
+            # check for referenceData in workspace
+            attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_')}
             if not attrs:
-                print(f"There are no reference data available in workspace. Load a reference and try again: hg38 or b37")
+                print("There are no reference data available in workspace. Load a reference and try again.")
+                return 1
             else:
-                attrs = {k:all_attrs[k] for k in all_attrs if re.search(f'referenceData_{args.entity}', k)}
-                # if the chosen referenceData is not in workspace
-                if not attrs:
-                    print(f"The given reference, {args.entity}, is not in workspace. Try another option: hg38 or b37")
+                attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_{}'.format(args.entity))}
+                if not attrs:           # if chosen referenceData is not in workspace
+                    ref_options = [(attr.split('_')[1]) for attr in ws_attrs if attr.startswith('referenceData_')]
+                    print("The given reference is not in workspace. Try another available option: {}".format(set(ref_options)))
+
         else:                           # return named entity attrs
             r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
             fapi._check_response_code(r, 200)
@@ -892,8 +894,8 @@ def attr_get(args):
     elif args.ws_attrs:                 # return all workspace attrs (no referenceData attrs)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
-        all_attrs = r.json()['workspace']['attributes']
-        attrs = {k:all_attrs[k] for k in all_attrs if not re.search('referenceData', k)}
+        ws_attrs = r.json()['workspace']['attributes']
+        attrs = {attr:ws_attrs[attr] for attr in ws_attrs if not attr.startswith('referenceData')}
     else:                               # return all attributes (workspace + referenceData attrs)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
@@ -916,7 +918,7 @@ def attr_get(args):
             object_id = u'entity:%s_id' % args.entity_type
             result['__header__'] = [object_id] + list(attrs.keys())
         else:
-            result = attrs                  # Workspace attributes (no referenceData attributes)
+            result = attrs                  # Workspace attributes
     else:
         result = {}
 
@@ -2540,7 +2542,7 @@ def main(argv=None):
                     'If no entity Type+Name is given, workspace-level ' +
                     'attributes will be listed.')
     # FIXME: this should explain that default entity is workspace
-    subp.add_argument('-e', '--entity', help="Entity name. For referenceData: hg38 or b37")
+    subp.add_argument('-e', '--entity', help="Entity name or referenceData name.")
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
                       required=etype_required, default=fcconfig.entity_type,
                       help=etype_help)
