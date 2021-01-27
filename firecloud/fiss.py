@@ -1223,12 +1223,12 @@ def mop(args):
     # Handle Basic Values, Compound data structures, and Nestings thereof
     def update_referenced_files(referenced_files, attrs, bucket_prefix):
         for attr in attrs:
-            # Compound data structures resolve to dicts
-            if isinstance(attr, dict) and 'itemsType' not in attr:
-                update_referenced_files(referenced_files, attr.values(), bucket_prefix)
             # 1-D array attributes are dicts with the values stored in 'items'
-            elif isinstance(attr, dict) and attr['itemsType'] == 'AttributeValue':
+            if isinstance(attr, dict) and attr.get('itemsType') == 'AttributeValue':
                 update_referenced_files(referenced_files, attr['items'], bucket_prefix)
+            # Compound data structures resolve to dicts
+            elif isinstance(attr, dict):
+                update_referenced_files(referenced_files, attr.values(), bucket_prefix)
             # Nested arrays resolve to lists
             elif isinstance(attr, list):
                 update_referenced_files(referenced_files, attr, bucket_prefix)
