@@ -1219,11 +1219,26 @@ def mop(args):
 
     if args.verbose:
         print("{} -- {}".format(workspace_name, bucket_prefix))
+    
+    # Handle Basic Values, Compound data structures, and Nestings thereof
+    def update_referenced_files(referenced_files, attrs, bucket_prefix):
+        for attr in attrs:
+            # Compound data structures resolve to dicts
+            if isinstance(attr, dict) and 'itemsType' not in attr:
+                update_referenced_files(referenced_files, attr.values(), bucket_prefix)
+            # 1-D array attributes are dicts with the values stored in 'items'
+            elif isinstance(attr, dict) and attr['itemsType'] == 'AttributeValue':
+                update_referenced_files(referenced_files, attr['items'], bucket_prefix)
+            # Nested arrays resolve to lists
+            elif isinstance(attr, list):
+                update_referenced_files(referenced_files, attr, bucket_prefix)
+            elif isinstance(attr, string_types) and attr.startswith(bucket_prefix):
+                referenced_files.add(attr)
 
     referenced_files = set()
-    for value in workspace['workspace']['attributes'].values():
-        if isinstance(value, string_types) and value.startswith(bucket_prefix):
-            referenced_files.add(value)
+    update_referenced_files(referenced_files,
+                            workspace['workspace']['attributes'].values(),
+                            bucket_prefix)
 
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
@@ -1286,10 +1301,9 @@ def mop(args):
                               sort_direction="asc")
 
         for entity in entities:
-            for value in entity['attributes'].values():
-                if isinstance(value, string_types) and value.startswith(bucket_prefix):
-                    # 'value' is a file in this bucket
-                    referenced_files.add(value)
+            update_referenced_files(referenced_files,
+                                    entity['attributes'].values(),
+                                    bucket_prefix)
 
     if args.verbose:
         num = len(referenced_files)
