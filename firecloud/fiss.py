@@ -979,9 +979,12 @@ def attr_delete(args):
             name = entity_dict['name']
             line = name
             # TODO: Fix other types?
-            if etype == "sample":
+            if etype in ("sample", "pair"):
                 line += "\t" + entity_dict['attributes']['participant']['entityName']
-            for attr in attrs:
+            if etype == "pair":
+                line += "\t" + entity_dict['attributes']['case_sample']['entityName']
+                line += "\t" + entity_dict['attributes']['control_sample']['entityName']
+            for _ in attrs:
                 line += "\t__DELETE__"
             # Improve performance by only updating records that have changed
             entity_data.append(line)
@@ -989,6 +992,8 @@ def attr_delete(args):
         entity_header = ["entity:" + etype + "_id"]
         if etype == "sample":
             entity_header.append("participant_id")
+        if etype == "pair":
+            entity_header += ["participant", "case_sample", "control_sample"]
         entity_header = '\t'.join(entity_header + list(attrs))
 
         # Remove attributes from an entity
