@@ -858,7 +858,7 @@ def attr_get(args):
     refer to a non-existent attribute will be silently ignored. By default
     a special __header__ entry is optionally added to the result. '''
 
-    if args.entity_type and args.entity:
+    if args.entity_type and (args.entity or args.entity_type == "ref"):
         if args.entity_type == "ref":       # return referenceData attributes
             r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
             fapi._check_response_code(r, 200)
@@ -867,14 +867,16 @@ def attr_get(args):
             ref_attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_')}
             if not ref_attrs:
                 print("There are no reference data available in workspace. Load a reference and try again.")
-                return 1
-            attrs = {attr:ref_attrs[attr] for attr in ref_attrs if attr.startswith('referenceData_{}'.format(args.entity))}
-            if not attrs:           # if chosen referenceData is not in workspace
-                ref_options = sorted({attr.split('_')[1] for attr in ref_attrs})
-                print("The given reference is not in workspace. Available option(s): {}.".format(", ".join(ref_options))
-                return 1
-
-        else:                           # return named entity attrs
+                return {}
+            if args.entity:
+                attrs = {attr:ref_attrs[attr] for attr in ref_attrs if attr.startswith('referenceData_{}'.format(args.entity))}
+                if not attrs:           # if chosen referenceData is not in workspace
+                    ref_options = sorted({attr.split('_')[1] for attr in ref_attrs})
+                    print("The given reference is not in workspace. Available option(s): {}.".format(", ".join(ref_options)))            
+                    return {}
+            else:
+                attrs = ref_attrs
+        else:                   # return named entity attrs
             r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
             fapi._check_response_code(r, 200)
             attrs = r.json()['attributes']
@@ -2071,7 +2073,7 @@ def main(argv=None):
     workspace_required = not bool(fcconfig.workspace)
     etype_required = not bool(fcconfig.entity_type)
     etype_choices = ['participant', 'participant_set', 'sample', 'sample_set',
-                     'pair', 'pair_set', 'ref']
+                     'pair', 'pair_set']
 
     # Initialize core parser (TODO: Add longer description)
     usage  = 'fissfc [OPTIONS] [CMD [-h | arg ...]]'
@@ -2538,11 +2540,13 @@ def main(argv=None):
         parents=[workspace_parent, attr_parent])
 
     # etype_parent not used for attr_get, because entity type is optional
-    subp.add_argument('-t', '--entity-type', choices=etype_choices, default='',
+    subp.add_argument('-t', '--entity-type', choices=etype_choices + ['ref'], default='',
                       required=False, help='Entity type to retrieve ' +
-                                           'annotations from.')
+                                           'attributes from.')
     subp.add_argument('-e', '--entity',
-                      help="Entity to retrieve attributes from")
+                      help="Entity or reference to retrieve attributes from")
+    subp.add_argument('-s', '--ws_attrs', action='store_true',
+                      help="Argument retrieves workspace attributes only (no referenceData attributes).")
     subp.set_defaults(func=attr_get)
 
     subp = subparsers.add_parser('attr_set', parents=[workspace_parent],
@@ -2562,11 +2566,11 @@ def main(argv=None):
                     'attributes will be listed.')
     # FIXME: this should explain that default entity is workspace
     subp.add_argument('-e', '--entity', help="Entity name or referenceData name.")
-    subp.add_argument('-t', '--entity-type', choices=etype_choices,
-                      required=etype_required, default=fcconfig.entity_type,
-                      help=etype_help)
-    subp.add_argument('-a', '--ws_attrs', action='store_true',
-                      help="Argument retrieves workspace attributes (no referenceData attributes).")
+    subp.add_argument('-t', '--entity-type', choices=etype_choices + ['ref'],
+                      required=False, default=fcconfig.entity_type,
+                      help='Entity type to retrieve attributes from.')
+    subp.add_argument('-s', '--ws_attrs', action='store_true',
+                      help="Argument retrieves workspace attributes only (no referenceData attributes).")
     subp.set_defaults(func=attr_list)
 
     # Copy attributes
