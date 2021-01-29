@@ -864,15 +864,15 @@ def attr_get(args):
             fapi._check_response_code(r, 200)
             ws_attrs = r.json()['workspace']['attributes']
             # check for referenceData in workspace
-            attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_')}
-            if not attrs:
+            ref_attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_')}
+            if not ref_attrs:
                 print("There are no reference data available in workspace. Load a reference and try again.")
                 return 1
-            else:
-                attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_{}'.format(args.entity))}
-                if not attrs:           # if chosen referenceData is not in workspace
-                    ref_options = [(attr.split('_')[1]) for attr in ws_attrs if attr.startswith('referenceData_')]
-                    print("The given reference is not in workspace. Try another available option: {}".format(set(ref_options)))
+            attrs = {attr:ref_attrs[attr] for attr in ref_attrs if attr.startswith('referenceData_{}'.format(args.entity))}
+            if not attrs:           # if chosen referenceData is not in workspace
+                ref_options = sorted({attr.split('_')[1] for attr in ref_attrs})
+                print("The given reference is not in workspace. Available option(s): {}.".format(", ".join(ref_options))
+                return 1
 
         else:                           # return named entity attrs
             r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
