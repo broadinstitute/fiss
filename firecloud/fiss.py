@@ -858,24 +858,47 @@ def attr_get(args):
     refer to a non-existent attribute will be silently ignored. By default
     a special __header__ entry is optionally added to the result. '''
 
-    if args.entity_type and args.entity:
-        r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
+    if args.entity_type and (args.entity or args.entity_type == "ref"):
+        if args.entity_type == "ref":       # return referenceData attributes
+            r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
+            fapi._check_response_code(r, 200)
+            ws_attrs = r.json()['workspace']['attributes']
+            # check for referenceData in workspace
+            ref_attrs = {attr:ws_attrs[attr] for attr in ws_attrs if attr.startswith('referenceData_')}
+            if not ref_attrs:
+                print("There are no reference data available in workspace. Load a reference and try again.")
+                return {}
+            if args.entity:
+                attrs = {attr:ref_attrs[attr] for attr in ref_attrs if attr.startswith('referenceData_{}'.format(args.entity))}
+                if not attrs:           # if chosen referenceData is not in workspace
+                    ref_options = sorted({attr.split('_')[1] for attr in ref_attrs})
+                    print("The given reference is not in workspace. Available option(s): {}.".format(", ".join(ref_options)))            
+                    return {}
+            else:
+                attrs = ref_attrs
+        else:                   # return named entity attrs
+            r = fapi.get_entity(args.project, args.workspace, args.entity_type, args.entity)
+            fapi._check_response_code(r, 200)
+            attrs = r.json()['attributes']
+            # It is wrong for the members of container objects to appear as metadata
+            # (attributes) attached to the container, as it conflates fundamentally
+            # different things: annotation vs membership. This can be seen by using
+            # a suitcase model of reasoning: ATTRIBUTES are METADATA like the weight
+            # & height of the suitcase, the shipping label and all of its passport
+            # stamps; while MEMBERS are the actual CONTENTS INSIDE the suitcase.
+            # This conflation also contradicts the design & docs (which make a clear
+            # distinction between MEMBERSHIP and UPDATE loadfiles).  For this reason
+            # a change has been requested of the FireCloud dev team (via forum), and
+            # until it is implemented we will elide "list of members" attributes here
+            # (but later may provide a way for users to request such, if wanted)
+            for k in ["samples", "participants", "pairs"]:
+                attrs.pop(k, None)
+    elif args.ws_attrs:                 # return all workspace attrs (no referenceData attrs)
+        r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
-        attrs = r.json()['attributes']
-        # It is wrong for the members of container objects to appear as metadata
-        # (attributes) attached to the container, as it conflates fundamentally
-        # different things: annotation vs membership. This can be seen by using
-        # a suitcase model of reasoning: ATTRIBUTES are METADATA like the weight
-        # & height of the suitcase, the shipping label and all of its passport
-        # stamps; while MEMBERS are the actual CONTENTS INSIDE the suitcase.
-        # This conflation also contradicts the design & docs (which make a clear
-        # distinction between MEMBERSHIP and UPDATE loadfiles).  For this reason
-        # a change has been requested of the FireCloud dev team (via forum), and
-        # until it is implemented we will elide "list of members" attributes here
-        # (but later may provide a way for users to request such, if wanted)
-        for k in ["samples", "participants", "pairs"]:
-            attrs.pop(k, None)
-    else:
+        ws_attrs = r.json()['workspace']['attributes']
+        attrs = {attr:ws_attrs[attr] for attr in ws_attrs if not attr.startswith('referenceData')}
+    else:                               # return all attributes (workspace + referenceData attrs)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
         attrs = r.json()['workspace']['attributes']
@@ -979,9 +1002,12 @@ def attr_delete(args):
             name = entity_dict['name']
             line = name
             # TODO: Fix other types?
-            if etype == "sample":
+            if etype in ("sample", "pair"):
                 line += "\t" + entity_dict['attributes']['participant']['entityName']
-            for attr in attrs:
+            if etype == "pair":
+                line += "\t" + entity_dict['attributes']['case_sample']['entityName']
+                line += "\t" + entity_dict['attributes']['control_sample']['entityName']
+            for _ in attrs:
                 line += "\t__DELETE__"
             # Improve performance by only updating records that have changed
             entity_data.append(line)
@@ -989,6 +1015,8 @@ def attr_delete(args):
         entity_header = ["entity:" + etype + "_id"]
         if etype == "sample":
             entity_header.append("participant_id")
+        if etype == "pair":
+            entity_header += ["participant", "case_sample", "control_sample"]
         entity_header = '\t'.join(entity_header + list(attrs))
 
         # Remove attributes from an entity
@@ -1219,11 +1247,26 @@ def mop(args):
 
     if args.verbose:
         print("{} -- {}".format(workspace_name, bucket_prefix))
+    
+    # Handle Basic Values, Compound data structures, and Nestings thereof
+    def update_referenced_files(referenced_files, attrs, bucket_prefix):
+        for attr in attrs:
+            # 1-D array attributes are dicts with the values stored in 'items'
+            if isinstance(attr, dict) and attr.get('itemsType') == 'AttributeValue':
+                update_referenced_files(referenced_files, attr['items'], bucket_prefix)
+            # Compound data structures resolve to dicts
+            elif isinstance(attr, dict):
+                update_referenced_files(referenced_files, attr.values(), bucket_prefix)
+            # Nested arrays resolve to lists
+            elif isinstance(attr, list):
+                update_referenced_files(referenced_files, attr, bucket_prefix)
+            elif isinstance(attr, string_types) and attr.startswith(bucket_prefix):
+                referenced_files.add(attr)
 
     referenced_files = set()
-    for value in workspace['workspace']['attributes'].values():
-        if isinstance(value, string_types) and value.startswith(bucket_prefix):
-            referenced_files.add(value)
+    update_referenced_files(referenced_files,
+                            workspace['workspace']['attributes'].values(),
+                            bucket_prefix)
 
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
@@ -1286,10 +1329,9 @@ def mop(args):
                               sort_direction="asc")
 
         for entity in entities:
-            for value in entity['attributes'].values():
-                if isinstance(value, string_types) and value.startswith(bucket_prefix):
-                    # 'value' is a file in this bucket
-                    referenced_files.add(value)
+            update_referenced_files(referenced_files,
+                                    entity['attributes'].values(),
+                                    bucket_prefix)
 
     if args.verbose:
         num = len(referenced_files)
@@ -2031,7 +2073,7 @@ def main(argv=None):
     workspace_required = not bool(fcconfig.workspace)
     etype_required = not bool(fcconfig.entity_type)
     etype_choices = ['participant', 'participant_set', 'sample', 'sample_set',
-                     'pair', 'pair_set' ]
+                     'pair', 'pair_set']
 
     # Initialize core parser (TODO: Add longer description)
     usage  = 'fissfc [OPTIONS] [CMD [-h | arg ...]]'
@@ -2498,11 +2540,13 @@ def main(argv=None):
         parents=[workspace_parent, attr_parent])
 
     # etype_parent not used for attr_get, because entity type is optional
-    subp.add_argument('-t', '--entity-type', choices=etype_choices, default='',
+    subp.add_argument('-t', '--entity-type', choices=etype_choices + ['ref'], default='',
                       required=False, help='Entity type to retrieve ' +
-                                           'annotations from.')
+                                           'attributes from.')
     subp.add_argument('-e', '--entity',
-                      help="Entity to retrieve attributes from")
+                      help="Entity or reference to retrieve attributes from")
+    subp.add_argument('-s', '--ws_attrs', action='store_true',
+                      help="Argument retrieves workspace attributes only (no referenceData attributes).")
     subp.set_defaults(func=attr_get)
 
     subp = subparsers.add_parser('attr_set', parents=[workspace_parent],
@@ -2521,10 +2565,12 @@ def main(argv=None):
                     'If no entity Type+Name is given, workspace-level ' +
                     'attributes will be listed.')
     # FIXME: this should explain that default entity is workspace
-    subp.add_argument('-e', '--entity', help="Entity name")
-    subp.add_argument('-t', '--entity-type', choices=etype_choices,
-                      required=etype_required, default=fcconfig.entity_type,
-                      help=etype_help)
+    subp.add_argument('-e', '--entity', help="Entity name or referenceData name.")
+    subp.add_argument('-t', '--entity-type', choices=etype_choices + ['ref'],
+                      required=False, default=fcconfig.entity_type,
+                      help='Entity type to retrieve attributes from.')
+    subp.add_argument('-s', '--ws_attrs', action='store_true',
+                      help="Argument retrieves workspace attributes only (no referenceData attributes).")
     subp.set_defaults(func=attr_list)
 
     # Copy attributes

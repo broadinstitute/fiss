@@ -3,6 +3,12 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.31 - Changed Dockerfile base image to python 3; suppress Python 2
+           deprecation warning from cryptography module; HL: mop updated to
+           find files in attributes with array and compound data structure
+           values, attr_delete updated to work on pair attributes, attr_get and
+           attr_list updated to return or elide reference data in workspace.
+
 v0.16.30 - HL: hotfix - re-enabled making methods public.
 
 v0.16.29 - LL: added fields parameter to get_workspace; HL: space_exists,
