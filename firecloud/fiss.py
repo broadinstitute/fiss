@@ -19,7 +19,6 @@ import subprocess
 import re
 import collections
 from difflib import unified_diff
-from google.cloud.storage import blob
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
 from google.cloud import storage
