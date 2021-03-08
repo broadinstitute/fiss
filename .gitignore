@@ -5,3 +5,6 @@
 build/*
 dist/*
 firecloud.egg-info/*
+
+# my virenv
+/.fiss_env/*
