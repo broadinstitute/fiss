@@ -1353,10 +1353,12 @@ def update_workspace_attributes(namespace, workspace, attrs):
         attrs (list(dict)): List of update operations for workspace attributes.
             Use the helper dictionary construction functions to create these:
 
-            _attr_set()      : Set/Update attribute
-            _attr_rem()     : Remove attribute
-            _attr_ladd()    : Add list member to attribute
-            _attr_lrem()    : Remove list member from attribute
+            _attr_set()         : Set/Update attribute
+            _attr_rem()         : Remove attribute
+            _attr_ladd()        : Add list member to attribute
+            _attr_lrem()        : Remove list member from attribute
+            _attr_rcreate(attr) : Create reference attribute
+            _attr_lcreate(attr) : Create list attrtibute
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/updateAttributes
@@ -1389,17 +1391,31 @@ def _attr_rem(attr):
 def _attr_ladd(attr, value):
     """Create a 'list add' dictionary for update_workspace_attributes()"""
     return {
-        "op"                 : "AddListMember",
-        "attributeName"      : attr,
-        "addUpdateAttribute" : value
+        "op"                : "AddListMember",
+        "attributeListName" : attr,
+        "newMember"         : value,
     }
 
 def _attr_lrem(attr, value):
     """Create a 'list remove' dictionary for update_workspace_attributes()"""
     return {
-        "op"                 : "RemoveListMember",
-        "attributeName"      : attr,
-        "addUpdateAttribute" : value
+        "op"                : "RemoveListMember",
+        "attributeListName" : attr,
+        "removeMember"      : value,
+    }
+
+def _attr_rcreate(attr):
+    """Create entity-reference attribute for update_entity()"""
+    return {
+        "op"                : "CreateAttributeEntityReferenceList",
+        "attributeListName" : attr,
+    }
+
+def _attr_lcreate(attr):
+    """Create list attribute for update_entity()"""
+    return {
+        "op"            : "CreateAttributeValueList",
+        "attributeName" : attr,
     }
 
 #####################
