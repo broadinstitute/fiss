@@ -1002,6 +1002,29 @@ def list_billing_projects():
     """
     return __get("profile/billing")
 
+    
+
+def get_proxy_id(email: str = None) -> str:
+    """Get user proxy id
+
+    Args:
+        email (str, optional): User Email, if None uses current user email. Defaults to None.
+
+    Swagger:
+    https://api.firecloud.org/api/proxyGroup/
+
+    Returns:
+        str: terra proxy id
+    """
+    if email is None:
+        email = whoami()
+    uri = f"proxyGroup/{email}"
+    res = __get(uri)
+    _check_response_code(res, 200)
+    cleanMap = {ord(i): None for i in "'\""}
+    return res.text.translate(cleanMap)
+
+
 ################
 ### 1.5 Status
 ################
