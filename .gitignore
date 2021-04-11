@@ -5,3 +5,11 @@
 build/*
 dist/*
 firecloud.egg-info/*
+/.eggs/*
+
+# my virenv
+.fiss_env
+
+# visual code settings
+.vscode
+firecloud.code-workspace

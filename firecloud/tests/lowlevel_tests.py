@@ -389,6 +389,14 @@ class TestFISSLowLevel(unittest.TestCase):
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
+    def test_get_proxy_id(self):
+        """Test get_proxy_id()."""
+        email = 'sbelkin@broadinstitute.org'
+        proxy_id = 'PROXY_118199674772994880215@firecloud.org'
+        result = fapi.get_proxy_id(email)
+        print(email, result)
+        self.assertEqual(result, proxy_id)
+
     def test_update_workspace_attributes(self):
         """Test update_workspace_attributes()."""
         updates = [fapi._attr_set("key1", "value1")]
