@@ -1271,6 +1271,22 @@ def mop(args):
     # TODO: Make this more efficient with a native api call?
     # # Now run a gsutil ls to list files present in the bucket
     try:
+        # Now make a call to the API for the user's submission information.
+        user_submission_request = fapi.list_submissions(args.project, args.workspace)
+
+        # Check if API call was successful, in the case of failure, the function will return an error
+        fapi._check_response_code(user_submission_request, 200)
+
+        # Sort user submission ids for future bucket file verification
+        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
+
+        if args.submission_id:
+            if args.submission_id not in submission_ids:
+                eprint(f"{args.submission_id} is not a valid submission id.")
+                return 1
+
+            bucket_prefix = bucket_prefix + '/' + args.submission_id
+
         gsutil_args = ['gsutil', 'ls', '-l', bucket_prefix + '/**']
         if args.verbose:
             print(' '.join(gsutil_args))
@@ -1286,20 +1302,11 @@ def mop(args):
             if len(listing) != 3:
                 break
             bucket_file_sizes[listing[2]] = int(listing[0])
-        
-        # Now make a call to the API for the user's submission information.
-        user_submission_request = fapi.list_submissions(args.project, args.workspace)
 
-        # Check if API call was successful, in the case of failure, the function will return an error 
-        fapi._check_response_code(user_submission_request, 200)
-      
-        # Sort user submission ids for future bucket file verification
-        submission_ids = set(item['submissionId'] for item in user_submission_request.json())
-        
         # Check to see if bucket file path contain the user's submission id
         # to ensure deletion of files in the submission directories only.
         # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
-        # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path] 
+        # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path]
         # to extract the submission id from the 4th element (index 3) of the array
         bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
         
@@ -2604,6 +2611,8 @@ def main(argv=None):
         parents=[workspace_parent])
     subp.add_argument('--dry-run', action='store_true',
                       help='Show deletions that would be performed')
+    subp.add_argument('--submission-id', nargs='?',
+                      help='Provide submission id of job in workspace to mop.')
     group = subp.add_mutually_exclusive_group()
     group.add_argument('-i', '--include', nargs='+', metavar="glob",
                        help="Only delete unreferenced files matching the " +
