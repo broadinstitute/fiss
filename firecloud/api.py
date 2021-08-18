@@ -1042,7 +1042,8 @@ def list_submissions(namespace, workspace):
     return __get(uri)
 
 def create_submission(wnamespace, workspace, cnamespace, config,
-                      entity=None, etype=None, expression=None, use_callcache=True):
+                      entity=None, etype=None, expression=None, use_callcache=True,
+                      memory_retry_multiplier=None):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -1057,6 +1058,8 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         expression (str): Instead of using entity as the root entity,
             evaluate the root entity from this expression.
         use_callcache (bool): use call cache if applicable (default: true)
+        memory_retry_multiplier (float): when retrying tasks that fail with OutOfMemory error,
+            scale the memory request by this factor on each retry
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/createSubmission
@@ -1077,6 +1080,9 @@ def create_submission(wnamespace, workspace, cnamespace, config,
 
     if expression:
         body['expression'] = expression
+
+    if memory_retry_multiplier:
+        body['memoryRetryMultiplier'] = memory_retry_multiplier
 
     return __post(uri, json=body)
 
