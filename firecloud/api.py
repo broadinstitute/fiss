@@ -1172,6 +1172,28 @@ def list_workspaces(fields=None):
     else:
         return __get("workspaces", params={"fields": fields})
 
+def get_storage_cost(namespace, workspace):
+    """Request average monthly storage cost for workspace.
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+    Swagger:
+        https://api.firecloud.org/#!/Workspaces/storageCostEstimate
+    """
+    uri = "workspaces/{0}/{1}/storageCostEstimate".format(namespace, workspace)
+    return __get(uri)
+
+def get_bucket_usage(namespace, workspace):
+    """Request google bucket usage for workspace.
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+    Swagger:
+        https://api.firecloud.org/#!/Workspaces/getBucketUsage
+    """
+    uri = "workspaces/{0}/{1}/bucketUsage".format(namespace, workspace)
+    return __get(uri)
+
 def create_workspace(namespace, name, authorizationDomain="", attributes=None):
     """Create a new FireCloud Workspace.
 
