@@ -13,7 +13,6 @@ import os
 import io
 import logging
 import subprocess
-from collections import Iterable
 
 from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
@@ -26,6 +25,11 @@ from google.oauth2 import id_token
 from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
+
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 
 FISS_USER_AGENT = "FISS/" + __version__

@@ -20,12 +20,16 @@ import os
 import configparser
 import tempfile
 import shutil
-from collections import Iterable
 import subprocess
 from io import IOBase
 from firecloud import __about__
 from google.auth import environment_vars
 from six import string_types
+
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 class attrdict(dict):
     """ dict whose members can be accessed as attributes, and default value is
