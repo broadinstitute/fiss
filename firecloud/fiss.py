@@ -105,7 +105,8 @@ def space_unlock(args):
 def space_new(args):
     """ Create a new workspace. """
     r = fapi.create_workspace(args.project, args.workspace,
-                                 args.authdomain, dict())
+                              args.authdomain, dict(),
+                              bucketLocation=args.bucket_region)
     fapi._check_response_code(r, 201)
     if fcconfig.verbosity:
         eprint(r.content)
@@ -233,6 +234,13 @@ def entity_import(args):
                        model)
 
 @fiss_cmd
+def entity_rename(args):
+    """ Rename an entity in a workspace."""
+    r = fapi.rename_entity(args.project, args.workspace, args.entity_type,
+                           args.entity, args.name)
+    fapi._check_response_code(r, 204)
+
+@fiss_cmd
 def set_export(args):
     '''Return a list of lines in TSV form that would suffice to reconstitute a
        container (set) entity, if passed to entity_import.  The first line in
@@ -297,7 +305,7 @@ def __entity_names(entities):
 def __get_entities(args, kind, page_size=1000, handler=__entity_names):
 
     entities = _entity_paginator(args.project, args.workspace, kind,
-                                                page_size=page_size)
+                                 page_size=page_size, fields="name")
     return handler(entities)
 
 @fiss_cmd
@@ -577,8 +585,11 @@ def config_start(args):
         args.entity_type = None
 
     r = fapi.create_submission(args.project, args.workspace,args.namespace,
-                            args.config, args.entity, args.entity_type,
-                            args.expression, use_callcache=cache)
+                               args.config, args.entity, args.entity_type,
+                               args.expression, cache, 
+                               args.delete_intermediates, args.ref_disks,
+                               args.mem_retry_multiplier, args.failure_mode,
+                               args.user_comment)
     fapi._check_response_code(r, 201)
     id = r.json()['submissionId']
 
@@ -902,6 +913,8 @@ def attr_get(args):
     else:                               # return all attributes (workspace + referenceData attrs)
         r = fapi.get_workspace(args.project, args.workspace, fields="workspace.attributes")
         fapi._check_response_code(r, 200)
+        if args.verbose:
+            print(json.dumps(r.json(), indent=2))
         attrs = r.json()['workspace']['attributes']
 
     if args.attributes:         # return a subset of attributes, if requested
@@ -909,6 +922,8 @@ def attr_get(args):
 
     # If some attributes have been collected, return in appropriate format
     if attrs:
+        if args.verbose:
+            print(json.dumps(attrs, indent=2))
         if args.entity:                     # Entity attributes
 
             def textify(thing):
@@ -921,12 +936,21 @@ def attr_get(args):
             object_id = u'entity:%s_id' % args.entity_type
             result['__header__'] = [object_id] + list(attrs.keys())
         else:
-            result = attrs                  # Workspace attributes
+            result = {k:__listify_attr_vals(v) for k,v in attrs.items()}                  # Workspace attributes
     else:
         result = {}
 
     return result
 
+def __listify_attr_vals(val):
+    if isinstance(val, dict) and 'itemsType' in val:
+        if val['itemsType'] == 'AttributeValue':
+            val = val['items']
+        elif val['itemsType'] == 'EntityReference':
+            val = [item['entityName'] for item in val['items']]
+    return '{}'.format(val)
+        
+        
 @fiss_cmd
 def attr_list(args):
     '''Retrieve names of all attributes attached to a given object, either
@@ -946,109 +970,137 @@ def attr_set(args):
     attributes will be set upon that entity, otherwise the attribute will
     be set at the workspace level'''
 
+    value = args.value[0] if len(args.value) == 1 else args.value
     if args.entity_type and args.entity:
-        prompt = "Set {0}={1} for {2}:{3} in {4}/{5}?\n[Y\\n]: ".format(
-                            args.attribute, args.value, args.entity_type,
+        prompt = "Set {0}={1} for {2}:{3} in {4}/{5}?\n[y\\N]: ".format(
+                            args.attribute, value, args.entity_type,
                             args.entity, args.project, args.workspace)
 
         if not (args.yes or _confirm_prompt("", prompt)):
             return 0
 
-        update = fapi._attr_set(args.attribute, args.value)
         r = fapi.update_entity(args.project, args.workspace, args.entity_type,
-                                                        args.entity, [update])
+                               args.entity, _make_updates(args))
         fapi._check_response_code(r, 200)
     else:
-        prompt = "Set {0}={1} in {2}/{3}?\n[Y\\n]: ".format(
-            args.attribute, args.value, args.project, args.workspace
+        prompt = "Set {0}={1} in {2}/{3}?\n[y\\N]: ".format(
+            args.attribute, value, args.project, args.workspace
         )
 
         if not (args.yes or _confirm_prompt("", prompt)):
             return 0
 
-        update = fapi._attr_set(args.attribute, args.value)
         r = fapi.update_workspace_attributes(args.project, args.workspace,
-                                                                [update])
+                                             _make_updates(args))
         fapi._check_response_code(r, 200)
     return 0
 
+def _make_updates(args):
+    ''' Helper function for attr_set - creates the updates payload'''
+    updates = list()
+    if args.ref_etype is not None:
+        updates.append(fapi._attr_erlcreate(args.attribute))
+        if args.verbose:
+            print("Creating Reference List - " + args.attribute)
+        for value in args.value:
+            eref = {"entityType": args.ref_etype,
+                    "entityName": value}
+            updates.append(fapi._attr_ladd(args.attribute, eref))
+        if args.verbose:
+            print(json.dumps(updates, indent=2))
+        return updates
+    if len(args.value) == 1:
+        updates.append(fapi._attr_set(args.attribute, args.value[0]))
+    else:
+        updates.append(fapi._attr_vlcreate(args.attribute))
+        if args.verbose:
+            print("Creating Value List - " + args.attribute)
+        for value in args.value:
+            updates.append(fapi._attr_ladd(args.attribute, value))
+    if args.verbose:
+        print(json.dumps(updates, indent=2))
+    return updates
+
+@fiss_cmd
+def attr_rename(args):
+    ''' Rename attribute: if entity type is specified then the specified
+    attribute will be renamed for that entity type, otherwise the attribute
+    will be renamed on the workspace'''
+    
+    if args.entity_type:
+        prompt = "Rename {} to {} for {}s in {}/{}?\n[y\\N]: ".format(
+                            args.attribute, args.name, args.entity_type,
+                            args.project, args.workspace)
+        if not (args.yes or _confirm_prompt("", prompt)):
+            return 0
+        r = fapi.rename_entity_type_attribute(args.project, args.workspace,
+                                              args.entity_type, args.attribute,
+                                              args.name)
+        fapi._check_response_code(r, 204)
+    # There is no API for renaming workspace attributes, so we create one in
+    # the interest of consistency
+    else:
+        prompt = "Rename {} to {} in {}/{}?\n[y\\N]: ".format(
+                            args.attribute, args.name, args.project,
+                            args.workspace)
+        r = fapi.get_workspace(args.project, args.workspace,
+                               fields="workspace.attributes." + args.attribute +
+                                      ",workspace.attributes." + args.name)
+        fapi._check_response_code(r, 200)
+        updates = list()
+        attrs = r.json()['workspace']['attributes']
+        # Entity attribute rename API errors if the new name already exists, so
+        # we do the same here.
+        if args.name in attrs:
+            eprint("{} already exists in {}/{}".format(args.name, args.project,
+                                                       args.workspace))
+            return 1
+        value = attrs[args.attribute]
+        if isinstance(value, dict):
+            items = value['items']
+            itype = value['itemsType']
+            if itype == "EntityReference":
+                updates.append(fapi._attr_erlcreate(args.name))
+            else:
+                updates.append(fapi._attr_vlcreate(args.name))
+            for item in items:
+                updates.append(fapi._attr_ladd(args.name, item))
+        else:
+            updates.append(fapi._attr_set(args.name, value))
+        r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                             updates)
+        fapi._check_response_code(r, 200)
+        # Don't delete the original attribute if the rename wasn't successful
+        r = fapi.update_workspace_attributes(args.project, args.workspace,
+                                             [fapi._attr_rem(args.attribute)])
+        fapi._check_response_code(r, 200)
+    return 0
 @fiss_cmd
 def attr_delete(args):
     ''' Delete key=value attributes: if entity name & type are specified then
     attributes will be deleted from that entity, otherwise the attribute will
     be removed from the workspace'''
-
-    if args.entity_type and args.entities:
-        # Since there is no attribute deletion endpoint, we must perform 2 steps
-        # here: first we retrieve the entity_ids, and any foreign keys (e.g.
-        # participant_id for sample_id); and then construct a loadfile which
-        # specifies which entities are to have what attributes removed.  Note
-        # that FireCloud uses the magic keyword __DELETE__ to indicate that
-        # an attribute should be deleted from an entity.
-
-        # Step 1: see what entities are present, and filter to those requested
-        entities = _entity_paginator(args.project, args.workspace,
-                                     args.entity_type,
-                                     page_size=1000, filter_terms=None,
-                                     sort_direction="asc")
-        if args.entities:
-            entities = [e for e in entities if e['name'] in args.entities]
-
-        # Step 2: construct a loadfile to delete these attributes
-        attrs = sorted(args.attributes)
-        etype = args.entity_type
-
-        entity_data = []
-        for entity_dict in entities:
-            name = entity_dict['name']
-            line = name
-            # TODO: Fix other types?
-            if etype in ("sample", "pair"):
-                line += "\t" + entity_dict['attributes']['participant']['entityName']
-            if etype == "pair":
-                line += "\t" + entity_dict['attributes']['case_sample']['entityName']
-                line += "\t" + entity_dict['attributes']['control_sample']['entityName']
-            for _ in attrs:
-                line += "\t__DELETE__"
-            # Improve performance by only updating records that have changed
-            entity_data.append(line)
-
-        entity_header = ["entity:" + etype + "_id"]
-        if etype == "sample":
-            entity_header.append("participant_id")
-        if etype == "pair":
-            entity_header += ["participant", "case_sample", "control_sample"]
-        entity_header = '\t'.join(entity_header + list(attrs))
-
-        # Remove attributes from an entity
-        message = "WARNING: this will delete these attributes:\n\n" + \
-                  ','.join(args.attributes) + "\n\n"
-        if args.entities:
-            message += 'on these {0}s:\n\n'.format(args.entity_type) + \
+    
+    updates = [fapi._attr_rem(a) for a in args.attributes]
+    message = "WARNING: this will delete these attributes:\n\n" + \
+              ','.join(args.attributes) + "\n\n"
+    if args.entity_type:
+        if args.entities is not None:
+            message += 'on these {}s:\n\n'.format(args.entity_type) + \
                        ', '.join(args.entities)
         else:
-            message += 'on all {0}s'.format(args.entity_type)
-        message += "\n\nin workspace {0}/{1}\n".format(args.project, args.workspace)
+            message += 'on all {}s'.format(args.entity_type)
+            args.entities = [e['name'] for e in 
+                             _entity_paginator(args.project, args.workspace,
+                                               args.entity_type,
+                                               page_size=1000, fields="name")]
+        message += "\n\nin workspace {}/{}\n".format(args.project,
+                                                     args.workspace)
         if not args.yes and not _confirm_prompt(message):
             return 0
-
-        # TODO: reconcile with other batch updates
-        # Chunk the entities into batches of 500, and upload to FC
-        if args.verbose:
-            print("Batching " + str(len(entity_data)) + " updates to Firecloud...")
-        chunk_len = 500
-        total = int(len(entity_data) / chunk_len) + 1
-        batch = 0
-        for i in range(0, len(entity_data), chunk_len):
-            batch += 1
-            if args.verbose:
-                print("Updating samples {0}-{1}, batch {2}/{3}".format(
-                    i+1, min(i+chunk_len, len(entity_data)), batch, total
-                ))
-            this_data = entity_header + '\n' + '\n'.join(entity_data[i:i+chunk_len])
-
-            # Now push the entity data back to firecloud
-            r = fapi.upload_entities(args.project, args.workspace, this_data)
+        for entity in args.entities:
+            r = fapi.update_entity(args.project, args.workspace,
+                                   args.entity_type, entity, updates)
             fapi._check_response_code(r, 200)
     else:
         message = "WARNING: this will delete the following attributes in " + \
@@ -1057,8 +1109,6 @@ def attr_delete(args):
 
         if not (args.yes or _confirm_prompt(message)):
             return 0
-
-        updates = [fapi._attr_rem(a) for a in args.attributes]
         r = fapi.update_workspace_attributes(args.project, args.workspace,
                                              updates)
         fapi._check_response_code(r, 200)
@@ -1899,7 +1949,8 @@ def _nonempty_project(string):
     return value
 
 def _entity_paginator(namespace, workspace, etype, page_size=500,
-                            filter_terms=None, sort_direction="asc"):
+                      filter_terms=None, sort_direction="asc",
+                      filter_operator=None, fields=None):
     """Pages through the get_entities_query endpoint to get all entities in
        the workspace without crashing.
     """
@@ -1909,7 +1960,8 @@ def _entity_paginator(namespace, workspace, etype, page_size=500,
     # Make initial request
     r = fapi.get_entities_query(namespace, workspace, etype, page=page,
                            page_size=page_size, sort_direction=sort_direction,
-                           filter_terms=filter_terms)
+                           filter_terms=filter_terms, filter_operator=filter_operator,
+                           fields=fields)
     fapi._check_response_code(r, 200)
 
     response_body = r.json()
@@ -1924,7 +1976,8 @@ def _entity_paginator(namespace, workspace, etype, page_size=500,
     while page <= total_pages:
         r = fapi.get_entities_query(namespace, workspace, etype, page=page,
                                page_size=page_size, sort_direction=sort_direction,
-                               filter_terms=filter_terms)
+                               filter_terms=filter_terms, filter_operator=filter_operator,
+                               fields=fields)
         fapi._check_response_code(r, 200)
         entities = r.json()['results']
         all_entities.extend(entities)
@@ -2024,7 +2077,7 @@ def __pretty_print_fc_exception(e):
         print_traceback(trback)
     try:
         # Attempt to unpack error message as JSON
-        e = json.loads(e.args[0])
+        e = json.loads(str(e))
         # Default to 'FireCloud' if component which gave error was not specified
         source = ' (' + e.get('source','FireCloud') + ')'
         msg = e['message']
@@ -2033,6 +2086,15 @@ def __pretty_print_fc_exception(e):
             if match:
                 msg = pattern[1] % (match.group(*(pattern[2])))
                 break
+        else:
+            if fcconfig.verbosity > 1:
+                e['message'] = json.loads(msg)
+                eprint(json.dumps(e, indent=2))
+            msgs = json.loads(msg)
+            msg = msgs['message']
+            if 'causes' in msgs:
+                msg += ' - ' + ', '.join(cause['message'] for cause in msgs['causes'])
+            
     except Exception as je:
         # Could not unpack error to JSON, fallback to original message
         if isinstance(code, str):
@@ -2179,11 +2241,16 @@ def main(argv=None):
     # Create Workspace
     subp = subparsers.add_parser('space_new', parents=[workspace_parent],
                                  description='Create new workspace')
-    phelp = 'Limit access to the workspace to a specific authorization ' \
-            'domain. For dbGaP-controlled access (domain name: ' \
-            'dbGapAuthorizedUsers) you must have linked NIH credentials to ' \
-            'your account.'
-    subp.add_argument('--authdomain', default="", help=phelp)
+    phelp = 'Limit workspace access to specific authorization domains. For ' \
+            'dbGaP-controlled access (domain name: dbGapAuthorizedUsers) ' \
+            'you must have linked NIH credentials to your account.'
+    subp.add_argument('--authdomain', nargs="*", help=phelp)
+    subp.add_argument('--bucket_region',
+                      help='Region (NOT multi-region) in which bucket ' +
+                      'attached to the workspace should be created. If not ' +
+                      "provided, the bucket will be created in the 'US' " +
+                      'multi-region. E.G. us-central1, ' +
+                      'northamerica-northeast1')
     subp.set_defaults(func=space_new)
 
     # Determine existence of workspace
@@ -2330,6 +2397,13 @@ def main(argv=None):
         'sset_list', description='List sample sets in a workspace',
         parents=[workspace_parent])
     subp.set_defaults(func=sset_list)
+    
+    # Rename entity in a workspace
+    subp = subparsers.add_parser(
+        'entity_rename', description='Rename entity in a workspace',
+        parents=[workspace_parent, etype_parent, entity_parent])
+    subp.add_argument('-n', '--name', required=True, help='New entity name')
+    subp.set_defaults(func=entity_rename)
 
     # Delete entity in a workspace
     subp = subparsers.add_parser(
@@ -2553,16 +2627,30 @@ def main(argv=None):
     subp.set_defaults(func=attr_get)
 
     subp = subparsers.add_parser('attr_set', parents=[workspace_parent],
-                                 description="Set attributes on a workspace")
+                                 description="Set attributes in a workspace")
     subp.add_argument('-a', '--attribute', required=True, metavar='attr',
-                      help='Name of attribute to set')
-    subp.add_argument('-v', '--value', required=True, help='Attribute value')
+                      help='Name of attribute to set.')
+    subp.add_argument('-r', '--ref_etype',
+                      help='Create an entity reference list attribute for. ' +
+                      'which members must be entities of the given type.')
+    subp.add_argument('-v', '--value', required=True, nargs='+',
+                      help='Attribute value. Multiple values will result in ' +
+                      'the creation of a list attribute.')
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
-                      required=etype_required, default=fcconfig.entity_type,
-                      help=etype_help)
+                      help="Type of entity being modified")
     subp.add_argument('-e', '--entity', help="Entity to set attribute on")
     subp.set_defaults(func=attr_set)
 
+    subp = subparsers.add_parser('attr_rename', parents=[workspace_parent],
+                                 description="Rename attributes in a workspace")
+    subp.add_argument('-a', '--attribute', required=True, metavar='attr',
+                      help='Name of attribute to rename.')
+    subp.add_argument('-n', '--name', required=True,
+                      help='New attribute name.')
+    subp.add_argument('-t', '--entity-type',
+                      help="Entity type to rename attribute of")
+    subp.set_defaults(func=attr_rename)
+    
     subp = subparsers.add_parser('attr_list', parents=[workspace_parent],
         description='Retrieve names of attributes attached to given entity. ' +
                     'If no entity Type+Name is given, workspace-level ' +
@@ -2589,7 +2677,8 @@ def main(argv=None):
     subp.add_argument('-t', '--entity-type', choices=etype_choices,
                       required=etype_required, default=fcconfig.entity_type,
                       help=etype_help)
-    subp.add_argument('-e', '--entities', nargs='*', help='FireCloud entities')
+    subp.add_argument('-e', '--entities', nargs='*', metavar="entity",
+                      help='FireCloud entities')
     subp.set_defaults(func=attr_delete)
 
     # Set null sentinel values
@@ -2653,6 +2742,29 @@ def main(argv=None):
     subp.add_argument('-x', '--expression', help=expr_help, default='')
     subp.add_argument('-C', '--cache', default=True,
         help='boolean: use previously cached results if possible [%(default)s]')
+    subp.add_argument('-d', '--delete_intermediates', action='store_true',
+                      help='Whether or not to delete intermediate output ' +
+                      'files when the workflow completes. See Cromwell docs ' +
+                      '(https://cromwell.readthedocs.io/en/develop/wf_options/Google)' +
+                      ' for more information.')
+    subp.add_argument('-r', '--ref_disks', action='store_true',
+                      help='Whether or not to use pre-built disks for ' +
+                      'common genome references.')
+    subp.add_argument('-m', '--mem_retry_multiplier', type=float,
+                      help='If a task fails due to running out of memory and ' +
+                      'the task has maxRetries in its runtime attributes, ' +
+                      'then it will be retried with its memory multiplied by ' +
+                      'this amount. See Cromwell docs ' +
+                      '(https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory)' +
+                      ' for more information.')
+    subp.add_argument('-f', '--failure_mode',
+                      choices=['NoNewCalls', 'ContinueWhilePossible'],
+                      help='What happens after a task fails. Defaults to ' +
+                      'NoNewCalls if not specified. See Cromwell docs ' +
+                      '(https://cromwell.readthedocs.io/en/develop/execution/ExecutionTwists/#failure-modes)' +
+                      ' for more information.')
+    subp.add_argument('-u', '--user_comment', help='Freeform user defined ' +
+                      'description (max length 1000 characters).')
     subp.set_defaults(func=config_start)
     
     # Abort a running method configuration

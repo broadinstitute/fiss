@@ -31,7 +31,8 @@ def call_cli(*args):
 class Capturing(list):
     def __enter__(self):
         self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
+        self._stringio = StringIO()
+        sys.stdout = self._stringio
         return self
     def __exit__(self, *args):
         self.extend(self._stringio.getvalue().splitlines())
@@ -124,7 +125,7 @@ class TestFISSHighLevel(unittest.TestCase):
 
         # Verify UNLOCKED, again by trying to delete
         r = fapi.delete_workspace(self.project, self.workspace)
-        fapi._check_response_code(r, 202)
+        fapi._check_response_code(r, [200, 202])
 
         # Lastly, recreate space in case this test was run in series with others
         r = fapi.create_workspace(self.project, self.workspace)
@@ -168,13 +169,26 @@ class TestFISSHighLevel(unittest.TestCase):
 
     def test_attr_workspace(self):
         name = "workspace_attr"
+        rename = "workspace_attr_v2"
         value = "test_value"
-        call_func("-y", "attr_set", "-p", self.project, "-w", self.workspace,
-                   "-a", name, "-v", value)
+        ret = call_cli("-y", "attr_set", "-p", self.project, "-w",
+                       self.workspace, "-a", name, "-v", value)
+        self.assertEqual(0, ret)
 
-        result = call_func("attr_get", "-p", self.project, "-w", self.workspace,
-                    "-a", name)
+        result = call_func("attr_get", "-p", self.project, "-w",
+                           self.workspace, "-a", name)
+        logging.debug(str(result))
         self.assertEqual(result[name], value)
+        
+        ret = call_cli("-y", "attr_rename", "-p", self.project, "-w",
+                       self.workspace, "-a", name, "-n", rename)
+        self.assertEqual(0, ret)
+
+        result = call_func("attr_get", "-p", self.project, "-w",
+                           self.workspace, "-a", rename)
+        logging.debug(str(result))
+        self.assertEqual(result[rename], value)
+        
 
     def load_entities(self):
         # To potentially save time, sanity check if entities already exist
@@ -200,16 +214,26 @@ class TestFISSHighLevel(unittest.TestCase):
         call_func(*(args + ("-f", os.path.join(datapath, "pairset_attr.tsv"))))
         print("\t... done loading data ...", file=sys.stderr)
     
-    def test_entity_delete(self):
+    def test_entity_rename_delete(self):
         self.load_entities()
-        ret = call_cli("-y", "entity_delete", "-p", self.project,
+        ret = call_cli("-y", "entity_rename", "-p", self.project,
                        "-w", self.workspace, "-t", "sample_set",
-                       "-e", "SS-NT")
+                       "-e", "SS-NT", "-n", "SS-NB")
         self.assertEqual(0, ret)
         with Capturing() as output:
             ret = call_cli("sset_list", "-p", self.project,
                            "-w", self.workspace)            
         self.assertNotIn("SS-NT", output)
+        self.assertIn("SS-NB", output)
+        
+        ret = call_cli("-y", "entity_delete", "-p", self.project,
+                       "-w", self.workspace, "-t", "sample_set",
+                       "-e", "SS-NB")
+        self.assertEqual(0, ret)
+        with Capturing() as output:
+            ret = call_cli("sset_list", "-p", self.project,
+                           "-w", self.workspace)            
+        self.assertNotIn("SS-NB", output)
     
     def test_entity_tsv(self):
         self.load_entities()
@@ -233,19 +257,24 @@ class TestFISSHighLevel(unittest.TestCase):
 
         # Now call attr_set on a sample_set, followed by attr_get
         ret = call_cli("-y", "attr_set", "-p", self.project, "-w", self.workspace,
-                   "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1", "-v", "Value-E")
+                   "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_2", "-v", "Value-E")
         self.assertEqual(0, ret)
 
         with Capturing() as output:
             ret = call_cli("attr_get", "-p", self.project, "-w", self.workspace,
-                             "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_1")
+                             "-t", "sample_set", "-e", "SS-TP", "-a", "set_attr_2")
         self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEqual(output, "entity:sample_set_id\tset_attr_1\nSS-TP\tValue-E")
+        self.assertEqual(output, "entity:sample_set_id\tset_attr_2\nSS-TP\tValue-E")
 
-    def test_attr_del(self):
+    def test_attr_ren_del(self):
         self.load_entities()
+        ret = call_cli("-y", "attr_rename", "-p", self.project, "-w", self.workspace,
+                   "-t", "sample_set", "-a", "set_attr_2", "-n",
+                   "set_attr_3")
+        self.assertEqual(0, ret)
+        
         ret = call_cli("-y", "attr_delete", "-p", self.project, "-w", self.workspace,
                    "-t", "sample_set", "-e", "SS-NT", "-a", "set_attr_1")
         self.assertEqual(0, ret)
@@ -258,7 +287,7 @@ class TestFISSHighLevel(unittest.TestCase):
         self.assertEqual(0, ret)
         output = '\n'.join(output)
         logging.debug(output)
-        self.assertEqual(output, "entity:sample_set_id\tset_attr_2\nSS-NT\tValue-D")
+        self.assertEqual(output, "entity:sample_set_id\tset_attr_3\nSS-NT\tValue-D")
 
     def test_attr_pair(self):
         self.load_entities()
@@ -479,7 +508,6 @@ class TestFISSHighLevel(unittest.TestCase):
             result = call_func(*(('sset_export', '-e', '_No_SuCh_SeT_') + args))
         except FireCloudServerError as e:
             self.assertEqual(e.code, 404)
-
 def main():
     nose.main()
 
