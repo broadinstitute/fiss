@@ -1120,8 +1120,6 @@ def list_billing_projects():
     """
     return __get("profile/billing")
 
-    
-
 def get_proxy_group(email=None):
     """Returns the proxy group email for the current user
 
