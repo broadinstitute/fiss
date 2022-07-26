@@ -240,7 +240,7 @@ class TestFISSLowLevel(unittest.TestCase):
 
     def test_get_proxy_group(self):
         """Test get_proxy_group()."""
-        r = fapi.get_proxy_id()
+        r = fapi.get_proxy_group()
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
 
