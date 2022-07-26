@@ -4,15 +4,16 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 Terms used below:  HL = high level interface, LL = low level interface
 
 v0.16.32 - Changed Dockerfile base image to python 3.10; fixed Python 3.10
-           incompatibility issues; pylint set to minimum version 2.0.0; LL:
+           incompatibility issues; pylint set to minimum version 2.0.0; LL: new
+           functions get_proxy_group, get_storage_cost, and get_bucket_usage;
            added __patch helper to simplify adding wrappers for PATCH API
            calls; enhanced error checking to use the more robust json decoder
            in the requests module; added delete_empty parameter to
            upload_entities; added filter_operator and fields parameters to
-           get_entities_query; added deleteIntermediateOutputFiles,
-           useReferenceDisks, memoryRetryMultiplier, workflowFailureMode, and
-           userComment fields to create_submission; added noWorkspaceOwner and
-           bucketLocation fields to create_workspace and enabled use of
+           get_entities_query; added delete_intermediate_output_files,
+           use_reference_disks, memory_retry_multiplier, workflow_failure_mode,
+           and user_comment fields to create_submission; added noWorkspaceOwner
+           and bucketLocation fields to create_workspace and enabled use of
            multiple authorization domains; added _attr_vlcreate and
            _attr_erlcreate helpers for creating list attribute via
            update_workspace_attributes and update_entity, as well as fixed bugs
@@ -29,9 +30,10 @@ v0.16.32 - Changed Dockerfile base image to python 3.10; fixed Python 3.10
            entity types in the firecloud model); cleaned up return of Terra
            errors to be more human-readable; space_new updated to allow
            multiple authorization domains and set the bucket region for the new
-           workspace; Tests: updated HL tests to include new rename functions,
-           fixed bugs that were due to inaccurate API docs; added LL test for
-           get_entities_query.
+           workspace; mop updated to use API to list files and to filter based
+           on user-supplied submission IDs; Tests: updated HL tests to include
+           new rename functions, fixed bugs that were due to inaccurate API
+           docs; added LL tests for get_entities_query and get_proxy_group.
 
 v0.16.31 - Changed Dockerfile base image to python 3; suppress Python 2
            deprecation warning from cryptography module; HL: mop updated to

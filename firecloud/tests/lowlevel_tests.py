@@ -177,6 +177,11 @@ class TestFISSLowLevel(unittest.TestCase):
         pass
 
     @unittest.skip("Not Implemented")
+    def test_get_bucket_usage(self):
+        """Test get_bucket_usage()."""
+        pass
+
+    @unittest.skip("Not Implemented")
     def test_get_config_template(self):
         """Test get_config_template()."""
         pass
@@ -277,6 +282,11 @@ class TestFISSLowLevel(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
+    def test_get_storage_cost(self):
+        """Test get_storage_cost()."""
+        pass
+
+    @unittest.skip("Not Implemented")
     def test_get_submission(self):
         """Test get_submission()."""
         pass
@@ -287,6 +297,11 @@ class TestFISSLowLevel(unittest.TestCase):
         pass
 
     @unittest.skip("Not Implemented")
+    def test_get_workflow_cost(self):
+        """Test get_workflow_cost()."""
+        pass
+
+    @unittest.skip("Not Implemented")
     def test_get_workflow_metadata(self):
         """Test get_workflow_metadata()."""
         pass
@@ -294,11 +309,6 @@ class TestFISSLowLevel(unittest.TestCase):
     @unittest.skip("Not Implemented")
     def test_get_workflow_outputs(self):
         """Test get_workflow_outputs()."""
-        pass
-
-    @unittest.skip("Not Implemented")
-    def test_get_workflow_cost(self):
-        """Test get_workflow_cost()."""
         pass
 
     def test_get_workspace(self):
