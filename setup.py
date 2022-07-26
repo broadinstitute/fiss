@@ -149,7 +149,7 @@ setup(
         'setuptools>=40.3.0',
         'six',
         'nose',
-        'pylint>=2.0.0'
+        'pylint>=1.9.5'
     ],
     classifiers = [
         "Programming Language :: Python :: 2",
