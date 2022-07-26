@@ -13,6 +13,10 @@ import os
 import io
 import logging
 import subprocess
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
@@ -25,12 +29,6 @@ from google.oauth2 import id_token
 from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
-
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
-
 
 FISS_USER_AGENT = "FISS/" + __version__
 
@@ -102,6 +100,23 @@ def __get(methcall, headers=None, root_url=None, **kwargs):
         print('FISSFC call: %s' % r.url, file=sys.stderr)
     return r
 
+def __patch(methcall, headers=None, root_url=None, **kwargs):
+    if not headers:
+        headers = _fiss_agent_header({"Content-type":  "application/json"})
+    if root_url is None:
+        root_url = fcconfig.root_url
+    r = __SESSION.patch(urljoin(root_url, methcall), headers=headers, **kwargs)
+    if fcconfig.verbosity > 1:
+        info = r.url
+        data = kwargs.get("data", None)
+        if data:
+            info += " \n(data=%s) " % data
+        json = kwargs.get("json", None)
+        if json:
+            info += " \n(json=%s) " % json
+        print('FISSFC call: PATCH %s' % info, file=sys.stderr)
+    return r
+
 def __post(methcall, headers=None, root_url=None, **kwargs):
     if not headers:
         headers = _fiss_agent_header({"Content-type":  "application/json"})
@@ -153,7 +168,11 @@ def _check_response_code(response, codes):
     if type(codes) == int:
         codes = [codes]
     if response.status_code not in codes:
-        raise FireCloudServerError(response.status_code, response.content)
+        try:
+            msg = json.dumps(response.json())
+        except:
+            msg = response.text
+        raise FireCloudServerError(response.status_code, msg)
 
 def whoami():
     """ Return __USER_ID """
@@ -195,7 +214,8 @@ def list_entity_types(namespace, workspace):
     uri = "workspaces/{0}/{1}/entities".format(namespace, workspace)
     return __get(uri, headers=headers)
 
-def upload_entities(namespace, workspace, entity_data, model='firecloud'):
+def upload_entities(namespace, workspace, entity_data, model='firecloud',
+                    delete_empty=False):
     """Upload entities from tab-delimited string.
 
     Args:
@@ -203,11 +223,13 @@ def upload_entities(namespace, workspace, entity_data, model='firecloud'):
         workspace (str): Workspace name
         entity_data (str): TSV string describing entites
         model (str): Data Model type. "firecloud" (default) or "flexible"
+        delete_empty (bool): Values left blank in the TSV will be deleted if set to true
 
     Swagger:
         https://api.firecloud.org/#!/Entities/importEntities
         https://api.firecloud.org/#!/Entities/flexibleImportEntities
     """
+    params = {"deleteEmptyValues": delete_empty}
     body = urlencode({"entities" : entity_data})
     headers = _fiss_agent_header({
         'Content-type':  "application/x-www-form-urlencoded"
@@ -216,7 +238,7 @@ def upload_entities(namespace, workspace, entity_data, model='firecloud'):
     if model == 'flexible':
         endpoint = 'flexibleImportEntities'
     uri = "workspaces/{0}/{1}/{2}".format(namespace, workspace, endpoint)
-    return __post(uri, headers=headers, data=body)
+    return __post(uri, headers=headers, data=body, params=params)
 
 def upload_entities_tsv(namespace, workspace, entities_tsv, model='firecloud'):
     """Upload entities from a tsv loadfile.
@@ -356,7 +378,7 @@ def delete_entities(namespace, workspace, json_body):
     return __post(uri, json=json_body)
 
 def delete_entity_type(namespace, workspace, etype, ename):
-    """Delete entities in a workspace.
+    """Delete specified entities of a single type in a workspace.
 
     Note: This action is not reversible. Be careful!
 
@@ -377,6 +399,24 @@ def delete_entity_type(namespace, workspace, etype, ename):
         body = [{"entityType":etype, "entityName":i} for i in ename]
 
     return __post(uri, json=body)
+
+def delete_entities_of_type(namespace, workspace, etype):
+    """Delete all entities of a type in a workspace.
+    
+    Note: This action is not reversible. Be careful!
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        etype (str): Entity type
+    
+    Swagger:
+        https://api.firecloud.org/#/Entities/deleteEntitiesOfType
+    """
+    
+    uri = "workspaces/{0}/{1}/entityTypes/{2}".format(namespace, workspace,
+                                                      etype)
+    return __delete(uri)
 
 def delete_participant(namespace, workspace, name):
     """Delete participant in a workspace.
@@ -456,14 +496,22 @@ def delete_pair_set(namespace, workspace, name):
     """
     return delete_entity_type(namespace, workspace, "pair_set", name)
 
-def get_entities_query(namespace, workspace, etype, page=1,
-                       page_size=100, sort_direction="asc",
-                       filter_terms=None):
+def get_entities_query(namespace, workspace, etype, page=1, page_size=100,
+                       sort_direction="asc", filter_terms=None,
+                       filter_operator=None, fields=None):
     """Paginated version of get_entities_with_type.
 
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
+        etype (str): Entity type
+        page (int): Page number, 1-indexed
+        page_size (int): Number of entities to return per page
+        sort_direction (str): "asc" or "desc"
+        filter_terms (str): Space-separated list to text match
+        filter_operator (str): "and" or "or" - determines if one or all
+                              filter_terms must have a match. Default: "and"
+        fields (str): Comma-separated list of which fields to populate
 
     Swagger:
         https://api.firecloud.org/#!/Entities/entityQuery
@@ -478,9 +526,73 @@ def get_entities_query(namespace, workspace, etype, page=1,
     }
     if filter_terms:
         params['filterTerms'] = filter_terms
+    if filter_operator:
+        params['filterOperator'] = filter_operator
+    if fields:
+        params['fields'] = fields
 
     uri = "workspaces/{0}/{1}/entityQuery/{2}".format(namespace,workspace,etype)
     return __get(uri, params=params)
+
+def rename_entity(namespace, workspace, etype, ename, name):
+    """Rename entity in a workspace
+    
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        etype     (str): Entity type
+        ename     (str): Entity name
+        name      (str): New entity name
+    
+    Swagger:
+        https://api.firecloud.org/#/Entities/renameEntity
+    """
+    
+    body = {"name": name}
+    uri = "workspaces/{0}/{1}/entities/{2}/{3}/rename".format(namespace,
+                                                              workspace, etype,
+                                                              ename)
+    return __post(uri, json=body)
+
+def rename_entity_type(namespace, workspace, etype, name):
+    """Rename entity type in a workspace
+    
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        etype     (str): Entity type
+        name      (str): New entity type name
+    
+    Swagger:
+        https://api.firecloud.org/#/Entities/renameEntityType
+    """
+    
+    body = {"newName": name}
+    uri = "workspaces/{0}/{1}/entityTypes/{2}".format(namespace, workspace,
+                                                      etype)
+    return __patch(uri, json=body)
+
+def rename_entity_type_attribute(namespace, workspace, etype, attr, name):
+    """Change the attribute name for an entity type in a workspace. If the old
+       name doesn't exist the update will fail. If the new name already exists,
+       the update will fail, and no records will be updated.
+    
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        etype     (str): Entity type
+        attr      (str): Attribute
+        name      (str): New attribute name
+    
+    Swagger:
+        https://api.firecloud.org/#/Entities/rename_entity_attributes
+    """
+    body = {"newAttributeName": name}
+    uri = "workspaces/{0}/{1}/entityTypes/{2}/attributes/{3}".format(namespace,
+                                                                     workspace,
+                                                                     etype,
+                                                                     attr)
+    return __patch(uri, json=body)
 
 def update_entity(namespace, workspace, etype, ename, updates):
     """ Update entity attributes in a workspace.
@@ -512,6 +624,7 @@ def list_workspace_configs(namespace, workspace, allRepos=False):
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
+        allRepos (bool): list configs for all repos, not just Agora
 
     Swagger:
         https://api.firecloud.org/#!/Method_Configurations/listWorkspaceMethodConfigs
@@ -1006,6 +1119,21 @@ def list_billing_projects():
     """
     return __get("profile/billing")
 
+def get_proxy_group(email=None):
+    """Returns the proxy group email for the current user
+
+    Args:
+        email (str): User email whose proxy group to retrieve
+                     if None uses current user email
+
+    Swagger:
+    https://api.firecloud.org/#/Profile/getProxyGroup
+    """
+    if email is None:
+        email = whoami()
+    uri = "proxyGroup/{}".format(email)
+    return __get(uri)
+
 ################
 ### 1.5 Status
 ################
@@ -1046,11 +1174,14 @@ def list_submissions(namespace, workspace):
     return __get(uri)
 
 def create_submission(wnamespace, workspace, cnamespace, config,
-                      entity=None, etype=None, expression=None, use_callcache=True):
+                      entity=None, etype=None, expression=None,
+                      use_callcache=True, delete_intermediate_output_files=False,
+                      use_reference_disks=False, memory_retry_multiplier=0,
+                      workflow_failure_mode="", user_comment=""):
     """Submit job in FireCloud workspace.
 
     Args:
-        namespace (str): project to which workspace belongs
+        wnamespace (str): project to which workspace belongs
         workspace (str): Workspace name
         cnamespace (str): Method configuration namespace
         config (str): Method configuration name
@@ -1061,6 +1192,25 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         expression (str): Instead of using entity as the root entity,
             evaluate the root entity from this expression.
         use_callcache (bool): use call cache if applicable (default: true)
+        delete_intermediate_output_files (bool): Whether or not to delete
+            intermediate output files when the workflow completes. See Cromwell
+            docs (https://cromwell.readthedocs.io/en/develop/wf_options/Google)
+            for more information
+        use_reference_disks (bool): Whether or not to use pre-built disks for
+            common genome references
+        memory_retry_multiplier (float): If a task fails due to running out of
+            memory and the task has maxRetries in its runtime attributes, then
+            it will be retried with its memory multiplied by this amount. See
+            Cromwell docs
+            (https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory)
+            for more information
+        workflow_failure_mode (str): What happens after a task fails. Choose from
+            ContinueWhilePossible and NoNewCalls. Defaults to NoNewCalls if not
+            specified. See Cromwell docs
+            (https://cromwell.readthedocs.io/en/develop/execution/ExecutionTwists/#failure-modes)
+            for more information.
+        user_comment: Freeform user defined description, optional (max length
+            1000 characters)
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/createSubmission
@@ -1081,6 +1231,21 @@ def create_submission(wnamespace, workspace, cnamespace, config,
 
     if expression:
         body['expression'] = expression
+    
+    if delete_intermediate_output_files:
+        body['deleteIntermediateOutputFiles'] = delete_intermediate_output_files
+    
+    if use_reference_disks:
+        body['useReferenceDisks'] = use_reference_disks
+    
+    if memory_retry_multiplier:
+        body['memoryRetryMultiplier'] = memory_retry_multiplier
+    
+    if workflow_failure_mode:
+        body['workflowFailureMode'] = workflow_failure_mode
+    
+    if user_comment:
+        body['userComment'] = user_comment
 
     return __post(uri, json=body)
 
@@ -1147,6 +1312,23 @@ def get_workflow_outputs(namespace, workspace, submission_id, workflow_id):
                                                             workflow_id)
     return __get(uri)
 
+def get_workflow_cost(namespace, workspace, submission_id, workflow_id):
+    """Request the cost for a workflow in a submission.
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        submission_id (str): Submission's unique identifier
+        workflow_id (str): Workflow's unique identifier.
+
+    Swagger:
+        https://api.firecloud.org/#!/Submissions/workflowCostInSubmission
+    """
+    uri = "workspaces/{0}/{1}/".format(namespace, workspace)
+    uri += "submissions/{0}/workflows/{1}/cost".format(submission_id,
+                                                         workflow_id)
+    return __get(uri)
+
 def get_submission_queue():
     """ List workflow counts by queueing state.
 
@@ -1176,16 +1358,46 @@ def list_workspaces(fields=None):
     else:
         return __get("workspaces", params={"fields": fields})
 
-def create_workspace(namespace, name, authorizationDomain="", attributes=None):
+def get_storage_cost(namespace, workspace):
+    """Request average monthly storage cost for workspace.
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+    Swagger:
+        https://api.firecloud.org/#!/Workspaces/storageCostEstimate
+    """
+    uri = "workspaces/{0}/{1}/storageCostEstimate".format(namespace, workspace)
+    return __get(uri)
+
+def get_bucket_usage(namespace, workspace):
+    """Request google bucket usage for workspace.
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+    Swagger:
+        https://api.firecloud.org/#!/Workspaces/getBucketUsage
+    """
+    uri = "workspaces/{0}/{1}/bucketUsage".format(namespace, workspace)
+    return __get(uri)
+
+def create_workspace(namespace, name, authorizationDomain="", attributes=None,
+                     noWorkspaceOwner=False, bucketLocation=""):
     """Create a new FireCloud Workspace.
 
     Args:
-        namespace (str): project to which workspace belongs
-        name (str): Workspace name
-        protected (bool): If True, this workspace is protected by dbGaP
-            credentials. This option is only available if your FireCloud
-            account is linked to your NIH account.
+        namespace (str): The namespace (billing project) the workspace belongs to
+        name (str): The name of the workspace
+        authorizationDomain (str|list): The list of groups in the Authorization
+                                        Domain (empty if no AD is set)
         attributes (dict): Workspace attributes as key value pairs
+        noWorkspaceOwner (bool): Optional, false if not specified. If true, the
+                                 workspace is created with a Billing Project
+                                 owner but no workspace owner. Requires being a
+                                 Billing Project owner.
+        bucketLocation (str): Region (NOT multi-region) in which bucket
+                              attached to the workspace should be created. If
+                              not provided, the bucket will be created in the
+                              'US' multi-region.
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/createWorkspace
@@ -1199,12 +1411,22 @@ def create_workspace(namespace, name, authorizationDomain="", attributes=None):
         "name": name,
         "attributes": attributes
     }
+    
     if authorizationDomain:
-        authDomain = [{"membersGroupName": authorizationDomain}]
+        if isinstance(authorizationDomain, string_types):
+            authDomain = [{"membersGroupName": authorizationDomain}]
+        else:
+            authDomain = [{"membersGroupName": groupName} for groupName in authorizationDomain]
     else:
         authDomain = []
 
     body["authorizationDomain"] = authDomain
+    
+    if noWorkspaceOwner:
+        body["noWorkspaceOwner"] = noWorkspaceOwner
+        
+    if bucketLocation:
+        body["bucketLocation"] = bucketLocation
 
     return __post("workspaces", json=body)
 
@@ -1357,10 +1579,12 @@ def update_workspace_attributes(namespace, workspace, attrs):
         attrs (list(dict)): List of update operations for workspace attributes.
             Use the helper dictionary construction functions to create these:
 
-            _attr_set()      : Set/Update attribute
-            _attr_rem()     : Remove attribute
-            _attr_ladd()    : Add list member to attribute
-            _attr_lrem()    : Remove list member from attribute
+            _attr_set()       : Set/Update attribute
+            _attr_rem()       : Remove attribute
+            _attr_ladd()      : Add member to list attribute
+            _attr_lrem()      : Remove member from list attribute
+            _attr_vlcreate()  : Create a value-list attribute
+            _attr_erlcreate() : Create an entity-reference list attribute
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/updateAttributes
@@ -1376,7 +1600,8 @@ def update_workspace_attributes(namespace, workspace, attrs):
 # Helper functions to create attribute update dictionaries
 
 def _attr_set(attr, value):
-    """Create an 'update 'dictionary for update_workspace_attributes()"""
+    """Create an 'update' dictionary for update_workspace_attributes() and
+    update_entity()"""
     return {
         "op"                 : "AddUpdateAttribute",
         "attributeName"      : attr,
@@ -1384,26 +1609,45 @@ def _attr_set(attr, value):
    }
 
 def _attr_rem(attr):
-    """Create a 'remove' dictionary for update_workspace_attributes()"""
+    """Create a 'remove' dictionary for update_workspace_attributes() and
+    update_entity()"""
     return {
         "op"             : "RemoveAttribute",
         "attributeName"  : attr
     }
 
 def _attr_ladd(attr, value):
-    """Create a 'list add' dictionary for update_workspace_attributes()"""
+    """Create a 'list add' dictionary for update_workspace_attributes() and
+    update_entity()"""
     return {
-        "op"                 : "AddListMember",
-        "attributeName"      : attr,
-        "addUpdateAttribute" : value
+        "op"                : "AddListMember",
+        "attributeListName" : attr,
+        "newMember"         : value
     }
 
 def _attr_lrem(attr, value):
-    """Create a 'list remove' dictionary for update_workspace_attributes()"""
+    """Create a 'list remove' dictionary for update_workspace_attributes() and
+    update_entity()"""
     return {
-        "op"                 : "RemoveListMember",
-        "attributeName"      : attr,
-        "addUpdateAttribute" : value
+        "op"                : "RemoveListMember",
+        "attributeListName" : attr,
+        "removeMember"      : value,
+    }
+
+def _attr_vlcreate(attr):
+    """Create a 'value-list create' dict for update_workspace_attributes() and
+    update_entity()"""
+    return {
+        "op"            : "CreateAttributeValueList",
+        "attributeName" : attr
+    }
+
+def _attr_erlcreate(attr):
+    """Create a 'entity-reference list create' dictionary for
+       update_workspace_attributes() and update_entity()"""
+    return {
+        "op"                : "CreateAttributeEntityReferenceList",
+        "attributeListName" : attr
     }
 
 #####################

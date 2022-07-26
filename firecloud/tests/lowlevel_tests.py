@@ -104,8 +104,18 @@ class TestFISSLowLevel(unittest.TestCase):
         pass
 
     @unittest.skip("Not Implemented")
-    def test_delete_entity(self):
-        """Test delete_entity()."""
+    def test_delete_entities(self):
+        """Test delete_entities()."""
+        pass
+
+    @unittest.skip("Not Implemented")
+    def test_delete_entities_of_type(self):
+        """Test delete_entities_of_type()."""
+        pass
+
+    @unittest.skip("Not Implemented")
+    def test_delete_entitiy_type(self):
+        """Test delete_entity_type()."""
         pass
     
     @unittest.skip("Not Implemented")
@@ -131,6 +141,11 @@ class TestFISSLowLevel(unittest.TestCase):
     @unittest.skip("Not Implemented")
     def test_delete_participant_set(self):
         """Test delete_participant_set()."""
+        pass
+
+    @unittest.skip("Not Implemented")
+    def test_delete_repository_config(self):
+        """Test delete_repository_config()."""
         pass
 
     @unittest.skip("Not Implemented")
@@ -173,6 +188,14 @@ class TestFISSLowLevel(unittest.TestCase):
                                "participant")
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
+    
+    def test_get_entities_query(self):
+        """Test get_entities_query()."""
+        r =  fapi.get_entities_query(self.project,
+                                     self.workspace,
+                                     "participant")
+        print(r.status_code, r.content)
+        self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
     def test_get_entities_tsv(self):
@@ -209,6 +232,17 @@ class TestFISSLowLevel(unittest.TestCase):
     def test_get_inputs_outputs(self):
         """Test get_inputs_outputs()."""
         pass
+
+    @unittest.skip("Not Implemented")
+    def test_get_method_configurations(self):
+        """Test get_method_configurations()."""
+        pass
+
+    def test_get_proxy_group(self):
+        """Test get_proxy_group()."""
+        r = fapi.get_proxy_group()
+        print(r.status_code, r.content)
+        self.assertEqual(r.status_code, 200)
 
     @unittest.skip("Not Implemented")
     def test_get_repository_config(self):
@@ -253,8 +287,18 @@ class TestFISSLowLevel(unittest.TestCase):
         pass
 
     @unittest.skip("Not Implemented")
+    def test_get_workflow_metadata(self):
+        """Test get_workflow_metadata()."""
+        pass
+
+    @unittest.skip("Not Implemented")
     def test_get_workflow_outputs(self):
         """Test get_workflow_outputs()."""
+        pass
+
+    @unittest.skip("Not Implemented")
+    def test_get_workflow_cost(self):
+        """Test get_workflow_cost()."""
         pass
 
     def test_get_workspace(self):
@@ -350,6 +394,21 @@ class TestFISSLowLevel(unittest.TestCase):
         pass
 
     @unittest.skip("Not Implemented")
+    def test_rename_entity(self):
+        """Test rename_entity()."""
+        pass
+
+    @unittest.skip("Not Implemented")
+    def test_rename_entity_type(self):
+        """Test rename_entity_type()."""
+        pass
+
+    @unittest.skip("Not Implemented")
+    def test_rename_entity_type_attribute(self):
+        """Test rename_entity_type_attribute()."""
+        pass
+
+    @unittest.skip("Not Implemented")
     def test_rename_workspace_config(self):
         """Test rename_workspace_config()."""
         pass
@@ -364,6 +423,11 @@ class TestFISSLowLevel(unittest.TestCase):
         r =  fapi.unlock_workspace(self.project, self.workspace)
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 204)
+
+    @unittest.skip("Not Implemented")
+    def test_update_entity(self):
+        """Test update_entity()."""
+        pass
 
     @unittest.skip("Not Implemented")
     def test_update_repository_config_acl(self):
