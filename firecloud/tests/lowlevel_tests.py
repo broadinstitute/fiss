@@ -238,6 +238,12 @@ class TestFISSLowLevel(unittest.TestCase):
         """Test get_method_configurations()."""
         pass
 
+    def test_get_proxy_group(self):
+        """Test get_proxy_group()."""
+        r = fapi.get_proxy_id()
+        print(r.status_code, r.content)
+        self.assertEqual(r.status_code, 200)
+
     @unittest.skip("Not Implemented")
     def test_get_repository_config(self):
         """Test get_repository_config()."""
@@ -441,14 +447,6 @@ class TestFISSLowLevel(unittest.TestCase):
                                        updates)
         print(r.status_code, r.content)
         self.assertEqual(r.status_code, 200)
-
-    def test_get_proxy_id(self):
-        """Test get_proxy_id()."""
-        email = 'sbelkin@broadinstitute.org'
-        proxy_id = 'PROXY_118199674772994880215@firecloud.org'
-        result = fapi.get_proxy_id(email)
-        print(email, result)
-        self.assertEqual(result, proxy_id)
 
     def test_update_workspace_attributes(self):
         """Test update_workspace_attributes()."""
