@@ -1248,6 +1248,9 @@ def create_submission(wnamespace, workspace, cnamespace, config,
     if user_comment:
         body['userComment'] = user_comment
 
+    if memory_retry_multiplier:
+        body['memoryRetryMultiplier'] = memory_retry_multiplier
+
     return __post(uri, json=body)
 
 def abort_submission(namespace, workspace, submission_id):
