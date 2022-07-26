@@ -1176,9 +1176,9 @@ def list_submissions(namespace, workspace):
 
 def create_submission(wnamespace, workspace, cnamespace, config,
                       entity=None, etype=None, expression=None,
-                      use_callcache=True, deleteIntermediateOutputFiles=False,
-                      useReferenceDisks=False, memoryRetryMultiplier=0,
-                      workflowFailureMode="", userComment=""):
+                      use_callcache=True, delete_intermediate_output_files=False,
+                      use_reference_disks=False, memory_retry_multiplier=0,
+                      workflow_failure_mode="", user_comment=""):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -1193,24 +1193,24 @@ def create_submission(wnamespace, workspace, cnamespace, config,
         expression (str): Instead of using entity as the root entity,
             evaluate the root entity from this expression.
         use_callcache (bool): use call cache if applicable (default: true)
-        deleteIntermediateOutputFiles (bool): Whether or not to delete
+        delete_intermediate_output_files (bool): Whether or not to delete
             intermediate output files when the workflow completes. See Cromwell
             docs (https://cromwell.readthedocs.io/en/develop/wf_options/Google)
             for more information
-        useReferenceDisks (bool): Whether or not to use pre-built disks for
+        use_reference_disks (bool): Whether or not to use pre-built disks for
             common genome references
-        memoryRetryMultiplier (float): If a task fails due to running out of
+        memory_retry_multiplier (float): If a task fails due to running out of
             memory and the task has maxRetries in its runtime attributes, then
             it will be retried with its memory multiplied by this amount. See
             Cromwell docs
             (https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory)
             for more information
-        workflowFailureMode (str): What happens after a task fails. Choose from
+        workflow_failure_mode (str): What happens after a task fails. Choose from
             ContinueWhilePossible and NoNewCalls. Defaults to NoNewCalls if not
             specified. See Cromwell docs
             (https://cromwell.readthedocs.io/en/develop/execution/ExecutionTwists/#failure-modes)
             for more information.
-        userComment: Freeform user defined description, optional (max length
+        user_comment: Freeform user defined description, optional (max length
             1000 characters)
 
     Swagger:
@@ -1233,20 +1233,20 @@ def create_submission(wnamespace, workspace, cnamespace, config,
     if expression:
         body['expression'] = expression
     
-    if deleteIntermediateOutputFiles:
-        body['deleteIntermediateOutputFiles'] = deleteIntermediateOutputFiles
+    if delete_intermediate_output_files:
+        body['deleteIntermediateOutputFiles'] = delete_intermediate_output_files
     
-    if useReferenceDisks:
-        body['useReferenceDisks'] = useReferenceDisks
+    if use_reference_disks:
+        body['useReferenceDisks'] = use_reference_disks
     
-    if memoryRetryMultiplier:
-        body['memoryRetryMultiplier'] = memoryRetryMultiplier
+    if memory_retry_multiplier:
+        body['memoryRetryMultiplier'] = memory_retry_multiplier
     
-    if workflowFailureMode:
-        body['workflowFailureMode'] = workflowFailureMode
+    if workflow_failure_mode:
+        body['workflowFailureMode'] = workflow_failure_mode
     
-    if userComment:
-        body['userComment'] = userComment
+    if user_comment:
+        body['userComment'] = user_comment
 
     return __post(uri, json=body)
 
