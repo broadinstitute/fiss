@@ -112,7 +112,6 @@ class TestFISSHighLevel(unittest.TestCase):
         ret = call_func("-y", "space_delete", "-p", self.project,"-w",space)
         self.assertEqual(0, ret)
 
-    @unittest.skip("Need to resolve, always produces error")
     def test_space_lock_unlock(self):
         args = ("-p", self.project, "-w", self.workspace)
         self.assertEqual(0, call_func('space_lock', *args))
@@ -131,7 +130,6 @@ class TestFISSHighLevel(unittest.TestCase):
         r = fapi.create_workspace(self.project, self.workspace)
         fapi._check_response_code(r, 201)
 
-    @unittest.skip("Need to resolve, always produces error")
     def test_space_search(self):
         # First retrieve information about the space
         r = fapi.get_workspace(self.project, self.workspace)
