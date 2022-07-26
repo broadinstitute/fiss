@@ -3,6 +3,40 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.32 - Changed Dockerfile base image to python 3.10; fixed Python 3.10
+           incompatibility issues; pylint set to minimum version 2.0.0; LL: new
+           new functions: delete_entities_of_type, rename_entity,
+           rename_entity_type, rename_entity_type_attribute, get_proxy_group,
+           get_storage_cost, get_bucket_usage, get_workflow_cost; added __patch
+           helper to simplify adding wrappers for PATCH API calls; enhanced
+           error checking to use the more robust json decoder in the requests
+           module; added delete_empty parameter to upload_entities; added
+           filter_operator and fields parameters to get_entities_query; added
+           delete_intermediate_output_files, use_reference_disks,
+           memory_retry_multiplier, workflow_failure_mode, and user_comment
+           fields to create_submission; added noWorkspaceOwner and
+           bucketLocation fields to create_workspace and enabled use of
+           multiple authorization domains; new helper functions: _attr_vlcreate
+           and _attr_erlcreate for creating list attributes via update_entity
+           and update_workspace_attributes; fixed bugs in existing helper
+           functions _attr_ladd and _attr_lrem; updated and cleaned up
+           documentation for multiple functions; HL: new functions:
+           entity_rename and attr_rename; helper _entity_paginator updated to
+           take advantage of the fields parameter to speed up queries;
+           config_start updated to use new api.create_submission fields;
+           attr_get now returns formatted arrays for list attributes in
+           workspaces; attr_set updated to enable creation of value and
+           reference list attributes; attr_delete updated to be completely type
+           agnostic (previously only guaranteed to work on entity types in the
+           firecloud model); space_new updated to allow multiple authorization
+           domains and set the bucket region for the new workspace; added
+           submission ID filtering to mop, and updated it to use the
+           google-cloud-storage API for file listing rather than the gsutil
+           CLI; cleaned up return of Terra errors to be more human-readable;
+           tests: updated HL tests to include new rename functions and fixed
+           bugs that were due to inaccurate API docs; added LL tests for
+           get_entities_query and get_proxy_group.
+
 v0.16.31 - Changed Dockerfile base image to python 3; suppress Python 2
            deprecation warning from cryptography module; HL: mop updated to
            find files in attributes with array and compound data structure
