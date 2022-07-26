@@ -21,6 +21,7 @@ import collections
 from difflib import unified_diff
 from six import iteritems, string_types, itervalues, u, text_type
 from six.moves import input
+from google.cloud import storage
 from firecloud import api as fapi
 from firecloud import fccore
 from firecloud.errors import *
@@ -1318,24 +1319,25 @@ def mop(args):
                             workspace['workspace']['attributes'].values(),
                             bucket_prefix)
 
-    # TODO: Make this more efficient with a native api call?
-    # # Now run a gsutil ls to list files present in the bucket
+    ## Now list files present in the bucket
+    def list_blob_gen(bucket_name: str):
+        """Generate the list of blobs in the bucket and size of each blob
+
+        Args:
+            bucket_name (str): Bucket Name
+
+        Yields:
+            tuple: File name and the size of the file
+        """
+        client_st = storage.Client()
+        blobs = client_st.list_blobs(bucket_name)
+        for blob in blobs:
+            yield ("gs://{}/{}".format(blob.bucket.name, blob.name), int(blob.size))
+
+
     try:
-        gsutil_args = ['gsutil', 'ls', '-l', bucket_prefix + '/**']
-        if args.verbose:
-            print(' '.join(gsutil_args))
-        bucket_files = subprocess.check_output(gsutil_args, stderr=subprocess.STDOUT)
-        # Check output produces a string in Py2, Bytes in Py3, so decode if necessary
-        if type(bucket_files) == bytes:
-            bucket_files = bucket_files.decode()
-        
-        # Store size of each file in bucket to report recovered space
-        bucket_file_sizes = {}
-        for listing in bucket_files.split('\n'):
-            listing = listing.strip().split('  ')
-            if len(listing) != 3:
-                break
-            bucket_file_sizes[listing[2]] = int(listing[0])
+        # store size of each file in bucket to report recovered space
+        bucket_file_sizes = {b[0]: b[1] for b in list_blob_gen(bucket)}
         
         # Now make a call to the API for the user's submission information.
         user_submission_request = fapi.list_submissions(args.project, args.workspace)
@@ -1353,7 +1355,7 @@ def mop(args):
         # to extract the submission id from the 4th element (index 3) of the array
         bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
         
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         eprint("Error retrieving files from bucket:" +
                "\n\t{}\n\t{}".format(str(e), e.output))
         return 1

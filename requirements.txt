@@ -2,4 +2,5 @@ requests
 nose
 pylint
 google-auth
+google-cloud-storage
 six

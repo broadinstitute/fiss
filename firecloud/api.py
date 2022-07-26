@@ -1120,6 +1120,21 @@ def list_billing_projects():
     """
     return __get("profile/billing")
 
+def get_proxy_group(email=None):
+    """Returns the proxy group email for the current user
+
+    Args:
+        email (str): User email whose proxy group to retrieve
+                     if None uses current user email
+
+    Swagger:
+    https://api.firecloud.org/#/Profile/getProxyGroup
+    """
+    if email is None:
+        email = whoami()
+    uri = "proxyGroup/{}".format(email)
+    return __get(uri)
+
 ################
 ### 1.5 Status
 ################
@@ -1526,12 +1541,12 @@ def update_workspace_attributes(namespace, workspace, attrs):
         attrs (list(dict)): List of update operations for workspace attributes.
             Use the helper dictionary construction functions to create these:
 
-            _attr_set()      : Set/Update attribute
-            _attr_rem()      : Remove attribute
-            _attr_ladd()     : Add member to list attribute
-            _attr_lrem()     : Remove member from list attribute
-            _attr_vlcreate() : Create a value-list attribute
-            _attr_erlcreate(): Create an entity-reference list attribute
+            _attr_set()       : Set/Update attribute
+            _attr_rem()       : Remove attribute
+            _attr_ladd()      : Add member to list attribute
+            _attr_lrem()      : Remove member from list attribute
+            _attr_vlcreate()  : Create a value-list attribute
+            _attr_erlcreate() : Create an entity-reference list attribute
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/updateAttributes
@@ -1578,9 +1593,9 @@ def _attr_lrem(attr, value):
     return {
         "op"                : "RemoveListMember",
         "attributeListName" : attr,
-        "newMember"         : value
+        "removeMember"      : value,
     }
-    
+
 def _attr_vlcreate(attr):
     """Create a 'value-list create' dict for update_workspace_attributes() and
     update_entity()"""
