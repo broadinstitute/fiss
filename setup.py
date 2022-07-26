@@ -143,12 +143,13 @@ setup(
     test_suite = 'nose.collector',
     install_requires = [
         'google-auth>=1.6.3',
+        'google-cloud-storage>=1.36.1',
         'pydot',
         'requests[security]',
         'setuptools>=40.3.0',
         'six',
         'nose',
-        'pylint==1.7.2'
+        'pylint>=2.0.0'
     ],
     classifiers = [
         "Programming Language :: Python :: 2",
