@@ -30,7 +30,6 @@ from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
 from firecloud.__about__ import __version__
 
-
 FISS_USER_AGENT = "FISS/" + __version__
 
 # Set Global Authorized Session
