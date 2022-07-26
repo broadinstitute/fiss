@@ -1313,6 +1313,23 @@ def get_workflow_outputs(namespace, workspace, submission_id, workflow_id):
                                                             workflow_id)
     return __get(uri)
 
+def get_workflow_cost(namespace, workspace, submission_id, workflow_id):
+    """Request the cost for a workflow in a submission.
+
+    Args:
+        namespace (str): project to which workspace belongs
+        workspace (str): Workspace name
+        submission_id (str): Submission's unique identifier
+        workflow_id (str): Workflow's unique identifier.
+
+    Swagger:
+        https://api.firecloud.org/#!/Submissions/workflowCostInSubmission
+    """
+    uri = "workspaces/{0}/{1}/".format(namespace, workspace)
+    uri += "submissions/{0}/workflows/{1}/cost".format(submission_id,
+                                                         workflow_id)
+    return __get(uri)
+
 def get_submission_queue():
     """ List workflow counts by queueing state.
 

@@ -296,6 +296,11 @@ class TestFISSLowLevel(unittest.TestCase):
         """Test get_workflow_outputs()."""
         pass
 
+    @unittest.skip("Not Implemented")
+    def test_get_workflow_cost(self):
+        """Test get_workflow_cost()."""
+        pass
+
     def test_get_workspace(self):
         """Test get_workspace()."""
         r = fapi.get_workspace(self.project, self.workspace)
