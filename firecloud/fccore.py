@@ -20,7 +20,10 @@ import os
 import configparser
 import tempfile
 import shutil
-from collections import Iterable
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 import subprocess
 from io import IOBase
 from firecloud import __about__
