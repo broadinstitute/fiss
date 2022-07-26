@@ -1319,8 +1319,7 @@ def mop(args):
                             workspace['workspace']['attributes'].values(),
                             bucket_prefix)
 
-    # TODO: Make this more efficient with a native api call?
-    # # Now run a gsutil ls to list files present in the bucket
+    ## Now list files present in the bucket
     def list_blob_gen(bucket_name: str):
         """Generate the list of blobs in the bucket and size of each blob
 
@@ -1333,7 +1332,7 @@ def mop(args):
         client_st = storage.Client()
         blobs = client_st.list_blobs(bucket_name)
         for blob in blobs:
-            yield (f"gs://{blob.bucket.name}/{blob.name}", int(blob.size))
+            yield ("gs://{}/{}".format(blob.bucket.name, blob.name), int(blob.size))
 
 
     try:
