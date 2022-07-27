@@ -120,6 +120,13 @@ def space_info(args):
     return r.text
 
 @fiss_cmd
+def space_size(args):
+    """ Get metadata for a workspace. """
+    r = fapi.get_bucket_usage(args.project, args.workspace)
+    fapi._check_response_code(r, 200)
+    return r.text
+
+@fiss_cmd
 def space_delete(args):
     """ Delete a workspace. """
     message = "WARNING: this will delete workspace: \n\t{0}/{1}".format(
@@ -2280,6 +2287,11 @@ def main(argv=None):
     subp = subparsers.add_parser('space_info', parents=[workspace_parent],
                                  description='Show workspace information')
     subp.set_defaults(func=space_info)
+
+    # Get workspace information
+    subp = subparsers.add_parser('space_size', parents=[workspace_parent],
+                                 description='Show workspace bucket usage')
+    subp.set_defaults(func=space_size)
 
     # List workspaces
     subp = subparsers.add_parser('space_list',
