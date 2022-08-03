@@ -1327,7 +1327,7 @@ def mop(args):
                             bucket_prefix)
 
     ## Now list files present in the bucket
-    def list_blob_gen(bucket_name: str):
+    def list_blob_gen(bucket_name):
         """Generate the list of blobs in the bucket and size of each blob
 
         Args:
