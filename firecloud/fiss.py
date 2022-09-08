@@ -121,8 +121,15 @@ def space_info(args):
 
 @fiss_cmd
 def space_size(args):
-    """ Get metadata for a workspace. """
+    """ Get storage size of a workspace. """
     r = fapi.get_bucket_usage(args.project, args.workspace)
+    fapi._check_response_code(r, 200)
+    return r.text
+
+@fiss_cmd
+def space_cost(args):
+    """ Get average monthly storage cost of a workspace. """
+    r = fapi.get_storage_cost(args.project, args.workspace)
     fapi._check_response_code(r, 200)
     return r.text
 
@@ -2288,10 +2295,16 @@ def main(argv=None):
                                  description='Show workspace information')
     subp.set_defaults(func=space_info)
 
-    # Get workspace information
+    # Get workspace size
     subp = subparsers.add_parser('space_size', parents=[workspace_parent],
                                  description='Show workspace bucket usage')
     subp.set_defaults(func=space_size)
+
+    # Get workspace monthly cost
+    subp = subparsers.add_parser('space_cost', parents=[workspace_parent],
+                                 description='Show workspace average monthly' +
+                                 ' cost')
+    subp.set_defaults(func=space_cost)
 
     # List workspaces
     subp = subparsers.add_parser('space_list',

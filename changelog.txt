@@ -3,7 +3,10 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
-v0.16.33 - HL: added space_size.
+v0.16.33 - HL: added space_size, space_cost; hotfixes: fixed Python 2 compatibility;
+           blocked google-auth versions with restrictive clock-skew and enabled
+           later versions with modifiable clock-skew, increasing clock-skew
+           when appropriate.
 
 v0.16.32 - Changed Dockerfile base image to python 3.10; fixed Python 3.10
            incompatibility issues; pylint set to minimum version 2.0.0; LL: new
