@@ -53,7 +53,8 @@ def _set_session():
                                                                'https://www.googleapis.com/auth/userinfo.email'])[0])
             health()
             __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
-                                                     Request(session=__SESSION))['email']
+                                                     Request(session=__SESSION),
+                                                     clock_skew_in_seconds=10)['email']
         except AttributeError:
             __USER_ID = __SESSION.credentials.service_account_email
         except (DefaultCredentialsError, RefreshError) as gae:
