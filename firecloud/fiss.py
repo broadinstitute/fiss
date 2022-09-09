@@ -120,6 +120,20 @@ def space_info(args):
     return r.text
 
 @fiss_cmd
+def space_size(args):
+    """ Get storage size of a workspace. """
+    r = fapi.get_bucket_usage(args.project, args.workspace)
+    fapi._check_response_code(r, 200)
+    return r.text
+
+@fiss_cmd
+def space_cost(args):
+    """ Get average monthly storage cost of a workspace. """
+    r = fapi.get_storage_cost(args.project, args.workspace)
+    fapi._check_response_code(r, 200)
+    return r.text
+
+@fiss_cmd
 def space_delete(args):
     """ Delete a workspace. """
     message = "WARNING: this will delete workspace: \n\t{0}/{1}".format(
@@ -1320,7 +1334,7 @@ def mop(args):
                             bucket_prefix)
 
     ## Now list files present in the bucket
-    def list_blob_gen(bucket_name: str):
+    def list_blob_gen(bucket_name):
         """Generate the list of blobs in the bucket and size of each blob
 
         Args:
@@ -2280,6 +2294,17 @@ def main(argv=None):
     subp = subparsers.add_parser('space_info', parents=[workspace_parent],
                                  description='Show workspace information')
     subp.set_defaults(func=space_info)
+
+    # Get workspace size
+    subp = subparsers.add_parser('space_size', parents=[workspace_parent],
+                                 description='Show workspace bucket usage')
+    subp.set_defaults(func=space_size)
+
+    # Get workspace monthly cost
+    subp = subparsers.add_parser('space_cost', parents=[workspace_parent],
+                                 description='Show workspace average monthly' +
+                                 ' cost')
+    subp.set_defaults(func=space_cost)
 
     # List workspaces
     subp = subparsers.add_parser('space_list',

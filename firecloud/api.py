@@ -28,6 +28,7 @@ from google.oauth2 import id_token
 
 from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
+from firecloud.fccore import release_tuple_from_version_string
 from firecloud.__about__ import __version__
 
 FISS_USER_AGENT = "FISS/" + __version__
@@ -52,8 +53,14 @@ def _set_session():
             __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
                                                                'https://www.googleapis.com/auth/userinfo.email'])[0])
             health()
-            __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
-                                                     Request(session=__SESSION))['email']
+            # google.auth 2.1.0 introduced a restrictive clock skew that was unmodifiable until 2.3.2
+            if release_tuple_from_version_string(google.auth.__version__) >= (2,3,2):
+                __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
+                                                         Request(session=__SESSION),
+                                                         clock_skew_in_seconds=10)['email']
+            else:
+                __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
+                                                         Request(session=__SESSION))['email']
         except AttributeError:
             __USER_ID = __SESSION.credentials.service_account_email
         except (DefaultCredentialsError, RefreshError) as gae:
@@ -1364,7 +1371,7 @@ def get_storage_cost(namespace, workspace):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
     Swagger:
-        https://api.firecloud.org/#!/Workspaces/storageCostEstimate
+        https://api.firecloud.org/#/Workspaces/getStorageCostEstimate
     """
     uri = "workspaces/{0}/{1}/storageCostEstimate".format(namespace, workspace)
     return __get(uri)

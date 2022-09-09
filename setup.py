@@ -142,7 +142,7 @@ setup(
     },
     test_suite = 'nose.collector',
     install_requires = [
-        'google-auth>=1.6.3',
+        'google-auth>=1.6.3,!=2.1.*,!=2.2.*,!=2.3.0,!=2.3.1',
         'google-cloud-storage>=1.36.1',
         'pydot',
         'requests[security]',
