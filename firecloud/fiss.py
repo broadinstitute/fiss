@@ -476,7 +476,7 @@ def meth_acl(args):
                                                     args.snapshot_id)
     fapi._check_response_code(r, 200)
     acls = sorted(r.json(), key=lambda k: k['user'])
-    return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
+    return ['{0}\t{1}'.format(acl['user'], acl['role']) for acl in acls]
 
 @fiss_cmd
 def meth_set_acl(args):
@@ -668,7 +668,7 @@ def config_acl(args):
                                                     args.snapshot_id)
     fapi._check_response_code(r, 200)
     acls = sorted(r.json(), key=lambda k: k['user'])
-    return map(lambda acl: '{0}\t{1}'.format(acl['user'], acl['role']), acls)
+    return ['{0}\t{1}'.format(acl['user'], acl['role']) for acl in acls]
 
 @fiss_cmd
 def config_set_acl(args):
