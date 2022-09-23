@@ -21,6 +21,8 @@ except ImportError:
 from six.moves.urllib.parse import urlencode, urljoin
 from six import string_types
 
+import inspect
+
 import google.auth
 from google.auth.exceptions import DefaultCredentialsError, RefreshError
 from google.auth.transport.requests import AuthorizedSession, Request
@@ -28,7 +30,6 @@ from google.oauth2 import id_token
 
 from firecloud.errors import FireCloudServerError
 from firecloud.fccore import __fcconfig as fcconfig
-from firecloud.fccore import release_tuple_from_version_string
 from firecloud.__about__ import __version__
 
 FISS_USER_AGENT = "FISS/" + __version__
@@ -49,12 +50,18 @@ def _set_session():
     global __USER_ID
     
     if __SESSION is None:
+        # determine if clock_skew_in_seconds is a parameter for id_token.verify_oauth2_token()
+        try:  # PY3
+            argspec = inspect.getfullargspec(id_token.verify_oauth2_token)
+        except AttributeError:  # PY2
+            argspec = inspect.getargspec(id_token.verify_oauth2_token)
+            
         try:
             __SESSION = AuthorizedSession(google.auth.default(['https://www.googleapis.com/auth/userinfo.profile',
                                                                'https://www.googleapis.com/auth/userinfo.email'])[0])
             health()
             # google.auth 2.1.0 introduced a restrictive clock skew that was unmodifiable until 2.3.2
-            if release_tuple_from_version_string(google.auth.__version__) >= (2,3,2):
+            if 'clock_skew_in_seconds' in argspec.args:
                 __USER_ID = id_token.verify_oauth2_token(__SESSION.credentials.id_token,
                                                          Request(session=__SESSION),
                                                          clock_skew_in_seconds=10)['email']

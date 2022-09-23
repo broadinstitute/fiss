@@ -1374,10 +1374,17 @@ def mop(args):
 
         # Check to see if bucket file path contain the user's submission id
         # to ensure deletion of files in the submission directories only.
-        # Splits the bucket file: "gs://bucket_Id/submission_id/file_path", by the '/' symbol
-        # and stores values in a 5 length array: ['gs:', '' , 'bucket_Id', submission_id, file_path]
-        # to extract the submission id from the 4th element (index 3) of the array
-        bucket_files = set(bucket_file for bucket_file in bucket_file_sizes if bucket_file.split('/', 4)[3] in submission_ids)
+        # Splits the bucket file: gs://<bucket>/<submission_id>/<file_path> or
+        #                         gs://<bucket>/submissions/<submission_id>/<file_path>, by the '/' symbol
+        # and stores values in a 6 length array: ['gs:', '' , <bucket>, <submission_id>, <workflow_name>, <file_path>] or
+        #                                        ['gs:', '' , <bucket>, 'submissions', <submission_id>, <file_path>]
+        # to extract the submission id from the 4th or 5th element (index 3 or 4) of the array
+        bucket_files = set()
+        for bucket_file in bucket_file_sizes:
+            for sub_id in bucket_file.split('/', 5)[3:5]:
+                if sub_id in submission_ids:
+                    bucket_files.add(bucket_file)
+                    break
         
     except Exception as e:
         eprint("Error retrieving files from bucket:" +
@@ -1428,11 +1435,16 @@ def mop(args):
             return False
         if filename == "rc":
             return False
+        if filename == "memory_retry_rc":
+            return False
         # Don't delete tool's exec.sh or script
         if filename in ('exec.sh', 'script'):
             return False
         # keep stdout, stderr, and output
         if filename in ('stderr', 'stdout', 'output'):
+            return False
+        # Don't delete utility scripts
+        if filename in ('gcs_localization.sh', 'gcs_delocalization.sh', 'gcs_transfer.sh'):
             return False
         # Only delete specified unreferenced files
         if args.include:
