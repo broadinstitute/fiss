@@ -3,6 +3,12 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 =======================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.34 - Hotfixes: in Python 2 map() returns a list, in Python 3, map()
+           returns a generator object - tasks that returned map(f(x),iterable)
+           now return a list comprehension; clock-skew now checks for argument
+           presence at runtime rather than google.auth version; mop HL function
+           updated to account for new output path structure in Terra.
+
 v0.16.33 - HL: added space_size, space_cost; hotfixes: fixed Python 2 compatibility;
            blocked google-auth versions with restrictive clock-skew and enabled
            later versions with modifiable clock-skew, increasing clock-skew
