@@ -1,7 +1,11 @@
-=======================================================================
+================================================================================
 Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
-=======================================================================
+================================================================================
 Terms used below:  HL = high level interface, LL = low level interface
+
+v0.16.35 - Hotfix: mop returned errors in Python 2 when trying to read the
+           workspace bucket - bucket listing updated to use the workspace
+           billing project, and the error report was cleaned up.
 
 v0.16.34 - Hotfixes: in Python 2 map() returns a list, in Python 3, map()
            returns a generator object - tasks that returned map(f(x),iterable)

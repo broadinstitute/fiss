@@ -1343,7 +1343,7 @@ def mop(args):
         Yields:
             tuple: File name and the size of the file
         """
-        client_st = storage.Client()
+        client_st = storage.Client(project=args.project)
         blobs = client_st.list_blobs(bucket_name)
         for blob in blobs:
             yield ("gs://{}/{}".format(blob.bucket.name, blob.name), int(blob.size))
@@ -1388,7 +1388,7 @@ def mop(args):
         
     except Exception as e:
         eprint("Error retrieving files from bucket:" +
-               "\n\t{}\n\t{}".format(str(e), e.output))
+               "\n\t{}: {}".format(type(e).__name__, e))
         return 1
 
     if args.verbose:
