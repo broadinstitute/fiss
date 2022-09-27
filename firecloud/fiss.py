@@ -1388,7 +1388,7 @@ def mop(args):
         
     except Exception as e:
         eprint("Error retrieving files from bucket:" +
-               "\n\t{}: {}".format(type(e).__name__), e)
+               "\n\t{}: {}".format(type(e).__name__, e))
         return 1
 
     if args.verbose:
