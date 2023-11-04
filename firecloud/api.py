@@ -1126,12 +1126,12 @@ def get_api_methods_definitions():
 #################
 
 def list_billing_projects():
-    """Get activation information for the logged-in user.
+    """list billing projects for a user.
 
     Swagger:
-        https://api.firecloud.org/#!/Profile/billing
+        https://api.firecloud.org/#/BillingV2/listUserBillingProjectsV2
     """
-    return __get("profile/billing")
+    return __get("billing/v2")
 
 def get_proxy_group(email=None):
     """Returns the proxy group email for the current user

@@ -1729,9 +1729,9 @@ def proj_list(args):
     projects = fapi.list_billing_projects()
     fapi._check_response_code(projects, 200)
     projects = sorted(projects.json(), key=lambda d: d['projectName'])
-    l = map(lambda p: '{0}\t{1}'.format(p['projectName'], p['role']), projects)
+    l = map(lambda p: '{0}\t{1}'.format(p['projectName'], ', '.join(sorted(p['roles']))), projects)
     # FIXME: add username col to output, for when iterating over multiple users
-    return ["Project\tRole"] + list(l)
+    return ["Project\tRole(s)"] + list(l)
 
 @fiss_cmd
 def config_validate(args):
