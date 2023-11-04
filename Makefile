@@ -84,7 +84,7 @@ publish: clean
 	rm -rf build dist *.egg-info
 
 image:
-	docker build -t broadgdac/fiss .
+	docker build --platform=linux/amd64 -t broadgdac/fiss .
 
 clean:
 	rm -rf build dist .eggs *.egg-info *~ */*~ *.pyc */*.pyc
