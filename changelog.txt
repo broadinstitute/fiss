@@ -3,6 +3,9 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 ================================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.37 - LL: enhanced get_workflow_metadata to include the arguments
+           include_key, exclude_key, and expand_sub_workflows to match the API.
+
 v0.16.36 - Hotfix: the old billing API is being removed, HL and LL updated to
            use the new one; Makefile updated to ensure image is built for
            linux/amd64; Dockerfile updated to use latest Python-3.10.
