@@ -1293,7 +1293,9 @@ def get_submission(namespace, workspace, submission_id):
                                             workspace, submission_id)
     return __get(uri)
 
-def get_workflow_metadata(namespace, workspace, submission_id, workflow_id):
+def get_workflow_metadata(namespace, workspace, submission_id, workflow_id,
+                          include_key=None, exclude_key=None,
+                          expand_sub_workflows=False):
     """Request the metadata for a workflow in a submission.
 
     Args:
@@ -1301,13 +1303,28 @@ def get_workflow_metadata(namespace, workspace, submission_id, workflow_id):
         workspace (str): Workspace name
         submission_id (str): Submission's unique identifier
         workflow_id (str): Workflow's unique identifier.
+        include_key (array[str]): When specified, return only these keys in the
+            response. Matches any key in the response, including within nested
+            blocks. May not be used with exclude_key.
+        exclude_key (array[str]): When specified, omit these keys from the
+            response. Matches any key in the response, including within nested
+            blocks. May not be used with include_key.
+        expand_sub_workflows (bool): When true, metadata for sub workflows will
+            be fetched and inserted automatically in the metadata response.
 
     Swagger:
         https://api.firecloud.org/#!/Submissions/workflowMetadata
     """
     uri = "workspaces/{0}/{1}/submissions/{2}/workflows/{3}".format(namespace,
                                             workspace, submission_id, workflow_id)
-    return __get(uri)
+    params = {}
+    if include_key is not None:
+        params["includeKey"] = include_key
+    if exclude_key is not None:
+        params["excludeKey"] = exclude_key
+    if expand_sub_workflows:
+        params["expandSubWorkflows"] = expand_sub_workflows
+    return __get(uri, params=params)
 
 def get_workflow_outputs(namespace, workspace, submission_id, workflow_id):
     """Request the outputs for a workflow in a submission.
@@ -1514,7 +1531,7 @@ def update_workspace_acl(namespace, workspace, acl_updates, invite_users_not_fou
     return __SESSION.patch(uri, headers=headers, data=json.dumps(acl_updates))
 
 def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
-                    authorizationDomain="", copyFilesWithPrefix=None):
+                    authorizationDomain="", copyFilesWithPrefix=None, bucketLocation=None):
     """Clone a FireCloud workspace.
 
     A clone is a shallow copy of a FireCloud workspace, enabling
@@ -1549,6 +1566,8 @@ def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
     
     if copyFilesWithPrefix is not None:
         body["copyFilesWithPrefix"] = copyFilesWithPrefix
+    if bucketLocation is not None:
+        body["bucketLocation"] = bucketLocation
 
     uri = "workspaces/{0}/{1}/clone".format(from_namespace, from_workspace)
     return __post(uri, json=body)
