@@ -124,14 +124,14 @@ def space_size(args):
     """ Get storage size of a workspace. """
     r = fapi.get_bucket_usage(args.project, args.workspace)
     fapi._check_response_code(r, 200)
-    return r.text
+    return r.json()["usageInBytes"]
 
 @fiss_cmd
 def space_cost(args):
     """ Get average monthly storage cost of a workspace. """
     r = fapi.get_storage_cost(args.project, args.workspace)
     fapi._check_response_code(r, 200)
-    return r.text
+    return r.json()["estimate"]
 
 @fiss_cmd
 def space_delete(args):
