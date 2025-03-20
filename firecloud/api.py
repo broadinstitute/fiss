@@ -1191,7 +1191,8 @@ def create_submission(wnamespace, workspace, cnamespace, config,
                       entity=None, etype=None, expression=None,
                       use_callcache=True, delete_intermediate_output_files=False,
                       use_reference_disks=False, memory_retry_multiplier=0,
-                      workflow_failure_mode="", user_comment=""):
+                      per_workflow_cost_cap=None, workflow_failure_mode="",
+                      user_comment=""):
     """Submit job in FireCloud workspace.
 
     Args:
@@ -1218,6 +1219,8 @@ def create_submission(wnamespace, workspace, cnamespace, config,
             Cromwell docs
             (https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory)
             for more information
+        per_workflow_cost_cap (float): A cost threshold in USD to apply to individual
+            workflows. When the estimated cost is exceeded, the workflow is terminated.
         workflow_failure_mode (str): What happens after a task fails. Choose from
             ContinueWhilePossible and NoNewCalls. Defaults to NoNewCalls if not
             specified. See Cromwell docs
@@ -1254,6 +1257,9 @@ def create_submission(wnamespace, workspace, cnamespace, config,
     
     if memory_retry_multiplier:
         body['memoryRetryMultiplier'] = memory_retry_multiplier
+
+    if per_workflow_cost_cap:
+        body['perWorkflowCostCap'] = per_workflow_cost_cap
     
     if workflow_failure_mode:
         body['workflowFailureMode'] = workflow_failure_mode

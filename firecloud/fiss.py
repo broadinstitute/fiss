@@ -602,8 +602,8 @@ def config_start(args):
                                args.config, args.entity, args.entity_type,
                                args.expression, cache, 
                                args.delete_intermediates, args.ref_disks,
-                               args.mem_retry_multiplier, args.failure_mode,
-                               args.user_comment)
+                               args.mem_retry_multiplier, args.per_workflow_cost_cap,
+                               args.failure_mode, args.user_comment)
     fapi._check_response_code(r, 201)
     id = r.json()['submissionId']
 
@@ -2805,6 +2805,10 @@ def main(argv=None):
                       'this amount. See Cromwell docs ' +
                       '(https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory)' +
                       ' for more information.')
+    subp.add_argument('-p', '--per_workflow_cost_cap', type=float,
+                      help='A cost threshold in USD to apply to individual ' +
+                      'workflows. When the estimated cost is exceeded, the ' +
+                      'workflow is terminated.')
     subp.add_argument('-f', '--failure_mode',
                       choices=['NoNewCalls', 'ContinueWhilePossible'],
                       help='What happens after a task fails. Defaults to ' +
