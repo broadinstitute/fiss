@@ -1395,9 +1395,9 @@ def get_storage_cost(namespace, workspace):
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
     Swagger:
-        https://api.firecloud.org/#/Workspaces/getStorageCostEstimate
+        https://api.firecloud.org/#/WorkspacesV2/getStorageCostEstimateV2
     """
-    uri = "workspaces/{0}/{1}/storageCostEstimate".format(namespace, workspace)
+    uri = "workspaces/v2/{0}/{1}/storageCostEstimate".format(namespace, workspace)
     return __get(uri)
 
 def get_bucket_usage(namespace, workspace):
@@ -1405,11 +1405,8 @@ def get_bucket_usage(namespace, workspace):
     Args:
         namespace (str): project to which workspace belongs
         workspace (str): Workspace name
-    Swagger:
-        https://api.firecloud.org/#!/Workspaces/getBucketUsage
     """
-    uri = "workspaces/{0}/{1}/bucketUsage".format(namespace, workspace)
-    return __get(uri)
+    return get_storage_cost(namespace, workspace)
 
 def create_workspace(namespace, name, authorizationDomain="", attributes=None,
                      noWorkspaceOwner=False, bucketLocation=""):
