@@ -13,3 +13,6 @@ firecloud.egg-info/*
 # visual code settings
 .vscode
 firecloud.code-workspace
+
+# IntelliJ IDEA settings
+.idea
