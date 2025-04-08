@@ -2805,7 +2805,7 @@ def main(argv=None):
                       'this amount. See Cromwell docs ' +
                       '(https://cromwell.readthedocs.io/en/develop/cromwell_features/RetryWithMoreMemory)' +
                       ' for more information.')
-    subp.add_argument('-p', '--per_workflow_cost_cap', type=float,
+    subp.add_argument('-P', '--per_workflow_cost_cap', type=float,
                       help='A cost threshold in USD to apply to individual ' +
                       'workflows. When the estimated cost is exceeded, the ' +
                       'workflow is terminated.')
