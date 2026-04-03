@@ -8,7 +8,7 @@ from distutils import log
 from shutil import rmtree
 from setuptools import setup, find_packages, Command
 from setuptools.command.install import install
-from setuptools.package_index import PackageIndex
+from urllib.request import urlretrieve
 from firecloud.__about__ import __version__
 from firecloud import which
 _README           = os.path.join(os.path.dirname(__file__), 'README')
@@ -46,7 +46,7 @@ class InstallGcloudCommand(Command):
         self.silent = None
         self.curl = None
         self.bash = None
-        self.package_index = None
+
 
     def finalize_options(self):
 
@@ -59,7 +59,6 @@ class InstallGcloudCommand(Command):
             self.silent = "/S"
             self.gcloud_url = "https://dl.google.com/dl/cloudsdk/channels/" \
                               "rapid/GoogleCloudSDKInstaller.exe"
-        self.package_index = PackageIndex()
 
     # Copied from setuptools.command.easy_install.easy_install
     @contextlib.contextmanager
@@ -76,8 +75,11 @@ class InstallGcloudCommand(Command):
                    "https://cloud.google.com/sdk/downloads"
         if platform.system() == "Windows":
             with self._tmpdir() as tmpdir:
-                gcloud_install_cmd = \
-                       self.package_index.download(self.gcloud_url, tmpdir)
+                # Replaces PackageIndex.download logic
+                filename = self.gcloud_url.split('/')[-1]
+                gcloud_install_cmd = os.path.join(tmpdir, filename)
+                urlretrieve(self.gcloud_url, gcloud_install_cmd)
+                
                 try:
                     output = subprocess.check_output([gcloud_install_cmd,
                                                       self.silent],
