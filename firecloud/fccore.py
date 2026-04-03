@@ -134,7 +134,7 @@ def config_parse(files=None, config=None, config_profile=".fissconfig", **kwargs
     local_config = config
     config = __fcconfig
 
-    cfgparser = configparser.SafeConfigParser()
+    cfgparser = configparser.ConfigParser()
 
     filenames = list()
 
