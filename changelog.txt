@@ -3,6 +3,9 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 ================================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.39 - Hotfix: setup.py logic modified to no longer use removed
+           setuptools.package_index. 
+
 v0.16.38 - LL: updated get_storage_cost and get_bucket_usage to use the new
            getStorageCostEstimateV2 API; HL: updated space_size and space_cost
            to return the applicable fields.
