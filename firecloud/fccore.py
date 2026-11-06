@@ -17,7 +17,6 @@ file for the SOFTWARE COPYRIGHT and WARRANTY NOTICE.
 from __future__ import print_function
 import sys
 import os
-import configparser
 import tempfile
 import shutil
 import subprocess
@@ -25,6 +24,7 @@ from io import IOBase
 from firecloud import __about__
 from google.auth import environment_vars
 from six import string_types
+from six.moves import configparser
 
 try:
     from collections.abc import Iterable
@@ -134,7 +134,7 @@ def config_parse(files=None, config=None, config_profile=".fissconfig", **kwargs
     local_config = config
     config = __fcconfig
 
-    cfgparser = configparser.SafeConfigParser()
+    cfgparser = configparser.ConfigParser()
 
     filenames = list()
 

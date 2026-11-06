@@ -2105,7 +2105,7 @@ __PatternsToFilter = [
     # This provides a systematic way of turning complex FireCloud messages into
     # shorter, more comprehensible feedback: each filter entry has the form
     #  [regex_to_match, replacement_template, match_groups_to_fill_in_template]
-    ['^(.+)SlickWorkspaceContext\(Workspace\(([^,]+),([^,]*).*$', '%s%s::%s', (1,2,3) ],
+    [r'^(.+)SlickWorkspaceContext\(Workspace\(([^,]+),([^,]*).*$', '%s%s::%s', (1,2,3) ],
 ]
 for i in range(len(__PatternsToFilter)):
     __PatternsToFilter[i][0] = re.compile(__PatternsToFilter[i][0])
