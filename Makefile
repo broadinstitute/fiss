@@ -131,11 +131,16 @@ release:
 		{ echo "Error: releases are tagged from master" >&2; exit 1; }
 	@test -z "$$(git status --porcelain --untracked-files=no)" || \
 		{ echo "Error: uncommitted changes" >&2; exit 1; }
-	@git fetch -q --tags origin master
+	@# Fetch master only: fetching all tags fails on any harmless local/remote
+	@# tag difference (e.g. annotated vs lightweight) unrelated to this release
+	@git fetch -q origin master || \
+		{ echo "Error: could not fetch master from origin" >&2; exit 1; }
 	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse FETCH_HEAD)" || \
 		{ echo "Error: master differs from origin/master" >&2; exit 1; }
 	@! git rev-parse -q --verify "refs/tags/v$(VERSION)" > /dev/null || \
-		{ echo "Error: tag v$(VERSION) already exists" >&2; exit 1; }
+		{ echo "Error: tag v$(VERSION) already exists locally" >&2; exit 1; }
+	@! git ls-remote --exit-code --tags origin "refs/tags/v$(VERSION)" > /dev/null || \
+		{ echo "Error: tag v$(VERSION) already exists on origin" >&2; exit 1; }
 	@$(ROOT)/util/changelog_notes.py $(VERSION) > /dev/null
 	git tag -a v$(VERSION) -m "FISS v$(VERSION)"
 	git push origin v$(VERSION)
