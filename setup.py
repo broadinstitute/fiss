@@ -4,11 +4,16 @@ import platform
 import contextlib
 import tempfile
 import subprocess
-from distutils import log
 from shutil import rmtree
+# Import setuptools before distutils: on Python 3.12+ distutils is only
+# available through the copy setuptools provides
 from setuptools import setup, find_packages, Command
 from setuptools.command.install import install
-from urllib.request import urlretrieve
+from distutils import log
+try:
+    from urllib.request import urlretrieve  # Python 3
+except ImportError:
+    from urllib import urlretrieve  # Python 2
 from firecloud.__about__ import __version__
 from firecloud import which
 _README           = os.path.join(os.path.dirname(__file__), 'README')
@@ -142,20 +147,25 @@ setup(
             # 'fiss = firecloud.fiss:main'
         ]
     },
-    test_suite = 'nose.collector',
     install_requires = [
-        'google-auth>=1.6.3,!=2.1.*,!=2.2.*,!=2.3.0,!=2.3.1',
+        # Python 2.7: the last google-cloud-storage release supporting it
+        # (1.44) requires google-auth<2; pip's legacy resolver won't infer it
+        'google-auth>=1.6.3,<2; python_version<"3"',
+        'google-auth>=1.6.3,!=2.1.*,!=2.2.*,!=2.3.0,!=2.3.1; python_version>="3"',
         'google-cloud-storage>=1.36.1',
         'pydot',
         'requests[security]',
         'setuptools>=40.3.0',
-        'six',
-        'nose',
-        'pylint>=1.9.5'
+        'six'
     ],
+    extras_require = {
+        'test': ['pylint>=1.9.5']
+    },
     classifiers = [
         "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.14",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator"

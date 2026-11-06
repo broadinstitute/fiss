@@ -3,7 +3,6 @@
 from __future__ import print_function
 import unittest
 import time
-import nose
 import sys
 import os
 from getpass import getuser
@@ -492,7 +491,7 @@ class TestFISSLowLevel(unittest.TestCase):
         pass
 
 def main():
-    nose.main()
+    unittest.main()
 
 if __name__ == '__main__':
     main()

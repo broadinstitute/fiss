@@ -161,9 +161,16 @@ def space_clone(args):
         eprint("Error: destination project and namespace must differ from"
                " cloned workspace")
         return 1
+    space_metadata = json.loads(space_info(args))
+    if not args.bucketLocation:
+        args.bucketLocation = space_metadata['bucketOptions']['location'].lower()
+    authdomain = ""
+    if space_metadata['workspace']['authorizationDomain']:
+        authdomain = [ad['membersGroupName'] for ad in space_metadata['workspace']['authorizationDomain']]
 
     r = fapi.clone_workspace(args.project, args.workspace, args.to_project,
-                             args.to_workspace, args.copyFilesWithPrefix)
+                             args.to_workspace, authdomain, args.copyFilesWithPrefix,
+                             args.bucketLocation)
     fapi._check_response_code(r, 201)
 
     if fcconfig.verbosity:
@@ -2098,7 +2105,7 @@ __PatternsToFilter = [
     # This provides a systematic way of turning complex FireCloud messages into
     # shorter, more comprehensible feedback: each filter entry has the form
     #  [regex_to_match, replacement_template, match_groups_to_fill_in_template]
-    ['^(.+)SlickWorkspaceContext\(Workspace\(([^,]+),([^,]*).*$', '%s%s::%s', (1,2,3) ],
+    [r'^(.+)SlickWorkspaceContext\(Workspace\(([^,]+),([^,]*).*$', '%s%s::%s', (1,2,3) ],
 ]
 for i in range(len(__PatternsToFilter)):
     __PatternsToFilter[i][0] = re.compile(__PatternsToFilter[i][0])
@@ -2346,6 +2353,9 @@ def main(argv=None):
                                  parents=[workspace_parent, dest_space_parent])
     subp.add_argument('-f', '--copyFilesWithPrefix', help='Specify a prefix ' +
                       'of bucket objects to copy to the destination workspace')
+    subp.add_argument('-b', '--bucketLocation', help='Bucket location for ' +
+                      'the destination workspace. If not provided, the ' +
+                      'location of the source workspace bucket will be used.')
     subp.set_defaults(func=space_clone)
 
     # Import data into a workspace

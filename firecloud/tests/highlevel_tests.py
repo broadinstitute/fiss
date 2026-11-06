@@ -6,7 +6,6 @@ import logging
 import sys
 import os
 from getpass import getuser
-import nose
 import json
 from firecloud.fiss import main as fiss_func
 from firecloud.fiss import main_as_cli as fiss_cli
@@ -507,7 +506,7 @@ class TestFISSHighLevel(unittest.TestCase):
         except FireCloudServerError as e:
             self.assertEqual(e.code, 404)
 def main():
-    nose.main()
+    unittest.main()
 
 if __name__ == '__main__':
     main()

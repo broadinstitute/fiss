@@ -16,3 +16,4 @@ firecloud.code-workspace
 
 # IntelliJ IDEA settings
 .idea
+.DS_Store

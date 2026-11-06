@@ -12,14 +12,16 @@
 # appropriately, and non-usable eggs get installed.
 
 Version=0.1.0
-ThisBinDir=$(cd $(dirname "$0"); pwd)
-PythonLint=`sh $ThisBinDir/findPython.sh`/bin/pylint
-if [ ! -x $PythonLint ] ; then 
-    echo "FATAL ERROR: did not find pylint at $PythonLint" >&2
+# Lint with the same interpreter the Makefile uses ($PYTHON), so that code is
+# checked against the Python version it will run under
+Python=${PYTHON:-python}
+if ! "$Python" -m pylint --version > /dev/null 2>&1 ; then
+    echo "FATAL ERROR: pylint is not installed for $Python" \
+         "(try: make install_test)" >&2
     exit 1
 fi
 
-Tmp=/tmp/pylint-${LOGNAME}-${RANDOM}.txt
+Tmp=$(mktemp "${TMPDIR:-/tmp}/pylint.XXXXXX")
 trap '\rm -f $Tmp' EXIT                     # Clean up anything left over
 
 if [ "$1" = "-x" ] ; then 
@@ -27,7 +29,7 @@ if [ "$1" = "-x" ] ; then
     shift
 fi
 
-$PythonLint \
+"$Python" -m pylint \
     --output-format=colorized \
     --rcfile=/dev/null \
     --msg-template="{path}:{line}: [{msg_id}] {msg}" \
@@ -37,6 +39,6 @@ $PythonLint \
     > $Tmp 2>&1
 
 # Only truly fatal errors are flagged, mere stylistic complaints are ignored
-egrep -i "importerror|syntax|E0001|E1300|undefined" $Tmp
+grep -E -i "importerror|syntax|E0001|E1300|undefined" $Tmp
 test $? -eq 0 && exit 2
 exit 0
