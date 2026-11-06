@@ -1,0 +1,135 @@
+name: Release
+
+# Pushing a version tag (see `make release`) publishes that version to PyPI
+# and Docker Hub (broadgdac/fiss:<version> and :latest), then creates the
+# matching GitHub Release. The sdist and Docker image are built and checked
+# before anything is published, and the GitHub Release is only created once
+# both pushes have succeeded.
+#
+# PyPI authenticates this workflow via Trusted Publishing (no API token):
+# the firecloud project on PyPI trusts broadinstitute/fiss, workflow
+# release.yml, environment "pypi". Docker Hub uses the DOCKERHUB_USERNAME
+# and DOCKERHUB_TOKEN repository secrets.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Check tag matches package version
+        run: |
+          version=$(python -c 'exec(open("firecloud/__about__.py").read()); print(__version__)')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match __version__ ($version) in firecloud/__about__.py"
+            exit 1
+          fi
+      - name: Extract release notes from changelog.txt
+        run: python util/changelog_notes.py "$GITHUB_REF_NAME" > release-notes.md
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade build
+          python -m build --sdist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+      - name: Build and check Docker image
+        run: |
+          make image
+          docker save broadgdac/fiss | gzip > docker-image.tar.gz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docker-image
+          path: docker-image.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/firecloud/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Lets a re-run proceed to the GitHub Release if the upload had
+          # already succeeded
+          skip-existing: true
+
+  docker:
+    needs: pypi
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout only for the Makefile; the image itself is the one built
+      # and checked in the build job
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: docker-image
+      - name: Push Docker image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          gunzip -c docker-image.tar.gz | docker load
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          make push_image
+          docker logout
+
+  github-release:
+    needs: [pypi, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-notes
+      - name: Create GitHub Release
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; uploading assets only"
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            # Changelog entry first, then GitHub's generated PR list and
+            # compare link, as in earlier releases
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file release-notes.md \
+              --generate-notes
+          fi

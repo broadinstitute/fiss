@@ -8,6 +8,7 @@ __PATH__=$(abspath $(dir $(__FILE__)))
 ROOT=$(__PATH__)
 PYTHON_HOME=$(shell $(ROOT)/util/findPython.sh python$(PYTHON_VER))
 PYLINT=$(ROOT)/util/pylint_wrap.sh
+VERSION=$(shell sed -n 's/^__version__ *= *"\(.*\)"/\1/p' $(ROOT)/firecloud/__about__.py)
 
 DEST=$(PYTHON_HOME)
 BIN_DIR=$(DEST)/bin                 # Python virtual environment here
@@ -37,7 +38,11 @@ help:
 	@echo  "2. install              Install locally with pip"
 	@echo  "   install_test         Install locally, with test dependencies"
 	@echo  "3. uninstall            Uninstall with pip"
-	@echo  "4. publish              Submit to PyPI"
+	@echo  "4. release              Tag and push v<version> from master; GitHub"
+	@echo  "                        Actions then publishes to PyPI and Docker Hub"
+	@echo  "                        and creates the GitHub Release"
+	@echo  "   publish              Submit to PyPI manually (fallback only)"
+	@echo  "   image, push_image    Build/push the Docker image manually (fallback)"
 	@echo
 
 test: lintify invoke_tests
@@ -117,17 +122,43 @@ reinstall:
 uninstall:
 	$(PIP) uninstall -y firecloud
 
+# Pre-flight checks, then push the version tag that triggers
+# .github/workflows/release.yml (PyPI upload and Docker image push, then
+# GitHub Release)
+release:
+	@test -n "$(VERSION)" || { echo "Error: no __version__ found" >&2; exit 1; }
+	@test "$$(git rev-parse --abbrev-ref HEAD)" = master || \
+		{ echo "Error: releases are tagged from master" >&2; exit 1; }
+	@test -z "$$(git status --porcelain --untracked-files=no)" || \
+		{ echo "Error: uncommitted changes" >&2; exit 1; }
+	@git fetch -q --tags origin master
+	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse FETCH_HEAD)" || \
+		{ echo "Error: master differs from origin/master" >&2; exit 1; }
+	@! git rev-parse -q --verify "refs/tags/v$(VERSION)" > /dev/null || \
+		{ echo "Error: tag v$(VERSION) already exists" >&2; exit 1; }
+	@$(ROOT)/util/changelog_notes.py $(VERSION) > /dev/null
+	git tag -a v$(VERSION) -m "FISS v$(VERSION)"
+	git push origin v$(VERSION)
+	@echo "Release workflow: https://github.com/broadinstitute/fiss/actions/workflows/release.yml"
+
 publish: clean
 	$(PYTHON) setup.py sdist && \
 	twine upload dist/* && \
 	rm -rf build dist *.egg-info
 
+IMAGE=broadgdac/fiss
 image:
-	docker build --platform=linux/amd64 -t broadgdac/fiss .
+	docker build --platform=linux/amd64 -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
+	@test "$$(docker run --rm $(IMAGE):$(VERSION) fissfc --version)" = "$(VERSION)" || \
+		{ echo "Error: fissfc --version in $(IMAGE):$(VERSION) is not $(VERSION)" >&2; exit 1; }
+
+push_image:
+	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
 
 clean:
 	rm -rf build dist .eggs *.egg-info *~ */*~ *.pyc */*.pyc
 
 .PHONY: help test test3 test_cli test_highlevel test_lowlevel test_smoke \
 	test_one test27 test314 test_docker invoke_tests install install_test \
-	reinstall uninstall publish image clean lintify
+	reinstall uninstall release publish image push_image clean lintify

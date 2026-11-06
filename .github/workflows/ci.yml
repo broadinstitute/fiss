@@ -1,0 +1,27 @@
+name: CI
+
+# Lint and offline smoke tests on the oldest and newest supported Pythons.
+# Tests run in python:<version> containers via the same make targets used
+# locally (make test27 / make test314). The live FireCloud tests need
+# credentials and are run manually (make test).
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [test27, test314]
+    steps:
+      - uses: actions/checkout@v7
+      - run: make ${{ matrix.target }}
