@@ -609,8 +609,8 @@ def config_start(args):
                                args.config, args.entity, args.entity_type,
                                args.expression, cache, 
                                args.delete_intermediates, args.ref_disks,
-                               args.mem_retry_multiplier, args.per_workflow_cost_cap,
-                               args.failure_mode, args.user_comment)
+                               args.mem_retry_multiplier, args.failure_mode,
+                               args.user_comment, args.per_workflow_cost_cap)
     fapi._check_response_code(r, 201)
     id = r.json()['submissionId']
 
