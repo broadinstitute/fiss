@@ -3,6 +3,15 @@ Change Log for FISSFC: the (Fi)recloud (S)ervice (S)elector
 ================================================================================
 Terms used below:  HL = high level interface, LL = low level interface
 
+v0.16.41 - LL: added per_workflow_cost_cap parameter to create_submission, a
+           cost threshold in USD above which individual workflows are
+           terminated (added after existing parameters, so positional calls
+           are unaffected); HL: config_start accepts
+           -P/--per_workflow_cost_cap; tests: smoke tests check the CLI option
+           and create_submission's parameter order; make release no longer
+           fails on unrelated local/remote tag differences, and now also
+           checks origin for an existing version tag.
+
 v0.16.40 - Compatibility with Python 3.12 through 3.14 while retaining Python
            2.7 support: replaced SafeConfigParser (removed in Python 3.12)
            with ConfigParser via six.moves; fixed an invalid escape sequence

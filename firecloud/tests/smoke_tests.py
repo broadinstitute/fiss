@@ -102,6 +102,27 @@ class TestFISSSmoke(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("space_clone", out.split())
 
+    def test_create_submission_positional_order(self):
+        # New parameters must be appended, so existing positional callers of
+        # this public function keep working
+        import inspect
+        from firecloud import api
+        try:
+            params = inspect.getfullargspec(api.create_submission).args
+        except AttributeError:  # Python 2
+            params = inspect.getargspec(api.create_submission).args
+        self.assertEqual(params, [
+            "wnamespace", "workspace", "cnamespace", "config", "entity",
+            "etype", "expression", "use_callcache",
+            "delete_intermediate_output_files", "use_reference_disks",
+            "memory_retry_multiplier", "workflow_failure_mode",
+            "user_comment", "per_workflow_cost_cap"])
+
+    def test_cli_config_start_help(self):
+        code, out = run_cli("config_start", "-h")
+        self.assertEqual(code, 0)
+        self.assertIn("--per_workflow_cost_cap", out)
+
     def test_cli_space_clone_help(self):
         code, out = run_cli("space_clone", "-h")
         self.assertEqual(code, 0)
