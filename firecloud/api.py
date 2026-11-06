@@ -1539,8 +1539,12 @@ def clone_workspace(from_namespace, from_workspace, to_namespace, to_workspace,
         from_workspace (str): Source workspace's name
         to_namespace (str):  project to which target workspace belongs
         to_workspace (str): Target workspace's name
-        authorizationDomain: (str) required authorization domains
-        copyFilesWithPrefix: (str) prefix of bucket objects to copy to the destination workspace
+        authorizationDomain (str): required authorization domains
+        copyFilesWithPrefix (str): prefix of bucket objects to copy to the destination workspace
+        bucketLocation (str): Region (NOT multi-region) in which bucket
+                              attached to the workspace should be created. If
+                              not provided, the bucket will be created in the
+                              'US' multi-region.
 
     Swagger:
         https://api.firecloud.org/#!/Workspaces/cloneWorkspace
